@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronLeft, Check, X } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check } from 'lucide-react';
 import {
   EXPERIENCE_LEVELS,
   PLAY_FREQUENCIES,
@@ -64,7 +64,7 @@ export default function OnboardingFlow({ onComplete }) {
         {step === 3 && (
           <SelectionStep
             title="What's your level?"
-            subtitle="Be honest — this helps us personalize your coaching"
+            subtitle="Be honest — this helps us personalize your coaching. Every level has a unique growth path."
             options={EXPERIENCE_LEVELS}
             selected={[profile.level]}
             onSelect={(id) => updateProfile('level', id)}
@@ -76,7 +76,7 @@ export default function OnboardingFlow({ onComplete }) {
         {step === 4 && (
           <SelectionStep
             title="How often do you play?"
-            subtitle="Your frequency shapes your daily plan"
+            subtitle="Whether it's once a month or every day, we'll match your rhythm."
             options={PLAY_FREQUENCIES}
             selected={[profile.frequency]}
             onSelect={(id) => updateProfile('frequency', id)}
@@ -88,7 +88,7 @@ export default function OnboardingFlow({ onComplete }) {
         {step === 5 && (
           <SelectionStep
             title="Where do you struggle most?"
-            subtitle="Select all that apply — this is your growth map"
+            subtitle="Everyone has struggles — naming them is the first step to overcoming them."
             options={STRUGGLE_OPTIONS}
             selected={profile.struggles}
             onSelect={(id) => toggleArrayItem('struggles', id)}
@@ -100,7 +100,7 @@ export default function OnboardingFlow({ onComplete }) {
         {step === 6 && (
           <SelectionStep
             title="Technical weaknesses?"
-            subtitle="Where does your game break down technically?"
+            subtitle="The shots that break down under pressure. We'll help you rebuild them with confidence."
             options={TECHNICAL_WEAKNESSES}
             selected={profile.technicalWeaknesses}
             onSelect={(id) => toggleArrayItem('technicalWeaknesses', id)}
@@ -112,7 +112,7 @@ export default function OnboardingFlow({ onComplete }) {
         {step === 7 && (
           <SelectionStep
             title="Mental game challenges?"
-            subtitle="The mental side wins or loses most matches"
+            subtitle="The mental side wins or loses most matches. This is where the real breakthroughs happen."
             options={MENTAL_WEAKNESSES}
             selected={profile.mentalWeaknesses}
             onSelect={(id) => toggleArrayItem('mentalWeaknesses', id)}
@@ -124,7 +124,7 @@ export default function OnboardingFlow({ onComplete }) {
         {step === 8 && (
           <SelectionStep
             title="What are your goals?"
-            subtitle="What brings you to PicklePro?"
+            subtitle="Your goals shape everything — your daily intentions, your coaching, and your growth plan."
             options={GOAL_OPTIONS}
             selected={profile.goals}
             onSelect={(id) => toggleArrayItem('goals', id)}
@@ -170,22 +170,25 @@ function WelcomeStep({ onNext }) {
       <h1 style={{ fontSize: '2.5rem', fontWeight: 900, letterSpacing: '-0.03em', color: '#f5f5f5', marginBottom: 8 }}>
         Pickle<span style={{ color: '#c8f135' }}>Pro</span>
       </h1>
-      <p style={{ color: '#a0a0a0', fontSize: '1rem', marginBottom: 48, lineHeight: 1.6, maxWidth: 280 }}>
-        Your daily performance companion.<br />
-        <span style={{ color: '#f5f5f5' }}>Improve. Compete. Love the game.</span>
+      <p style={{ color: '#a0a0a0', fontSize: '1rem', marginBottom: 12, lineHeight: 1.6, maxWidth: 300 }}>
+        The app that helps you grow — not just as a player,<br />
+        <span style={{ color: '#f5f5f5', fontWeight: 600 }}>but as a competitor, teammate, and student of the game.</span>
+      </p>
+      <p style={{ color: '#666', fontSize: '0.85rem', marginBottom: 40, lineHeight: 1.6, maxWidth: 280 }}>
+        Built for players who believe improvement is a daily practice, not just a scoreboard result.
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 320, marginBottom: 40 }}>
         {[
-          '🎯 Personalized daily coaching',
-          '🧠 Mental performance training',
-          '📓 Reflection & growth journaling',
-          '⚡ AI-powered insights',
-          '🏆 Process-oriented progression',
+          { icon: '🎯', text: 'Daily intentions that sharpen your focus' },
+          { icon: '🧠', text: 'Mental performance tools used by top athletes' },
+          { icon: '📓', text: 'Reflection journaling that compounds into growth' },
+          { icon: '⚡', text: 'AI-powered coaching insights' },
+          { icon: '🏆', text: 'Process-oriented progression that actually works' },
         ].map((item, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left' }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#c8f135', flexShrink: 0 }} />
-            <span style={{ color: '#a0a0a0', fontSize: '0.875rem' }}>{item}</span>
+            <span style={{ color: '#a0a0a0', fontSize: '0.875rem' }}>{item.icon} {item.text}</span>
           </div>
         ))}
       </div>
@@ -210,7 +213,7 @@ function WelcomeStep({ onNext }) {
         Begin My Journey
       </button>
       <p style={{ color: '#555', fontSize: '0.75rem', marginTop: 16 }}>
-        Takes 2 minutes • Free to start
+        Takes 2 minutes · Free to start · No credit card required
       </p>
     </div>
   );
@@ -222,29 +225,32 @@ function MissionStep({ onNext, onBack }) {
       <BackButton onBack={onBack} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 32 }}>
         <div>
-          <div className="label-xs" style={{ color: '#c8f135', marginBottom: 12 }}>Our Mission</div>
+          <div className="label-xs" style={{ color: '#c8f135', marginBottom: 12 }}>The PicklePro Philosophy</div>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f5f5f5', lineHeight: 1.2, marginBottom: 16 }}>
             Shift from results<br />
             <span style={{ color: '#c8f135' }}>to process.</span>
           </h2>
           <p style={{ color: '#a0a0a0', fontSize: '0.95rem', lineHeight: 1.7 }}>
-            Most players focus on winning and losing. The players who improve fastest focus on <em style={{ color: '#f5f5f5' }}>how</em> they play.
+            Most players obsess over the scoreboard. The players who improve fastest focus on <em style={{ color: '#f5f5f5' }}>how</em> they play — the patience, the communication, the emotional control, the daily habits.
           </p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {[
-            { icon: '🌱', text: 'Less focus on the score. More focus on the skill.' },
-            { icon: '🧘', text: 'Patience, consistency, and emotional control.' },
-            { icon: '🤝', text: 'Communication, awareness, and partner chemistry.' },
-            { icon: '😄', text: 'Joy in the process, not just the results.' },
+            { icon: '🌱', title: 'Skill over score', text: 'Focus on the craft. The results follow.' },
+            { icon: '🧘', title: 'Mind over frustration', text: 'Patience, composure, and emotional intelligence.' },
+            { icon: '🤝', title: 'Team over ego', text: 'Communication, trust, and making your partner better.' },
+            { icon: '😄', title: 'Joy over pressure', text: 'Love the process. Growth becomes effortless.' },
           ].map((item, i) => (
             <div key={i} style={{
               background: '#141414', border: '1px solid #2a2a2a', borderRadius: 16,
-              padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14,
+              padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 14,
             }}>
-              <span style={{ fontSize: '1.25rem' }}>{item.icon}</span>
-              <span style={{ color: '#d0d0d0', fontSize: '0.875rem', lineHeight: 1.5 }}>{item.text}</span>
+              <span style={{ fontSize: '1.25rem', marginTop: 2 }}>{item.icon}</span>
+              <div>
+                <div style={{ color: '#f5f5f5', fontSize: '0.875rem', fontWeight: 700, marginBottom: 2 }}>{item.title}</div>
+                <div style={{ color: '#888', fontSize: '0.8rem', lineHeight: 1.5 }}>{item.text}</div>
+              </div>
             </div>
           ))}
         </div>
@@ -254,10 +260,10 @@ function MissionStep({ onNext, onBack }) {
           color: '#c8f135', fontSize: '0.95rem', fontStyle: 'italic',
           lineHeight: 1.6,
         }}>
-          "The players who improve most learn to enjoy repetition. Growth is easier when you love the work."
+          &ldquo;The players who improve most learn to enjoy repetition. Growth is easier when you love the work.&rdquo;
         </blockquote>
 
-        <NextButton onClick={onNext} label="I'm In" />
+        <NextButton onClick={onNext} label="I'm In — Let's Go" />
       </div>
     </div>
   );
@@ -274,6 +280,9 @@ function NameStep({ profile, onChange, onNext, onBack }) {
           <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f5f5f5', lineHeight: 1.2 }}>
             What should we<br />call you?
           </h2>
+          <p style={{ color: '#888', fontSize: '0.875rem', marginTop: 8 }}>
+            Your coach needs a name to keep things personal.
+          </p>
         </div>
 
         <div>
@@ -293,8 +302,8 @@ function NameStep({ profile, onChange, onNext, onBack }) {
             autoFocus
           />
           {profile.name.trim().length >= 2 && (
-            <p style={{ color: '#a0a0a0', fontSize: '0.875rem', marginTop: 12, paddingLeft: 4 }}>
-              Welcome to PicklePro, <span style={{ color: '#c8f135' }}>{profile.name}</span>. Let&apos;s build your game.
+            <p style={{ color: '#a0a0a0', fontSize: '0.875rem', marginTop: 12, paddingLeft: 4, lineHeight: 1.5 }}>
+              Welcome to PicklePro, <span style={{ color: '#c8f135', fontWeight: 700 }}>{profile.name}</span>. Your growth journey starts right now.
             </p>
           )}
         </div>
@@ -316,7 +325,7 @@ function SelectionStep({ title, subtitle, options, selected, onSelect, onNext, o
             {multiSelect ? 'Select all that apply' : 'Choose one'}
           </div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f5f5f5', lineHeight: 1.2 }}>{title}</h2>
-          <p style={{ color: '#666', fontSize: '0.875rem', marginTop: 8 }}>{subtitle}</p>
+          <p style={{ color: '#888', fontSize: '0.875rem', marginTop: 8, lineHeight: 1.5 }}>{subtitle}</p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: options.length > 6 ? '1fr 1fr' : '1fr', gap: 10 }}>
@@ -345,7 +354,7 @@ function SelectionStep({ title, subtitle, options, selected, onSelect, onNext, o
                     lineHeight: 1.3,
                   }}>{opt.label}</div>
                   {opt.description && (
-                    <div style={{ color: '#666', fontSize: '0.75rem', marginTop: 2 }}>{opt.description}</div>
+                    <div style={{ color: '#666', fontSize: '0.75rem', marginTop: 2, lineHeight: 1.4 }}>{opt.description}</div>
                   )}
                   {opt.dupr && (
                     <div style={{ color: '#555', fontSize: '0.7rem', marginTop: 2 }}>DUPR {opt.dupr}</div>
@@ -380,8 +389,8 @@ function PlayerTypeStep({ profile, updateProfile, onNext, onBack }) {
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f5f5f5', lineHeight: 1.2 }}>
             What kind of player<br />do you want to become?
           </h2>
-          <p style={{ color: '#666', fontSize: '0.875rem', marginTop: 8 }}>
-            This shapes your personalized coaching style
+          <p style={{ color: '#888', fontSize: '0.875rem', marginTop: 8, lineHeight: 1.5 }}>
+            This shapes your coaching style and daily intentions. There&apos;s no wrong answer — only your answer.
           </p>
         </div>
 
@@ -404,7 +413,7 @@ function PlayerTypeStep({ profile, updateProfile, onNext, onBack }) {
                 <span style={{ fontSize: '1.75rem' }}>{opt.emoji}</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ color: isSelected ? '#c8f135' : '#f5f5f5', fontWeight: 700, fontSize: '0.95rem' }}>{opt.label}</div>
-                  <div style={{ color: '#666', fontSize: '0.8rem', marginTop: 3 }}>{opt.description}</div>
+                  <div style={{ color: '#888', fontSize: '0.8rem', marginTop: 3, lineHeight: 1.4 }}>{opt.description}</div>
                 </div>
                 {isSelected && <Check size={18} color="#c8f135" />}
               </button>
@@ -413,7 +422,7 @@ function PlayerTypeStep({ profile, updateProfile, onNext, onBack }) {
         </div>
 
         <div>
-          <p style={{ color: '#666', fontSize: '0.8rem', marginBottom: 10 }}>Singles, doubles, or both?</p>
+          <p style={{ color: '#888', fontSize: '0.8rem', marginBottom: 10 }}>Singles, doubles, or both?</p>
           <div style={{ display: 'flex', gap: 10 }}>
             {DOUBLES_SINGLES_OPTIONS.map(opt => {
               const isSelected = profile.format === opt.id;
@@ -447,6 +456,30 @@ function SummaryStep({ profile, onComplete, onBack }) {
   const levelData = EXPERIENCE_LEVELS.find(l => l.id === profile.level);
   const topStruggles = profile.struggles.slice(0, 3);
   const topMentalWeaknesses = profile.mentalWeaknesses.slice(0, 2);
+  const topGoals = profile.goals.slice(0, 2);
+  const playerType = PLAYER_TYPE_OPTIONS.find(p => p.id === profile.playerType);
+
+  // Personalized coaching promise based on selections
+  const getCoachingPromise = () => {
+    const promises = [];
+    if (profile.struggles.includes('patience') || profile.mentalWeaknesses.includes('patience-mental')) {
+      promises.push('building patience into every rally');
+    }
+    if (profile.struggles.includes('frustration') || profile.mentalWeaknesses.includes('frustration')) {
+      promises.push('turning frustration into focus');
+    }
+    if (profile.struggles.includes('communication') || profile.mentalWeaknesses.includes('communication')) {
+      promises.push('strengthening your on-court communication');
+    }
+    if (profile.goals.includes('compete')) {
+      promises.push('preparing you for competitive play');
+    }
+    if (profile.goals.includes('mental')) {
+      promises.push('developing an unshakeable mental game');
+    }
+    if (promises.length === 0) promises.push('helping you grow every single session');
+    return promises.slice(0, 2).join(' and ');
+  };
 
   return (
     <div className="min-h-screen flex flex-col px-6 pt-16 pb-8 animate-slide-up" style={{ maxWidth: 480, margin: '0 auto' }}>
@@ -464,10 +497,10 @@ function SummaryStep({ profile, onComplete, onBack }) {
         </div>
         <div className="label-xs" style={{ color: '#c8f135', marginBottom: 8 }}>Your Journey Begins</div>
         <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f5f5f5', lineHeight: 1.2 }}>
-          {profile.name ? `${profile.name}'s` : 'Your'} PicklePro Profile
+          {profile.name ? `${profile.name}, you're` : "You're"} ready.
         </h2>
-        <p style={{ color: '#666', fontSize: '0.875rem', marginTop: 8 }}>
-          Personalized coaching starts now.
+        <p style={{ color: '#888', fontSize: '0.875rem', marginTop: 8, lineHeight: 1.5 }}>
+          Your personalized coaching plan is set. We&apos;ll focus on {getCoachingPromise()}.
         </p>
       </div>
 
@@ -481,9 +514,17 @@ function SummaryStep({ profile, onComplete, onBack }) {
           />
         )}
 
+        {playerType && (
+          <SummaryCard
+            icon={playerType.emoji}
+            label="Player Identity"
+            value={playerType.label}
+          />
+        )}
+
         {topStruggles.length > 0 && (
           <div style={{ background: '#141414', border: '1px solid #2a2a2a', borderRadius: 16, padding: '14px 16px' }}>
-            <div className="label-xs" style={{ color: '#666', marginBottom: 10 }}>Focus Skills</div>
+            <div className="label-xs" style={{ color: '#666', marginBottom: 10 }}>Growth Areas</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {topStruggles.map(id => {
                 const item = STRUGGLE_OPTIONS.find(s => s.id === id);
@@ -519,13 +560,32 @@ function SummaryStep({ profile, onComplete, onBack }) {
           </div>
         )}
 
+        {topGoals.length > 0 && (
+          <div style={{ background: '#141414', border: '1px solid #2a2a2a', borderRadius: 16, padding: '14px 16px' }}>
+            <div className="label-xs" style={{ color: '#666', marginBottom: 10 }}>Your Goals</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {topGoals.map(id => {
+                const item = GOAL_OPTIONS.find(g => g.id === id);
+                return item ? (
+                  <span key={id} style={{
+                    background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)',
+                    color: '#c084fc', borderRadius: 20, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 600,
+                  }}>
+                    {item.emoji} {item.label}
+                  </span>
+                ) : null;
+              })}
+            </div>
+          </div>
+        )}
+
         <div style={{
           background: 'rgba(200,241,53,0.06)', border: '1px solid rgba(200,241,53,0.2)',
           borderRadius: 16, padding: '16px',
         }}>
           <p style={{ color: '#a0a0a0', fontSize: '0.875rem', lineHeight: 1.7, margin: 0 }}>
-            "Every session from here forward is a deposit in your growth. Stay process-focused. Stay patient.{' '}
-            <span style={{ color: '#c8f135' }}>Play with intention. Play with joy.</span>"
+            &ldquo;Every session from here forward is a deposit in your growth. Stay process-focused. Stay patient.{' '}
+            <span style={{ color: '#c8f135' }}>Play with intention. Play with joy.</span>&rdquo;
           </p>
         </div>
       </div>
@@ -540,8 +600,11 @@ function SummaryStep({ profile, onComplete, onBack }) {
           cursor: 'pointer', width: '100%', letterSpacing: '0.01em',
         }}
       >
-        Start My PicklePro Journey →
+        Start My PicklePro Journey
       </button>
+      <p style={{ color: '#555', fontSize: '0.75rem', textAlign: 'center', marginTop: 12 }}>
+        You can update your profile anytime
+      </p>
     </div>
   );
 }
