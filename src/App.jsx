@@ -1,28 +1,45 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import './index.css';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import NavBar from './components/NavBar';
-import Dashboard from './components/Dashboard';
-import Intentions from './components/Intentions';
-import Journal from './components/Journal';
-import Tips from './components/Tips';
-import Progress from './components/Progress';
+
+// Components
+import OnboardingFlow from './components/Onboarding/OnboardingFlow';
+import HomeScreen from './components/Home/HomeScreen';
+import SkillLibrary from './components/Skills/SkillLibrary';
+import SkillDetail from './components/Skills/SkillDetail';
+import MentalGameLibrary from './components/MentalGame/MentalGameLibrary';
+import MentalGameDetail from './components/MentalGame/MentalGameDetail';
+import JournalScreen from './components/Journal/JournalScreen';
+import AICoachScreen from './components/AICoach/AICoachScreen';
+import ProgressDashboard from './components/Progress/ProgressDashboard';
+import ProfileScreen from './components/Profile/ProfileScreen';
+import PaywallScreen from './components/Subscription/PaywallScreen';
+import NavBar from './components/shared/NavBar';
+
+const APP_TABS = ['home', 'skills', 'journal', 'mental', 'progress'];
 
 export default function App() {
+  const [profile, setProfile] = useLocalStorage('pp_profile_v2', null);
+  const [sessions, setSessions] = useLocalStorage('pp_sessions_v2', []);
+  const [intentions] = useLocalStorage('pp_intentions_v2', []);
+  const [savedSkills, setSavedSkills] = useLocalStorage('pp_saved_skills', []);
+
   const [activeTab, setActiveTab] = useState('home');
-  const [sessions, setSessions] = useLocalStorage('pickle_sessions', []);
-  const [intentions, setIntentions] = useLocalStorage('pickle_intentions', []);
+  const [activeSkill, setActiveSkill] = useState(null);
+  const [activeMentalCategory, setActiveMentalCategory] = useState(null);
+  const [journalMode, setJournalMode] = useState(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [showCoach, setShowCoach] = useState(false);
 
-  // Get today's intention
-  const today = new Date().toISOString().split('T')[0];
-  const todayIntention = intentions.find(i => i.date && i.date.startsWith(today));
-
-  const handleSaveIntention = (intention) => {
-    setIntentions(prev => {
-      const filtered = prev.filter(i => !i.date || !i.date.startsWith(today));
-      return [intention, ...filtered];
-    });
-  };
+  // Onboarding gate
+  if (!profile) {
+    return (
+      <OnboardingFlow
+        onComplete={(p) => setProfile(p)}
+      />
+    );
+  }
 
   const handleSaveSession = (session) => {
     setSessions(prev => [session, ...prev]);
@@ -32,43 +49,133 @@ export default function App() {
     setSessions(prev => prev.filter(s => s.id !== id));
   };
 
-  const navigate = (tab) => {
-    setActiveTab(tab);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  const handleToggleSaveSkill = (skillId) => {
+    setSavedSkills(prev =>
+      prev.includes(skillId) ? prev.filter(s => s !== skillId) : [...prev, skillId]
+    );
   };
 
-  const renderContent = () => {
+  const handleNavigate = (tab, options = {}) => {
+    setShowProfile(false);
+    setShowPaywall(false);
+    setShowCoach(false);
+    setActiveSkill(null);
+    setActiveMentalCategory(null);
+    setJournalMode(null);
+
+    if (tab === 'paywall') { setShowPaywall(true); return; }
+    if (tab === 'profile') { setShowProfile(true); return; }
+    if (tab === 'coach') { setShowCoach(true); return; }
+
+    if (tab === 'journal' && options.mode) {
+      setJournalMode(options.mode);
+      setActiveTab('journal');
+      return;
+    }
+
+    if (APP_TABS.includes(tab)) setActiveTab(tab);
+  };
+
+  // Full-screen overlays
+  if (showPaywall) {
+    return (
+      <FullScreenWrapper>
+        <PaywallScreen
+          onBack={() => setShowPaywall(false)}
+          onSubscribe={() => setShowPaywall(false)}
+        />
+      </FullScreenWrapper>
+    );
+  }
+
+  if (showProfile) {
+    return (
+      <FullScreenWrapper>
+        <BackHeader onBack={() => setShowProfile(false)} label="Close" />
+        <ProfileScreen
+          profile={profile}
+          sessions={sessions}
+          onUpdateProfile={(p) => setProfile(p)}
+          onNavigate={handleNavigate}
+          onResetOnboarding={() => { setProfile(null); setShowProfile(false); }}
+        />
+      </FullScreenWrapper>
+    );
+  }
+
+  if (showCoach) {
+    return (
+      <FullScreenWrapper>
+        <BackHeader onBack={() => setShowCoach(false)} label="Back" />
+        <AICoachScreen profile={profile} sessions={sessions} onNavigate={handleNavigate} />
+      </FullScreenWrapper>
+    );
+  }
+
+  // Drill-down views (skill detail / mental detail)
+  if (activeTab === 'skills' && activeSkill) {
+    return (
+      <FullScreenWrapper>
+        <SkillDetail
+          skillId={activeSkill}
+          onBack={() => setActiveSkill(null)}
+          savedSkills={savedSkills}
+          onToggleSave={handleToggleSaveSkill}
+        />
+      </FullScreenWrapper>
+    );
+  }
+
+  if (activeTab === 'mental' && activeMentalCategory) {
+    return (
+      <FullScreenWrapper>
+        <MentalGameDetail
+          categoryId={activeMentalCategory}
+          onBack={() => setActiveMentalCategory(null)}
+        />
+      </FullScreenWrapper>
+    );
+  }
+
+  const renderTab = () => {
     switch (activeTab) {
       case 'home':
         return (
-          <Dashboard
+          <HomeScreen
+            profile={profile}
             sessions={sessions}
-            onNavigate={navigate}
+            intentions={intentions}
+            onNavigate={handleNavigate}
           />
         );
-      case 'intentions':
+      case 'skills':
         return (
-          <Intentions
-            todayIntention={todayIntention}
-            onSave={handleSaveIntention}
+          <SkillLibrary
+            onSelectSkill={(id) => setActiveSkill(id)}
+            savedSkills={savedSkills}
           />
         );
       case 'journal':
         return (
-          <Journal
+          <JournalScreen
             sessions={sessions}
             onSave={handleSaveSession}
             onDelete={handleDeleteSession}
-            todayIntention={todayIntention}
+            initialMode={journalMode}
           />
         );
-      case 'tips':
-        return <Tips />;
+      case 'mental':
+        return (
+          <MentalGameLibrary
+            onSelectCategory={(id) => setActiveMentalCategory(id)}
+          />
+        );
       case 'progress':
         return (
-          <Progress
+          <ProgressDashboard
             sessions={sessions}
             intentions={intentions}
+            profile={profile}
           />
         );
       default:
@@ -76,43 +183,98 @@ export default function App() {
     }
   };
 
-  const pageTitles = {
-    home: null,
-    intentions: 'Pre-Game Intentions',
-    journal: 'Game Journal',
-    tips: 'Tips & Tricks',
-    progress: 'My Progress',
-  };
-
   return (
-    <div className="min-h-screen bg-pickle-50">
+    <div style={{ background: '#0a0a0a', minHeight: '100vh', maxWidth: 480, margin: '0 auto', position: 'relative' }}>
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-sm border-b border-gray-100 shadow-sm">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
-          <span className="text-xl">🥒</span>
-          <div>
-            <span className="font-bold text-gray-800 text-base">PicklePro</span>
-            {pageTitles[activeTab] && (
-              <span className="text-gray-400 text-sm"> · {pageTitles[activeTab]}</span>
-            )}
+      <header style={{
+        position: 'sticky', top: 0, zIndex: 40,
+        background: 'rgba(10,10,10,0.96)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: '1px solid #1a1a1a',
+        padding: '12px 20px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: 'linear-gradient(135deg, #c8f135, #a8d820)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem',
+          }}>
+            🏓
           </div>
-          {todayIntention && activeTab !== 'intentions' && (
-            <div className="ml-auto flex items-center gap-1 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full">
-              <span className="text-blue-600 text-xs font-semibold">🎯 Set</span>
-            </div>
-          )}
+          <span style={{ fontWeight: 900, fontSize: '1rem', color: '#f5f5f5', letterSpacing: '-0.01em' }}>
+            Pickle<span style={{ color: '#c8f135' }}>Pro</span>
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => setShowCoach(true)}
+            style={{
+              background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)',
+              borderRadius: 20, padding: '5px 12px',
+              display: 'flex', alignItems: 'center', gap: 5,
+              color: '#a855f7', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            🤖 AI Coach
+          </button>
+          <button
+            onClick={() => setShowProfile(true)}
+            style={{
+              width: 30, height: 30, borderRadius: '50%',
+              background: 'linear-gradient(135deg, #c8f135, #a8d820)',
+              border: 'none', cursor: 'pointer', fontSize: '0.8rem',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            👤
+          </button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-lg mx-auto px-4 pt-4 pb-24">
-        {renderContent()}
-      </main>
+      {/* Content */}
+      <main>{renderTab()}</main>
 
-      {/* Bottom Navigation */}
-      <div className="max-w-lg mx-auto">
-        <NavBar active={activeTab} onNavigate={navigate} />
-      </div>
+      {/* Bottom Nav */}
+      <NavBar active={activeTab} onNavigate={(tab) => {
+        setActiveSkill(null);
+        setActiveMentalCategory(null);
+        setJournalMode(null);
+        setActiveTab(tab);
+      }} />
+    </div>
+  );
+}
+
+function FullScreenWrapper({ children }) {
+  return (
+    <div style={{
+      background: '#0a0a0a', minHeight: '100vh',
+      maxWidth: 480, margin: '0 auto', overflowY: 'auto',
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function BackHeader({ onBack, label }) {
+  return (
+    <div style={{
+      padding: '16px 20px', borderBottom: '1px solid #1a1a1a',
+      display: 'flex', alignItems: 'center',
+    }}>
+      <button
+        onClick={onBack}
+        style={{
+          background: 'none', border: 'none', color: '#666',
+          display: 'flex', alignItems: 'center', gap: 6,
+          cursor: 'pointer', fontSize: '0.875rem', padding: 0,
+        }}
+      >
+        ← {label}
+      </button>
     </div>
   );
 }

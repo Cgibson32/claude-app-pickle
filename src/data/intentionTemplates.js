@@ -1,46 +1,138 @@
-export const intentionTemplates = [
+export const DAILY_INTENTIONS = [
   {
-    id: 'focus',
-    label: 'Today I will focus on...',
-    placeholder: 'e.g., keeping my third shot drops low and in the kitchen',
+    theme: 'Patience',
+    performance: 'Third Shot Drops',
+    mental: 'Let the rally breathe',
+    joy: 'Enjoy the rhythm of building points',
+    quote: 'Patience creates opportunity.',
+    cue: 'Build before you attack.',
   },
   {
-    id: 'avoid',
-    label: 'Today I will avoid...',
-    placeholder: 'e.g., popping the ball up when dinking under pressure',
+    theme: 'Presence',
+    performance: 'Tracking the ball',
+    mental: 'One ball at a time',
+    joy: 'Find the flow state in every rally',
+    quote: 'This ball. This moment.',
+    cue: 'See the ball early. See it clearly.',
   },
   {
-    id: 'energy',
-    label: 'My energy/mindset intention...',
-    placeholder: 'e.g., staying calm and patient in long rallies, celebrating good shots',
+    theme: 'Confidence',
+    performance: 'Committing to shots',
+    mental: 'Trust your preparation',
+    joy: 'Play free — enjoy your own game',
+    quote: "Play like you've already done this 1,000 times.",
+    cue: 'Swing with intention, not hesitation.',
   },
   {
-    id: 'partner',
-    label: 'With my partner I will...',
-    placeholder: 'e.g., communicate clearly and encourage each other between points',
+    theme: 'Process',
+    performance: 'Dink patterns',
+    mental: 'Focus on how you play, not the score',
+    joy: 'Appreciate every well-placed dink',
+    quote: 'Growth compounds. Every rally matters.',
+    cue: 'Play for the process today.',
+  },
+  {
+    theme: 'Communication',
+    performance: 'Partner positioning',
+    mental: 'We are one team, one vision',
+    joy: "Celebrate your partner's good shots",
+    quote: 'Great partners make each other better.',
+    cue: 'Call every ball. Encourage every miss.',
+  },
+  {
+    theme: 'Composure',
+    performance: 'Resets under pressure',
+    mental: 'Stay cool, stay sharp',
+    joy: 'Compete hard and stay loose',
+    quote: 'Compete hard. Stay loose.',
+    cue: 'Breathe before every big point.',
+  },
+  {
+    theme: 'Resilience',
+    performance: 'Recovery after errors',
+    mental: 'Miss, breathe, next ball',
+    joy: 'Celebrate the comeback',
+    quote: 'Champions are made in the moments after mistakes.',
+    cue: 'Short memory. Long season.',
+  },
+  {
+    theme: 'Precision',
+    performance: 'Court positioning',
+    mental: 'Move with purpose, not panic',
+    joy: 'Feel the satisfaction of great footwork',
+    quote: 'Position wins points before shots do.',
+    cue: 'Every step is intentional.',
+  },
+  {
+    theme: 'Softness',
+    performance: 'Kitchen game control',
+    mental: 'Soft hands win long rallies',
+    joy: 'Enjoy the chess match at the net',
+    quote: 'The softest shot often wins the hardest rally.',
+    cue: 'Less force. More touch.',
+  },
+  {
+    theme: 'Joy',
+    performance: 'Free, expressive play',
+    mental: 'Love the game unconditionally today',
+    joy: 'Play with a smile — the game is fun',
+    quote: 'The players who improve most enjoy the work.',
+    cue: 'Play free today.',
+  },
+  {
+    theme: 'Intensity',
+    performance: 'Attack when the moment comes',
+    mental: 'Fierce focus, no frustration',
+    joy: 'Feel the energy of competing hard',
+    quote: 'Play with fire and precision.',
+    cue: 'Wait for the moment. Pounce when it arrives.',
+  },
+  {
+    theme: 'Learning',
+    performance: 'Trying new patterns',
+    mental: 'Curiosity over perfection',
+    joy: 'Celebrate the discovery of new shots',
+    quote: 'Every session is a classroom.',
+    cue: 'Be curious. Be open. Be learning.',
+  },
+  {
+    theme: 'Discipline',
+    performance: 'Executing your game plan',
+    mental: 'Stay committed to the process',
+    joy: 'Pride in doing the work',
+    quote: 'Discipline is how I express my love for the game.',
+    cue: "Execute. Don't deviate.",
+  },
+  {
+    theme: 'Awareness',
+    performance: 'Reading opponents',
+    mental: 'See the whole court',
+    joy: 'Find the satisfaction in smart play',
+    quote: 'See more, decide better, play smarter.',
+    cue: 'Watch their paddle. Read the play.',
   },
 ];
 
-export const moodOptions = [
-  { value: 'fired-up', label: 'Fired Up', emoji: '🔥' },
-  { value: 'calm', label: 'Calm & Focused', emoji: '🧘' },
-  { value: 'nervous', label: 'Bit Nervous', emoji: '😬' },
-  { value: 'tired', label: 'Low Energy', emoji: '😴' },
-  { value: 'determined', label: 'Determined', emoji: '💪' },
-  { value: 'playful', label: 'Just for Fun', emoji: '😄' },
+export const MOOD_OPTIONS = [
+  { id: 'fired-up', emoji: '🔥', label: 'Fired Up' },
+  { id: 'focused', emoji: '🎯', label: 'Focused' },
+  { id: 'calm', emoji: '🧘', label: 'Calm' },
+  { id: 'nervous', emoji: '😬', label: 'Nervous' },
+  { id: 'tired', emoji: '😴', label: 'Tired' },
+  { id: 'playful', emoji: '😄', label: 'Playful' },
 ];
 
-export const gameTypes = [
+export const GAME_TYPES = [
   'Casual Open Play',
-  'Competitive Singles',
   'Competitive Doubles',
+  'Competitive Singles',
   'Drills / Practice',
   'Tournament',
   'Round Robin',
   'Ladder Match',
 ];
 
-export const skillFocusOptions = [
+export const SKILL_FOCUS_OPTIONS = [
   'Third Shot Drop',
   'Dinking Consistency',
   'Movement & Footwork',
@@ -51,3 +143,19 @@ export const skillFocusOptions = [
   'Attacking & Speed-Ups',
   'Defending & Resetting',
 ];
+
+export const getTodayIntention = () => {
+  const dayIndex = new Date().getDay();
+  return DAILY_INTENTIONS[dayIndex % DAILY_INTENTIONS.length];
+};
+
+// Legacy exports for compatibility
+export const intentionTemplates = [
+  { id: 'focus', label: 'Today I will focus on...', placeholder: 'e.g., keeping my third shot drops low' },
+  { id: 'avoid', label: 'Today I will avoid...', placeholder: 'e.g., popping the ball up when dinking' },
+  { id: 'energy', label: 'My mindset intention...', placeholder: 'e.g., staying calm in long rallies' },
+  { id: 'partner', label: 'With my partner I will...', placeholder: 'e.g., communicate clearly' },
+];
+export const moodOptions = MOOD_OPTIONS.map(m => ({ value: m.id, label: m.label, emoji: m.emoji }));
+export const gameTypes = GAME_TYPES;
+export const skillFocusOptions = SKILL_FOCUS_OPTIONS;
