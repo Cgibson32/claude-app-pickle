@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './index.css';
 
 import { AppProvider, useAppState, useAppActions } from './context/AppContext';
+import { initNative } from './services/NativeService';
 
 // Components
 import OnboardingFlow from './components/Onboarding/OnboardingFlow';
@@ -23,6 +24,9 @@ const APP_TABS = ['home', 'skills', 'journal', 'mental', 'progress'];
 function AppShell() {
   const { profile, sessions, intentions, savedSkills } = useAppState();
   const { saveProfile, clearProfile, saveSession, deleteSession, toggleSavedSkill } = useAppActions();
+
+  // Initialize native plugins (status bar, splash screen, keyboard) on mount
+  useEffect(() => { initNative(); }, []);
 
   // Local UI state — purely navigational, not persisted
   const [activeTab, setActiveTab] = useState('home');

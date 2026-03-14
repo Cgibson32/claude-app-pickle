@@ -1,0 +1,184 @@
+# ────────────────────────────────────────────────────────────────────────────────
+# PicklePro iOS Cloud Build
+#
+# Builds the iOS app on GitHub Actions macOS runners — no local Mac required.
+# Produces a signed .ipa suitable for App Store Connect upload.
+#
+# ─── SETUP (one-time) ──────────────────────────────────────────────────────────
+#
+# 1. Apple Developer Program ($99/yr): https://developer.apple.com/programs/
+#
+# 2. Create the app in App Store Connect:
+#    - Bundle ID: com.picklepro.app
+#    - App Name: PicklePro
+#
+# 3. Generate certificates and profiles:
+#    - In developer.apple.com → Certificates, create a Distribution certificate
+#    - Export the .p12 file with a password
+#    - Create a Provisioning Profile (App Store) for com.picklepro.app
+#    - Download the .mobileprovision file
+#
+# 4. Add these GitHub repository secrets:
+#    - APPLE_CERTIFICATE_BASE64:  base64-encoded .p12 certificate
+#      Run: base64 -i Certificates.p12 | pbcopy
+#    - APPLE_CERTIFICATE_PASSWORD: password for the .p12
+#    - APPLE_PROVISIONING_PROFILE_BASE64: base64-encoded .mobileprovision
+#      Run: base64 -i PicklePro.mobileprovision | pbcopy
+#    - APPLE_TEAM_ID: your Apple Developer Team ID
+#    - APP_STORE_CONNECT_API_KEY_ID: App Store Connect API key ID
+#    - APP_STORE_CONNECT_ISSUER_ID: App Store Connect issuer ID
+#    - APP_STORE_CONNECT_API_KEY_BASE64: base64-encoded .p8 key file
+#
+# 5. Push to main or create a release tag to trigger the build.
+#
+# ────────────────────────────────────────────────────────────────────────────────
+
+name: iOS Build & Deploy
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on version tags like v1.0.0
+  workflow_dispatch: # Manual trigger
+
+env:
+  NODE_VERSION: '20'
+  XCODE_VERSION: '16.0' # Use latest stable Xcode
+
+jobs:
+  build-ios:
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      # ─── Checkout & Setup ──────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Select Xcode version
+        run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ─── Web Build ─────────────────────────────────────────────────────
+      - name: Build web assets
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      # ─── Capacitor iOS Project ─────────────────────────────────────────
+      - name: Add iOS platform (if not committed)
+        run: |
+          if [ ! -d "ios" ]; then
+            npx cap add ios
+          fi
+
+      - name: Sync web assets to iOS
+        run: npx cap sync ios
+
+      # ─── Code Signing ──────────────────────────────────────────────────
+      - name: Install Apple certificate
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          # Create temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # Import certificate
+          CERT_PATH=$RUNNER_TEMP/certificate.p12
+          echo -n "$CERTIFICATE_BASE64" | base64 --decode -o $CERT_PATH
+          security import $CERT_PATH -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+      - name: Install provisioning profile
+        env:
+          PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          PP_PATH=$RUNNER_TEMP/profile.mobileprovision
+          echo -n "$PROFILE_BASE64" | base64 --decode -o $PP_PATH
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      # ─── Build ─────────────────────────────────────────────────────────
+      - name: Build iOS archive
+        run: |
+          cd ios/App
+          xcodebuild archive \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath $RUNNER_TEMP/PicklePro.xcarchive \
+            -allowProvisioningUpdates \
+            DEVELOPMENT_TEAM=${{ secrets.APPLE_TEAM_ID }} \
+            CODE_SIGN_STYLE=Manual \
+            | xcpretty
+
+      - name: Export IPA
+        run: |
+          cat > $RUNNER_TEMP/ExportOptions.plist << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>destination</key>
+            <string>upload</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>teamID</key>
+            <string>${{ secrets.APPLE_TEAM_ID }}</string>
+          </dict>
+          </plist>
+          PLIST
+
+          xcodebuild -exportArchive \
+            -archivePath $RUNNER_TEMP/PicklePro.xcarchive \
+            -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
+            -exportPath $RUNNER_TEMP/export \
+            | xcpretty
+
+      # ─── Upload to App Store Connect ────────────────────────────────────
+      - name: Upload to App Store Connect
+        env:
+          API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: |
+          # Write API key
+          mkdir -p ~/private_keys
+          echo -n "$API_KEY_BASE64" | base64 --decode > ~/private_keys/AuthKey_$API_KEY_ID.p8
+
+          xcrun altool --upload-app \
+            -f "$RUNNER_TEMP/export/App.ipa" \
+            -t ios \
+            --apiKey "$API_KEY_ID" \
+            --apiIssuer "$ISSUER_ID"
+
+      # ─── Artifact ──────────────────────────────────────────────────────
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PicklePro-iOS
+          path: ${{ runner.temp }}/export/*.ipa
+          retention-days: 30
+
+      # ─── Cleanup ───────────────────────────────────────────────────────
+      - name: Cleanup keychain
+        if: always()
+        run: security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
