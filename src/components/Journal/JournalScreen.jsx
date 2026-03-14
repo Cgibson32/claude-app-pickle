@@ -1,15 +1,38 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Check, Trash2, Star, X } from 'lucide-react';
-import { MOOD_OPTIONS, GAME_TYPES, SKILL_FOCUS_OPTIONS } from '../../data/intentionTemplates';
+import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { MOOD_OPTIONS, GAME_TYPES, SKILL_FOCUS_OPTIONS, getTodayIntention } from '../../data/intentionTemplates';
+import { useAppActions } from '../../context/AppContext';
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function JournalScreen({ sessions, onSave, onDelete, initialMode }) {
+  const { saveIntention } = useAppActions();
   const [view, setView] = useState(initialMode || 'list'); // list | pre | post | detail
   const [selectedSession, setSelectedSession] = useState(null);
   const [prePlayData, setPrePlayData] = useState(null);
 
+  const handlePrePlayDone = (data) => {
+    // Persist the intention — merge user input with today's template
+    const template = getTodayIntention();
+    saveIntention({
+      date: new Date().toISOString().split('T')[0],
+      theme: template.theme,
+      performance: template.performance,
+      mental: template.mental,
+      joy: template.joy,
+      quote: template.quote,
+      cue: template.cue,
+      technicalFocus: data.technicalIntent,
+      mentalFocus: data.mentalIntent,
+      gameType: data.gameType,
+      prePlayMood: data.mood,
+      energyLevel: data.energyLevel,
+    });
+    setPrePlayData(data);
+    setView('list');
+  };
+
   if (view === 'pre') {
-    return <PrePlayFlow onDone={(data) => { setPrePlayData(data); setView('list'); }} onBack={() => setView('list')} />;
+    return <PrePlayFlow onDone={handlePrePlayDone} onBack={() => setView('list')} />;
   }
   if (view === 'post') {
     return <PostPlayFlow prePlayData={prePlayData} onSave={(s) => { onSave(s); setView('list'); }} onBack={() => setView('list')} />;

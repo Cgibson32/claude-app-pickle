@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import './index.css';
-import { useLocalStorage } from './hooks/useLocalStorage';
+
+import { AppProvider, useAppState, useAppActions } from './context/AppContext';
 
 // Components
 import OnboardingFlow from './components/Onboarding/OnboardingFlow';
@@ -18,12 +19,12 @@ import NavBar from './components/shared/NavBar';
 
 const APP_TABS = ['home', 'skills', 'journal', 'mental', 'progress'];
 
-export default function App() {
-  const [profile, setProfile] = useLocalStorage('pp_profile_v2', null);
-  const [sessions, setSessions] = useLocalStorage('pp_sessions_v2', []);
-  const [intentions] = useLocalStorage('pp_intentions_v2', []);
-  const [savedSkills, setSavedSkills] = useLocalStorage('pp_saved_skills', []);
+// Inner shell — has access to AppContext
+function AppShell() {
+  const { profile, sessions, intentions, savedSkills } = useAppState();
+  const { saveProfile, clearProfile, saveSession, deleteSession, toggleSavedSkill } = useAppActions();
 
+  // Local UI state — purely navigational, not persisted
   const [activeTab, setActiveTab] = useState('home');
   const [activeSkill, setActiveSkill] = useState(null);
   const [activeMentalCategory, setActiveMentalCategory] = useState(null);
@@ -36,24 +37,10 @@ export default function App() {
   if (!profile) {
     return (
       <OnboardingFlow
-        onComplete={(p) => setProfile(p)}
+        onComplete={(p) => saveProfile(p)}
       />
     );
   }
-
-  const handleSaveSession = (session) => {
-    setSessions(prev => [session, ...prev]);
-  };
-
-  const handleDeleteSession = (id) => {
-    setSessions(prev => prev.filter(s => s.id !== id));
-  };
-
-  const handleToggleSaveSkill = (skillId) => {
-    setSavedSkills(prev =>
-      prev.includes(skillId) ? prev.filter(s => s !== skillId) : [...prev, skillId]
-    );
-  };
 
   const handleNavigate = (tab, options = {}) => {
     setShowProfile(false);
@@ -93,11 +80,8 @@ export default function App() {
       <FullScreenWrapper>
         <BackHeader onBack={() => setShowProfile(false)} label="Close" />
         <ProfileScreen
-          profile={profile}
-          sessions={sessions}
-          onUpdateProfile={(p) => setProfile(p)}
           onNavigate={handleNavigate}
-          onResetOnboarding={() => { setProfile(null); setShowProfile(false); }}
+          onResetOnboarding={() => { clearProfile(); setShowProfile(false); }}
         />
       </FullScreenWrapper>
     );
@@ -107,12 +91,12 @@ export default function App() {
     return (
       <FullScreenWrapper>
         <BackHeader onBack={() => setShowCoach(false)} label="Back" />
-        <AICoachScreen profile={profile} sessions={sessions} onNavigate={handleNavigate} />
+        <AICoachScreen onNavigate={handleNavigate} />
       </FullScreenWrapper>
     );
   }
 
-  // Drill-down views (skill detail / mental detail)
+  // Drill-down views
   if (activeTab === 'skills' && activeSkill) {
     return (
       <FullScreenWrapper>
@@ -120,7 +104,7 @@ export default function App() {
           skillId={activeSkill}
           onBack={() => setActiveSkill(null)}
           savedSkills={savedSkills}
-          onToggleSave={handleToggleSaveSkill}
+          onToggleSave={toggleSavedSkill}
         />
       </FullScreenWrapper>
     );
@@ -159,8 +143,8 @@ export default function App() {
         return (
           <JournalScreen
             sessions={sessions}
-            onSave={handleSaveSession}
-            onDelete={handleDeleteSession}
+            onSave={saveSession}
+            onDelete={deleteSession}
             initialMode={journalMode}
           />
         );
@@ -175,7 +159,6 @@ export default function App() {
           <ProgressDashboard
             sessions={sessions}
             intentions={intentions}
-            profile={profile}
           />
         );
       default:
@@ -245,6 +228,14 @@ export default function App() {
         setActiveTab(tab);
       }} />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AppProvider>
+      <AppShell />
+    </AppProvider>
   );
 }
 

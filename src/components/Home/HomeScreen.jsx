@@ -12,8 +12,11 @@ const MOTIVATIONAL_QUOTES = [
   { quote: "One ball at a time.", sub: "The rest will take care of itself." },
 ];
 
-export default function HomeScreen({ profile, sessions, onNavigate }) {
-  const today = getTodayIntention();
+export default function HomeScreen({ profile, sessions, intentions, onNavigate }) {
+  // Use today's saved intention if one exists, otherwise fall back to the template
+  const todayKey = new Date().toISOString().split('T')[0];
+  const savedToday = (intentions || []).find(i => i.date === todayKey);
+  const today = savedToday ?? getTodayIntention();
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const greetingEmoji = hour < 12 ? '☀️' : hour < 17 ? '🎯' : '🌙';

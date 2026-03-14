@@ -1,16 +1,16 @@
 import { useState } from 'react';
-import { ChevronRight, User, Edit3, Check, Shield, Bell, Trash2 } from 'lucide-react';
+import { ChevronRight, Edit3, Check, Shield, Bell, Trash2 } from 'lucide-react';
 import {
   EXPERIENCE_LEVELS,
-  PLAY_FREQUENCIES,
   STRUGGLE_OPTIONS,
   MENTAL_WEAKNESSES,
-  TECHNICAL_WEAKNESSES,
-  GOAL_OPTIONS,
   PLAYER_TYPE_OPTIONS,
 } from '../../data/onboardingData';
+import { useAppState, useAppActions } from '../../context/AppContext';
 
-export default function ProfileScreen({ profile, sessions, onUpdateProfile, onNavigate, onResetOnboarding }) {
+export default function ProfileScreen({ onNavigate, onResetOnboarding }) {
+  const { profile, sessions } = useAppState();
+  const { patchProfile } = useAppActions();
   const [editing, setEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState(profile || {});
   const [showReset, setShowReset] = useState(false);
@@ -20,7 +20,7 @@ export default function ProfileScreen({ profile, sessions, onUpdateProfile, onNa
   const totalSessions = sessions?.length || 0;
 
   const handleSave = () => {
-    onUpdateProfile(editedProfile);
+    patchProfile(editedProfile);
     setEditing(false);
   };
 

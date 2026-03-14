@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react';
-import { ChevronRight, Brain, RefreshCw, Sparkles, Target, Zap } from 'lucide-react';
+import { ChevronRight, Brain, RefreshCw, Sparkles, Target, Zap, Loader } from 'lucide-react';
 import { getTodayIntention } from '../../data/intentionTemplates';
 import {
   STRUGGLE_OPTIONS,
   MENTAL_WEAKNESSES,
   EXPERIENCE_LEVELS,
 } from '../../data/onboardingData';
+import { useAppState } from '../../context/AppContext';
+import { useAICoach } from '../../hooks/useAICoach';
 
 function generateInsights(profile, sessions) {
   const insights = [];
@@ -197,19 +199,19 @@ function generateDailyDrill() {
   return drills[dayIndex];
 }
 
-export default function AICoachScreen({ profile, sessions, onNavigate }) {
-  const [refreshKey, setRefreshKey] = useState(0);
+export default function AICoachScreen({ onNavigate }) {
+  const { profile, sessions } = useAppState();
+  const { plan, isLoading, refresh } = useAICoach();
   const today = getTodayIntention();
 
+  // Fall back to local mock insights if async plan hasn't loaded yet
   const insights = useMemo(
-    () => generateInsights(profile, sessions),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [profile, sessions, refreshKey]
+    () => plan?.insights ?? generateInsights(profile, sessions),
+    [plan, profile, sessions]
   );
   const drill = useMemo(
-    () => generateDailyDrill(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [refreshKey]
+    () => plan?.drill ?? generateDailyDrill(),
+    [plan]
   );
 
   return (
@@ -297,13 +299,15 @@ export default function AICoachScreen({ profile, sessions, onNavigate }) {
           Personalized Insights ({insights.length})
         </span>
         <button
-          onClick={() => setRefreshKey(k => k + 1)}
+          onClick={refresh}
+          disabled={isLoading}
           style={{
-            background: 'none', border: 'none', color: '#555', cursor: 'pointer',
+            background: 'none', border: 'none', color: isLoading ? '#444' : '#555', cursor: isLoading ? 'default' : 'pointer',
             display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem',
           }}
         >
-          <RefreshCw size={12} /> Refresh
+          {isLoading ? <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={12} />}
+          {isLoading ? 'Loading...' : 'Refresh'}
         </button>
       </div>
 
