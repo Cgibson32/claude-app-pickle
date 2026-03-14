@@ -2,7 +2,6 @@ export const MENTAL_CATEGORIES = [
   {
     id: 'patience',
     name: 'Patience',
-    emoji: '🧘',
     color: '#c8f135',
     colorDim: 'rgba(200, 241, 53, 0.12)',
     tagline: 'The most powerful shot in pickleball',
@@ -44,7 +43,6 @@ export const MENTAL_CATEGORIES = [
   {
     id: 'confidence',
     name: 'Confidence',
-    emoji: '⚡',
     color: '#f59e0b',
     colorDim: 'rgba(245, 158, 11, 0.12)',
     tagline: 'Play free. Trust yourself.',
@@ -86,7 +84,6 @@ export const MENTAL_CATEGORIES = [
   {
     id: 'frustration',
     name: 'Frustration Control',
-    emoji: '🌊',
     color: '#3b82f6',
     colorDim: 'rgba(59, 130, 246, 0.12)',
     tagline: 'Stay cool. Stay sharp.',
@@ -128,7 +125,6 @@ export const MENTAL_CATEGORIES = [
   {
     id: 'focus',
     name: 'Focus Under Pressure',
-    emoji: '🔭',
     color: '#a855f7',
     colorDim: 'rgba(168, 85, 247, 0.12)',
     tagline: 'Present. Sharp. Locked in.',
@@ -170,7 +166,6 @@ export const MENTAL_CATEGORIES = [
   {
     id: 'mistakes',
     name: 'Bouncing Back',
-    emoji: '🔆',
     color: '#22c55e',
     colorDim: 'rgba(34, 197, 94, 0.12)',
     tagline: 'Miss. Learn. Reset. Compete.',
@@ -212,7 +207,6 @@ export const MENTAL_CATEGORIES = [
   {
     id: 'process-mindset',
     name: 'Process Mindset',
-    emoji: '🌱',
     color: '#14b8a6',
     colorDim: 'rgba(20, 184, 166, 0.12)',
     tagline: 'Fall in love with the work',
@@ -254,7 +248,6 @@ export const MENTAL_CATEGORIES = [
   {
     id: 'identity',
     name: 'Identity & Self-Talk',
-    emoji: '🪞',
     color: '#ef4444',
     colorDim: 'rgba(239, 68, 68, 0.12)',
     tagline: 'You play who you believe you are',
@@ -291,7 +284,6 @@ export const MENTAL_CATEGORIES = [
   {
     id: 'partner-chemistry',
     name: 'Partner Chemistry',
-    emoji: '💫',
     color: '#f97316',
     colorDim: 'rgba(249, 115, 22, 0.12)',
     tagline: 'Twice as strong together',
@@ -327,7 +319,6 @@ export const MENTAL_CATEGORIES = [
   {
     id: 'discipline',
     name: 'Discipline & Consistency',
-    emoji: '🏆',
     color: '#8b5cf6',
     colorDim: 'rgba(139, 92, 246, 0.12)',
     tagline: 'Show up. Every time.',

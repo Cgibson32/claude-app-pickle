@@ -1,83 +1,7 @@
-import { Flame, Target, Star, Calendar, TrendingUp, Award, Heart } from 'lucide-react';
-
-// ─── Growth Messages ─────────────────────────────────────────────────────────
-
-function getGrowthMessage(sessions, avgPatience, avgEmotions, avgCommunication) {
-  const messages = [];
-
-  if (sessions.length >= 3 && sessions.length <= 5) {
-    messages.push({
-      text: "You're building a habit that most players never start. Every reflection you write is sharpening your awareness.",
-      icon: "🌱", color: "#22c55e",
-    });
-  }
-  if (sessions.length >= 10) {
-    messages.push({
-      text: "10+ sessions of intentional practice. You're no longer guessing about your game — you're studying it.",
-      icon: "📚", color: "#3b82f6",
-    });
-  }
-
-  if (avgPatience && avgPatience >= 7) {
-    messages.push({
-      text: "Your patience scores are strong. That means you're learning to trust the rally and wait for your moment. This is elite-level thinking.",
-      icon: "⏳", color: "#c8f135",
-    });
-  }
-  if (avgEmotions && avgEmotions >= 7) {
-    messages.push({
-      text: "High emotional control is your competitive edge. When other players tilt, you stay composed. That's the difference-maker.",
-      icon: "🧘", color: "#a855f7",
-    });
-  }
-  if (avgCommunication && avgCommunication >= 7) {
-    messages.push({
-      text: "Your communication scores show a true partner player. Teams with strong communication play 2 levels above their skill.",
-      icon: "🤝", color: "#22c55e",
-    });
-  }
-  if (avgPatience && avgPatience < 5) {
-    messages.push({
-      text: "Patience is your biggest growth opportunity right now. One drill: count to 5 dinks before attacking. Watch what happens.",
-      icon: "💡", color: "#f59e0b",
-    });
-  }
-  if (avgEmotions && avgEmotions < 5) {
-    messages.push({
-      text: "Emotional control is a skill — not a talent. Try naming your frustration triggers before your next match. Awareness is step one.",
-      icon: "🌊", color: "#3b82f6",
-    });
-  }
-
-  return messages.slice(0, 2);
-}
-
-const PROCESS_QUOTES = [
-  "These metrics track how you play, not whether you win. A player scoring 8/10 on patience is building habits that outlast any single match result.",
-  "The scoreboard resets every game. These scores compound for life. Keep tracking. Keep growing.",
-  "Most players measure themselves by wins and losses. You measure yourself by patience, emotional control, and communication. That's why you'll surpass them.",
-  "The players who journal and reflect improve 3x faster than those who just play. You're doing the work that matters.",
-  "Your future self — the one who plays with confidence and composure — is being built right here, session by session.",
-];
+import { useState } from 'react';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function calcStreak(sessions) {
-  if (!sessions.length) return 0;
-  const daySet = new Set();
-  sessions.forEach(s => daySet.add(new Date(s.date).toISOString().split('T')[0]));
-  let streak = 0;
-  const cursor = new Date();
-  const todayKey = cursor.toISOString().split('T')[0];
-  if (!daySet.has(todayKey)) cursor.setDate(cursor.getDate() - 1);
-  while (true) {
-    const key = cursor.toISOString().split('T')[0];
-    if (!daySet.has(key)) break;
-    streak++;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-  return streak;
-}
 
 function getAvg(sessions, key) {
   const valid = sessions.filter(s => s[key] > 0);
@@ -97,25 +21,32 @@ function getTrend(sessions, key) {
   return recentAvg - olderAvg;
 }
 
-function getTrendLabel(trend) {
+function getTrendInfo(trend) {
   if (trend === null) return null;
-  if (trend > 1) return { text: 'Strong improvement', color: '#22c55e', icon: '🚀' };
-  if (trend > 0.3) return { text: 'Improving', color: '#22c55e', icon: '📈' };
-  if (trend > -0.3) return { text: 'Steady', color: '#f59e0b', icon: '→' };
-  return { text: 'Needs attention', color: '#ef4444', icon: '📉' };
+  if (trend > 0.3) return { text: 'Improving', color: '#22c55e', Icon: TrendingUp };
+  if (trend >= -0.3) return { text: 'Steady', color: '#f59e0b', Icon: Minus };
+  return { text: 'Declining', color: '#ef4444', Icon: TrendingDown };
+}
+
+function getProcessAvg(session) {
+  const scores = [session.patienceScore, session.emotionsScore, session.communicationScore].filter(s => s > 0);
+  if (!scores.length) return null;
+  return scores.reduce((a, b) => a + b, 0) / scores.length;
 }
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function ProgressDashboard({ sessions, intentions }) {
-  const streak = calcStreak(sessions);
   const totalSessions = sessions.length;
-  const journaledSessions = sessions.filter(s => s.wentWell || s.ahamoment).length;
-
   const avgRating = getAvg(sessions, 'rating');
   const avgPatience = getAvg(sessions, 'patienceScore');
   const avgEmotions = getAvg(sessions, 'emotionsScore');
   const avgCommunication = getAvg(sessions, 'communicationScore');
+
+  const processScores = [avgPatience, avgEmotions, avgCommunication].filter(v => v !== null);
+  const avgProcessScore = processScores.length
+    ? processScores.reduce((a, b) => a + b, 0) / processScores.length
+    : null;
 
   const patienceTrend = getTrend(sessions, 'patienceScore');
   const emotionsTrend = getTrend(sessions, 'emotionsScore');
@@ -124,256 +55,189 @@ export default function ProgressDashboard({ sessions, intentions }) {
   const sorted = [...sessions].sort((a, b) => new Date(b.date) - new Date(a.date));
   const last5 = sorted.slice(0, 5);
 
-  const growthMessages = getGrowthMessage(sessions, avgPatience, avgEmotions, avgCommunication);
-  const quoteIdx = new Date().getDate() % PROCESS_QUOTES.length;
+  const hasTrends = patienceTrend !== null || emotionsTrend !== null || commTrend !== null;
+  const hasProcessMetrics = totalSessions >= 2 && (avgPatience || avgEmotions || avgCommunication);
+
+  // ─── Empty State ───────────────────────────────────────────
+  if (totalSessions === 0) {
+    return (
+      <div style={{ padding: '20px 20px 100px', background: '#0a0a0a', minHeight: '100vh' }}>
+        <div style={{ marginBottom: 24 }}>
+          <div className="label-xs" style={{ color: '#c8f135', marginBottom: 8 }}>PROGRESS</div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f5f5f5', letterSpacing: '-0.02em', margin: 0 }}>
+            Performance Analytics
+          </h1>
+        </div>
+        <div style={{
+          background: '#141414', border: '1px solid #2a2a2a', borderRadius: 16,
+          padding: '48px 24px', textAlign: 'center',
+        }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: 12, background: '#1e1e1e',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 20px',
+          }}>
+            <Minus size={24} color="#555" />
+          </div>
+          <h3 style={{ color: '#f5f5f5', fontWeight: 700, fontSize: '1rem', marginBottom: 12 }}>
+            No sessions logged yet.
+          </h3>
+          <p style={{ color: '#666', fontSize: '0.875rem', lineHeight: 1.7, margin: 0, maxWidth: 320, marginLeft: 'auto', marginRight: 'auto' }}>
+            Complete your first post-play reflection to start tracking progress.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: '20px 20px 100px' }} className="animate-fade-in">
+    <div style={{ padding: '20px 20px 100px', background: '#0a0a0a', minHeight: '100vh' }} className="animate-fade-in">
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
-        <div className="label-xs" style={{ color: '#c8f135', marginBottom: 8 }}>Your Growth</div>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f5f5f5', letterSpacing: '-0.02em', marginBottom: 8 }}>
-          Progress
+        <div className="label-xs" style={{ color: '#c8f135', marginBottom: 8 }}>PROGRESS</div>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f5f5f5', letterSpacing: '-0.02em', margin: 0 }}>
+          Performance Analytics
         </h1>
-        <p style={{ color: '#666', fontSize: '0.875rem' }}>
-          {totalSessions > 0
-            ? "Process metrics that show how you're actually growing as a player"
-            : "Track the metrics that matter: patience, composure, and communication"}
-        </p>
       </div>
 
-      {/* ─── Streak Hero ──────────────────────────────────────── */}
-      <div style={{
-        background: streak > 0
-          ? 'linear-gradient(135deg, #1a0e00, #241200)'
-          : 'linear-gradient(135deg, #141414, #1e1e1e)',
-        border: streak > 0 ? '1px solid rgba(249,115,22,0.4)' : '1px solid #2a2a2a',
-        borderRadius: 24, padding: '24px', marginBottom: 20, textAlign: 'center',
-        position: 'relative', overflow: 'hidden',
-      }}>
-        {streak > 0 && (
-          <div style={{
-            position: 'absolute', top: -30, right: -30,
-            width: 120, height: 120, borderRadius: '50%',
-            background: 'rgba(249,115,22,0.08)', pointerEvents: 'none',
-          }} />
-        )}
-        <div style={{ fontSize: '3rem', marginBottom: 8 }}>
-          {streak >= 7 ? '🏆' : streak > 0 ? '🔥' : '🏓'}
-        </div>
-        <div style={{ color: streak > 0 ? '#f97316' : '#c8f135', fontWeight: 900, fontSize: '3rem', lineHeight: 1 }}>
-          {streak}
-        </div>
-        <div style={{ color: '#a0a0a0', fontSize: '0.875rem', marginTop: 4 }}>
-          {streak === 0 ? 'day streak' : streak === 1 ? 'day streak — it begins!' : `day streak${streak >= 7 ? ' — unstoppable!' : ' — keep it going!'}`}
-        </div>
-        {streak === 0 && totalSessions === 0 && (
-          <p style={{ color: '#555', fontSize: '0.82rem', marginTop: 10, lineHeight: 1.6 }}>
-            Your first session lights the fire. Every day you show up and reflect, the streak grows — and so do you.
-          </p>
-        )}
-        {streak === 0 && totalSessions > 0 && (
-          <p style={{ color: '#555', fontSize: '0.82rem', marginTop: 10, lineHeight: 1.6 }}>
-            Your streak reset, but your growth didn&apos;t. Every comeback starts with one session. Today?
-          </p>
-        )}
+      {/* ─── Overview Cards ────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
+        <OverviewCard label="Total Sessions" value={totalSessions} color="#3b82f6" />
+        <OverviewCard label="Avg Rating" value={avgRating ? avgRating.toFixed(1) : '--'} color="#c8f135" />
+        <OverviewCard label="Avg Process" value={avgProcessScore ? avgProcessScore.toFixed(1) : '--'} color="#a855f7" />
       </div>
 
-      {/* ─── Personalized Growth Messages ──────────────────────── */}
-      {growthMessages.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
-          {growthMessages.map((msg, i) => (
-            <div key={i} style={{
-              background: `${msg.color}08`, border: `1px solid ${msg.color}25`,
-              borderRadius: 16, padding: '14px 16px',
-              display: 'flex', alignItems: 'flex-start', gap: 12,
-            }}>
-              <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{msg.icon}</span>
-              <p style={{ color: '#c0c0c0', fontSize: '0.84rem', lineHeight: 1.6, margin: 0 }}>
-                {msg.text}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ─── Stats Grid ───────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
-        <StatCard
-          icon={<Calendar size={16} color="#3b82f6" />}
-          label="Total Sessions"
-          value={totalSessions}
-          sub={journaledSessions > 0 ? `${journaledSessions} with deep reflection` : 'start journaling to unlock insights'}
-          accentColor="#3b82f6"
-        />
-        <StatCard
-          icon={<Star size={16} color="#c8f135" />}
-          label="Avg Self-Rating"
-          value={avgRating ? avgRating.toFixed(1) : '—'}
-          sub={avgRating ? (avgRating >= 4 ? 'you\'re playing well' : 'room to grow — that\'s exciting') : 'rate your sessions'}
-          accentColor="#c8f135"
-        />
-        <StatCard
-          icon={<Target size={16} color="#a855f7" />}
-          label="Intentions Set"
-          value={intentions?.length || 0}
-          sub="pre-play focus sessions"
-          accentColor="#a855f7"
-        />
-        <StatCard
-          icon={<Flame size={16} color="#f97316" />}
-          label="Current Streak"
-          value={streak}
-          sub={streak >= 7 ? 'incredible consistency' : streak > 0 ? 'building momentum' : 'play today to start'}
-          accentColor="#f97316"
-        />
-      </div>
-
-      {/* ─── Process Metrics ──────────────────────────────────── */}
-      {totalSessions >= 2 && (avgPatience || avgEmotions || avgCommunication) && (
-        <div style={{ background: '#141414', border: '1px solid #2a2a2a', borderRadius: 22, padding: '20px', marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <span className="label-xs" style={{ color: '#555' }}>Process Scores</span>
-            <span style={{ color: '#444', fontSize: '0.7rem' }}>10-point scale</span>
+      {/* ─── Process Metrics ───────────────────────────────────── */}
+      {hasProcessMetrics && (
+        <div style={{ background: '#141414', border: '1px solid #2a2a2a', borderRadius: 16, padding: '20px', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+            <span className="label-xs" style={{ color: '#555' }}>PROCESS METRICS</span>
+            <span style={{ color: '#444', fontSize: '0.7rem', fontWeight: 600 }}>OUT OF 10</span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {avgPatience && (
-              <MetricBar label="Patience" avg={avgPatience} trend={patienceTrend} icon="⏳" color="#c8f135"
-                description="Your ability to wait for the right ball before attacking" />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {avgPatience !== null && (
+              <ProcessBar label="Patience" value={avgPatience} color="#c8f135" />
             )}
-            {avgEmotions && (
-              <MetricBar label="Emotional Control" avg={avgEmotions} trend={emotionsTrend} icon="🌊" color="#3b82f6"
-                description="How well you manage frustration and stay composed" />
+            {avgEmotions !== null && (
+              <ProcessBar label="Emotional Control" value={avgEmotions} color="#3b82f6" />
             )}
-            {avgCommunication && (
-              <MetricBar label="Communication" avg={avgCommunication} trend={commTrend} icon="🤝" color="#22c55e"
-                description="Partner coordination, calling balls, and encouragement" />
+            {avgCommunication !== null && (
+              <ProcessBar label="Communication" value={avgCommunication} color="#a855f7" />
             )}
           </div>
         </div>
       )}
 
-      {/* ─── Recent Sessions Timeline ─────────────────────────── */}
+      {/* ─── Trend Section ─────────────────────────────────────── */}
+      {hasTrends && (
+        <div style={{ background: '#141414', border: '1px solid #2a2a2a', borderRadius: 16, padding: '20px', marginBottom: 20 }}>
+          <div className="label-xs" style={{ color: '#555', marginBottom: 16 }}>TRENDS</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {patienceTrend !== null && <TrendRow label="Patience" trend={patienceTrend} />}
+            {emotionsTrend !== null && <TrendRow label="Emotional Control" trend={emotionsTrend} />}
+            {commTrend !== null && <TrendRow label="Communication" trend={commTrend} />}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Recent Sessions ───────────────────────────────────── */}
       {last5.length > 0 && (
         <div style={{ marginBottom: 20 }}>
-          <div className="label-xs" style={{ color: '#555', marginBottom: 14 }}>Recent Sessions</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {last5.map((session, i) => (
-              <TimelineSession key={session.id} session={session} isFirst={i === 0} />
+          <div className="label-xs" style={{ color: '#555', marginBottom: 14 }}>RECENT SESSIONS</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {last5.map((session) => (
+              <SessionRow key={session.id} session={session} />
             ))}
           </div>
         </div>
       )}
-
-      {/* ─── Empty State ──────────────────────────────────────── */}
-      {totalSessions === 0 && (
-        <div style={{
-          background: 'linear-gradient(135deg, #141414 0%, #0e1a0e 100%)',
-          border: '1px solid rgba(200,241,53,0.15)', borderRadius: 24,
-          padding: '44px 24px', textAlign: 'center',
-        }}>
-          <div style={{ fontSize: '3.5rem', marginBottom: 16 }}>📊</div>
-          <h3 style={{ color: '#f5f5f5', fontWeight: 800, fontSize: '1.1rem', marginBottom: 12 }}>Your Growth Story Starts Here</h3>
-          <p style={{ color: '#a0a0a0', fontSize: '0.875rem', lineHeight: 1.7, marginBottom: 8 }}>
-            This dashboard tracks the things that actually make you better: <strong style={{ color: '#c8f135' }}>patience</strong>, <strong style={{ color: '#3b82f6' }}>emotional control</strong>, and <strong style={{ color: '#22c55e' }}>communication</strong>.
-          </p>
-          <p style={{ color: '#666', fontSize: '0.82rem', lineHeight: 1.6, margin: 0 }}>
-            Log your first session, rate your process scores, and watch your growth unfold over time.
-          </p>
-        </div>
-      )}
-
-      {/* ─── Process Philosophy ────────────────────────────────── */}
-      <div style={{
-        background: 'rgba(200,241,53,0.04)', border: '1px solid rgba(200,241,53,0.12)',
-        borderRadius: 18, padding: '16px', marginTop: totalSessions === 0 ? 20 : 0,
-      }}>
-        <p style={{ color: '#666', fontSize: '0.82rem', lineHeight: 1.7, margin: 0, fontStyle: 'italic' }}>
-          &ldquo;{PROCESS_QUOTES[quoteIdx]}&rdquo;
-        </p>
-      </div>
     </div>
   );
 }
 
 // ─── Sub-Components ──────────────────────────────────────────────────────────
 
-function StatCard({ icon, label, value, sub, accentColor }) {
+function OverviewCard({ label, value, color }) {
   return (
     <div style={{
-      background: '#141414', border: '1px solid #2a2a2a', borderRadius: 18, padding: '16px',
+      background: '#141414', border: '1px solid #2a2a2a', borderRadius: 14, padding: '16px 12px',
+      textAlign: 'center',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        {icon}
-        <span className="label-xs" style={{ color: '#555' }}>{label}</span>
+      <div style={{ color, fontWeight: 800, fontSize: '1.5rem', lineHeight: 1, marginBottom: 6 }}>
+        {value}
       </div>
-      <div style={{ color: accentColor, fontWeight: 900, fontSize: '1.75rem', lineHeight: 1 }}>{value}</div>
-      <div style={{ color: '#555', fontSize: '0.7rem', marginTop: 4 }}>{sub}</div>
+      <div style={{ color: '#666', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        {label}
+      </div>
     </div>
   );
 }
 
-function MetricBar({ label, avg, trend, icon, color, description }) {
-  const pct = ((avg || 0) / 10) * 100;
-  const trendLabel = getTrendLabel(trend);
+function ProcessBar({ label, value, color }) {
+  const pct = Math.min(((value || 0) / 10) * 100, 100);
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <span style={{ color: '#a0a0a0', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span>{icon}</span> {label}
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {trendLabel && (
-            <span style={{ color: trendLabel.color, fontSize: '0.68rem', fontWeight: 600 }}>
-              {trendLabel.icon} {trendLabel.text}
-            </span>
-          )}
-          <span style={{ color, fontWeight: 800, fontSize: '0.9rem' }}>{(avg || 0).toFixed(1)}</span>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <span style={{ color: '#a0a0a0', fontSize: '0.85rem', fontWeight: 600 }}>{label}</span>
+        <span style={{ color, fontWeight: 800, fontSize: '0.9rem' }}>{(value || 0).toFixed(1)}</span>
       </div>
-      <div className="progress-bar" style={{ marginBottom: 4 }}>
-        <div className="progress-fill" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${color}, ${color}99)` }} />
+      <div style={{
+        width: '100%', height: 8, borderRadius: 4, background: '#1e1e1e', overflow: 'hidden',
+      }}>
+        <div style={{
+          width: `${pct}%`, height: '100%', borderRadius: 4,
+          background: `linear-gradient(90deg, ${color}, ${color}aa)`,
+          transition: 'width 0.4s ease',
+        }} />
       </div>
-      <p style={{ color: '#444', fontSize: '0.68rem', margin: 0 }}>{description}</p>
     </div>
   );
 }
 
-function TimelineSession({ session, isFirst }) {
-  const dateStr = session.date
-    ? new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    : '';
+function TrendRow({ label, trend }) {
+  const info = getTrendInfo(trend);
+  if (!info) return null;
+  const { text, color, Icon } = info;
 
   return (
     <div style={{
-      background: '#141414', border: isFirst ? '1px solid rgba(200,241,53,0.2)' : '1px solid #2a2a2a',
-      borderRadius: 16, padding: '14px 16px',
-      display: 'flex', alignItems: 'center', gap: 12,
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '8px 0', borderBottom: '1px solid #1e1e1e',
     }}>
-      <div style={{
-        width: 36, height: 36, borderRadius: 12, flexShrink: 0,
-        background: isFirst ? 'rgba(200,241,53,0.1)' : '#1e1e1e',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem',
-      }}>
-        {session.rating === 5 ? '⭐' : session.rating >= 4 ? '🔥' : session.rating >= 3 ? '✅' : '📓'}
+      <span style={{ color: '#a0a0a0', fontSize: '0.85rem', fontWeight: 600 }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Icon size={14} color={color} />
+        <span style={{ color, fontSize: '0.8rem', fontWeight: 700 }}>{text}</span>
       </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ color: '#f5f5f5', fontWeight: 600, fontSize: '0.85rem' }}>
-          {session.gameType || 'Session'} · {session.skillFocus || 'General'}
+    </div>
+  );
+}
+
+function SessionRow({ session }) {
+  const dateStr = session.date
+    ? new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : '--';
+  const processAvg = getProcessAvg(session);
+
+  return (
+    <div style={{
+      background: '#141414', border: '1px solid #2a2a2a', borderRadius: 12,
+      padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14,
+    }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ color: '#f5f5f5', fontWeight: 700, fontSize: '0.85rem', marginBottom: 2 }}>
+          {session.gameType || 'Session'}
         </div>
-        <div style={{ color: '#555', fontSize: '0.72rem', marginTop: 2 }}>
-          {dateStr}
-          {session.patienceScore > 0 && ` · Patience: ${session.patienceScore}/10`}
-        </div>
+        <div style={{ color: '#555', fontSize: '0.72rem' }}>{dateStr}</div>
       </div>
-      <div style={{ display: 'flex', gap: 3 }}>
-        {[1, 2, 3, 4, 5].map(n => (
-          <div key={n} style={{
-            width: 6, height: 6, borderRadius: '50%',
-            background: n <= (session.rating || 0) ? '#c8f135' : '#2a2a2a',
-          }} />
-        ))}
+      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        <div style={{ color: '#c8f135', fontWeight: 800, fontSize: '0.85rem' }}>
+          {session.rating ? `${session.rating}/5` : '--'}
+        </div>
+        <div style={{ color: '#666', fontSize: '0.68rem', marginTop: 1 }}>
+          {processAvg !== null ? `Process: ${processAvg.toFixed(1)}` : ''}
+        </div>
       </div>
     </div>
   );

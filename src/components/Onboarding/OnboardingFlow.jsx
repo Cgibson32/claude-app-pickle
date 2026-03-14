@@ -47,7 +47,6 @@ export default function OnboardingFlow({ onComplete }) {
 
   return (
     <div className="min-h-screen bg-base-bg flex flex-col" style={{ backgroundColor: '#0a0a0a' }}>
-      {/* Progress bar */}
       {step > 0 && step < TOTAL_STEPS && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50 }}>
           <div className="progress-bar" style={{ borderRadius: 0, height: 3 }}>
@@ -56,15 +55,14 @@ export default function OnboardingFlow({ onComplete }) {
         </div>
       )}
 
-      {/* Content */}
       <div className="flex-1 overflow-y-auto">
         {step === 0 && <WelcomeStep onNext={next} />}
         {step === 1 && <MissionStep onNext={next} onBack={back} />}
         {step === 2 && <NameStep profile={profile} onChange={updateProfile} onNext={next} onBack={back} />}
         {step === 3 && (
           <SelectionStep
-            title="What's your level?"
-            subtitle="Be honest — this helps us personalize your coaching. Every level has a unique growth path."
+            title="WHAT IS YOUR LEVEL?"
+            subtitle="Be honest. This determines your training path. Every level has a unique growth trajectory."
             options={EXPERIENCE_LEVELS}
             selected={[profile.level]}
             onSelect={(id) => updateProfile('level', id)}
@@ -75,8 +73,8 @@ export default function OnboardingFlow({ onComplete }) {
         )}
         {step === 4 && (
           <SelectionStep
-            title="How often do you play?"
-            subtitle="Whether it's once a month or every day, we'll match your rhythm."
+            title="TRAINING FREQUENCY"
+            subtitle="How often you play shapes how we structure your development plan."
             options={PLAY_FREQUENCIES}
             selected={[profile.frequency]}
             onSelect={(id) => updateProfile('frequency', id)}
@@ -87,8 +85,8 @@ export default function OnboardingFlow({ onComplete }) {
         )}
         {step === 5 && (
           <SelectionStep
-            title="Where do you struggle most?"
-            subtitle="Everyone has struggles — naming them is the first step to overcoming them."
+            title="WHERE DO YOU STRUGGLE?"
+            subtitle="Identifying weaknesses is the first step toward eliminating them."
             options={STRUGGLE_OPTIONS}
             selected={profile.struggles}
             onSelect={(id) => toggleArrayItem('struggles', id)}
@@ -99,8 +97,8 @@ export default function OnboardingFlow({ onComplete }) {
         )}
         {step === 6 && (
           <SelectionStep
-            title="Technical weaknesses?"
-            subtitle="The shots that break down under pressure. We'll help you rebuild them with confidence."
+            title="TECHNICAL WEAKNESSES"
+            subtitle="The shots that break down under pressure. We will rebuild them with precision."
             options={TECHNICAL_WEAKNESSES}
             selected={profile.technicalWeaknesses}
             onSelect={(id) => toggleArrayItem('technicalWeaknesses', id)}
@@ -111,8 +109,8 @@ export default function OnboardingFlow({ onComplete }) {
         )}
         {step === 7 && (
           <SelectionStep
-            title="Mental game challenges?"
-            subtitle="The mental side wins or loses most matches. This is where the real breakthroughs happen."
+            title="MENTAL GAME"
+            subtitle="The mental side determines outcomes. This is where elite players separate themselves."
             options={MENTAL_WEAKNESSES}
             selected={profile.mentalWeaknesses}
             onSelect={(id) => toggleArrayItem('mentalWeaknesses', id)}
@@ -123,8 +121,8 @@ export default function OnboardingFlow({ onComplete }) {
         )}
         {step === 8 && (
           <SelectionStep
-            title="What are your goals?"
-            subtitle="Your goals shape everything — your daily intentions, your coaching, and your growth plan."
+            title="YOUR GOALS"
+            subtitle="Your goals define your training plan, daily focus, and progression benchmarks."
             options={GOAL_OPTIONS}
             selected={profile.goals}
             onSelect={(id) => toggleArrayItem('goals', id)}
@@ -150,45 +148,51 @@ export default function OnboardingFlow({ onComplete }) {
 }
 
 function WelcomeStep({ onNext }) {
+  const features = [
+    'Daily intentions that sharpen competitive focus',
+    'Mental performance tools used by elite athletes',
+    'Structured reflection that compounds into measurable growth',
+    'AI-driven coaching insights tailored to your game',
+    'Process-oriented progression built for serious players',
+  ];
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center animate-fade-in">
-      {/* Ball */}
-      <div className="mb-8" style={{ animation: 'float 3s ease-in-out infinite' }}>
+      <div style={{ marginBottom: 32 }}>
         <div
           style={{
-            width: 100, height: 100, borderRadius: '50%',
+            width: 80,
+            height: 80,
+            borderRadius: 20,
             background: 'linear-gradient(135deg, #c8f135, #a8d820)',
-            boxShadow: '0 0 40px rgba(200,241,53,0.5), 0 0 80px rgba(200,241,53,0.2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 48,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto',
+            boxShadow: '0 0 40px rgba(200,241,53,0.3)',
           }}
         >
-          🏓
+          <span style={{ color: '#0a0a0a', fontWeight: 900, fontSize: '1.5rem', letterSpacing: '-0.05em' }}>PP</span>
         </div>
       </div>
 
       <h1 style={{ fontSize: '2.5rem', fontWeight: 900, letterSpacing: '-0.03em', color: '#f5f5f5', marginBottom: 8 }}>
-        Pickle<span style={{ color: '#c8f135' }}>Pro</span>
+        PICKLE<span style={{ color: '#c8f135' }}>PRO</span>
       </h1>
-      <p style={{ color: '#a0a0a0', fontSize: '1rem', marginBottom: 12, lineHeight: 1.6, maxWidth: 300 }}>
-        The app that helps you grow — not just as a player,<br />
-        <span style={{ color: '#f5f5f5', fontWeight: 600 }}>but as a competitor, teammate, and student of the game.</span>
+      <p style={{ color: '#a0a0a0', fontSize: '1rem', marginBottom: 12, lineHeight: 1.6, maxWidth: 320 }}>
+        Train with purpose. Compete with confidence.
+        <br />
+        <span style={{ color: '#f5f5f5', fontWeight: 700 }}>Elevate every dimension of your game.</span>
       </p>
-      <p style={{ color: '#666', fontSize: '0.85rem', marginBottom: 40, lineHeight: 1.6, maxWidth: 280 }}>
-        Built for players who believe improvement is a daily practice, not just a scoreboard result.
+      <p style={{ color: '#666', fontSize: '0.85rem', marginBottom: 40, lineHeight: 1.6, maxWidth: 300 }}>
+        Built for athletes who treat improvement as a discipline, not a suggestion.
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 320, marginBottom: 40 }}>
-        {[
-          { icon: '🎯', text: 'Daily intentions that sharpen your focus' },
-          { icon: '🧠', text: 'Mental performance tools used by top athletes' },
-          { icon: '📓', text: 'Reflection journaling that compounds into growth' },
-          { icon: '⚡', text: 'AI-powered coaching insights' },
-          { icon: '🏆', text: 'Process-oriented progression that actually works' },
-        ].map((item, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left' }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#c8f135', flexShrink: 0 }} />
-            <span style={{ color: '#a0a0a0', fontSize: '0.875rem' }}>{item.icon} {item.text}</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%', maxWidth: 340, marginBottom: 40 }}>
+        {features.map((text, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left' }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#c8f135', flexShrink: 0 }} />
+            <span style={{ color: '#a0a0a0', fontSize: '0.875rem', lineHeight: 1.4 }}>{text}</span>
           </div>
         ))}
       </div>
@@ -203,52 +207,58 @@ function WelcomeStep({ onNext }) {
           borderRadius: 16,
           padding: '18px 48px',
           fontSize: '1rem',
-          fontWeight: 800,
-          letterSpacing: '0.01em',
+          fontWeight: 900,
+          letterSpacing: '0.08em',
           cursor: 'pointer',
           width: '100%',
           maxWidth: 320,
         }}
       >
-        Begin My Journey
+        GET STARTED
       </button>
       <p style={{ color: '#555', fontSize: '0.75rem', marginTop: 16 }}>
-        Takes 2 minutes · Free to start · No credit card required
+        2 minutes to set up -- Free to start -- No credit card required
       </p>
     </div>
   );
 }
 
 function MissionStep({ onNext, onBack }) {
+  const pillars = [
+    { color: '#c8f135', title: 'SKILL OVER SCORE', text: 'Master the craft. Results are a byproduct of preparation.' },
+    { color: '#60a5fa', title: 'MIND OVER FRUSTRATION', text: 'Composure, patience, and emotional discipline under pressure.' },
+    { color: '#f59e0b', title: 'TEAM OVER EGO', text: 'Communication, trust, and elevating your partner.' },
+    { color: '#a78bfa', title: 'DISCIPLINE OVER COMFORT', text: 'Commit to the process. Growth demands consistency.' },
+  ];
+
   return (
     <div className="min-h-screen flex flex-col px-6 py-16 animate-slide-up" style={{ maxWidth: 480, margin: '0 auto' }}>
       <BackButton onBack={onBack} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 32 }}>
         <div>
-          <div className="label-xs" style={{ color: '#c8f135', marginBottom: 12 }}>The PicklePro Philosophy</div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f5f5f5', lineHeight: 1.2, marginBottom: 16 }}>
-            Shift from results<br />
+          <div className="label-xs" style={{ color: '#c8f135', marginBottom: 12 }}>THE PICKLEPRO PHILOSOPHY</div>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#f5f5f5', lineHeight: 1.2, marginBottom: 16 }}>
+            Shift from results
+            <br />
             <span style={{ color: '#c8f135' }}>to process.</span>
           </h2>
           <p style={{ color: '#a0a0a0', fontSize: '0.95rem', lineHeight: 1.7 }}>
-            Most players obsess over the scoreboard. The players who improve fastest focus on <em style={{ color: '#f5f5f5' }}>how</em> they play — the patience, the communication, the emotional control, the daily habits.
+            Most players fixate on the scoreboard. Athletes who improve fastest commit to <em style={{ color: '#f5f5f5' }}>how</em> they play -- the patience, the communication, the emotional control, the daily habits that compound over time.
           </p>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {[
-            { icon: '🌱', title: 'Skill over score', text: 'Focus on the craft. The results follow.' },
-            { icon: '🧘', title: 'Mind over frustration', text: 'Patience, composure, and emotional intelligence.' },
-            { icon: '🤝', title: 'Team over ego', text: 'Communication, trust, and making your partner better.' },
-            { icon: '😄', title: 'Joy over pressure', text: 'Love the process. Growth becomes effortless.' },
-          ].map((item, i) => (
+          {pillars.map((item, i) => (
             <div key={i} style={{
               background: '#141414', border: '1px solid #2a2a2a', borderRadius: 16,
               padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 14,
             }}>
-              <span style={{ fontSize: '1.25rem', marginTop: 2 }}>{item.icon}</span>
+              <div style={{
+                width: 4, height: 36, borderRadius: 2,
+                background: item.color, flexShrink: 0, marginTop: 2,
+              }} />
               <div>
-                <div style={{ color: '#f5f5f5', fontSize: '0.875rem', fontWeight: 700, marginBottom: 2 }}>{item.title}</div>
+                <div style={{ color: '#f5f5f5', fontSize: '0.8rem', fontWeight: 800, marginBottom: 3, letterSpacing: '0.04em' }}>{item.title}</div>
                 <div style={{ color: '#888', fontSize: '0.8rem', lineHeight: 1.5 }}>{item.text}</div>
               </div>
             </div>
@@ -260,10 +270,10 @@ function MissionStep({ onNext, onBack }) {
           color: '#c8f135', fontSize: '0.95rem', fontStyle: 'italic',
           lineHeight: 1.6,
         }}>
-          &ldquo;The players who improve most learn to enjoy repetition. Growth is easier when you love the work.&rdquo;
+          &ldquo;The athletes who improve most are the ones who learn to love repetition. Growth is a discipline.&rdquo;
         </blockquote>
 
-        <NextButton onClick={onNext} label="I'm In — Let's Go" />
+        <NextButton onClick={onNext} label="Continue" />
       </div>
     </div>
   );
@@ -276,12 +286,12 @@ function NameStep({ profile, onChange, onNext, onBack }) {
       <BackButton onBack={onBack} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 32 }}>
         <div>
-          <div className="label-xs" style={{ color: '#c8f135', marginBottom: 12 }}>Step 1 of 8</div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f5f5f5', lineHeight: 1.2 }}>
-            What should we<br />call you?
+          <div className="label-xs" style={{ color: '#c8f135', marginBottom: 12 }}>STEP 1 OF 8</div>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#f5f5f5', lineHeight: 1.2 }}>
+            YOUR NAME
           </h2>
           <p style={{ color: '#888', fontSize: '0.875rem', marginTop: 8 }}>
-            Your coach needs a name to keep things personal.
+            Used to personalize your training experience.
           </p>
         </div>
 
@@ -290,7 +300,7 @@ function NameStep({ profile, onChange, onNext, onBack }) {
             type="text"
             value={profile.name}
             onChange={e => onChange('name', e.target.value)}
-            placeholder="Your first name"
+            placeholder="First name"
             style={{
               width: '100%', background: '#141414', border: '1px solid #333',
               borderRadius: 16, padding: '18px 20px', color: '#f5f5f5',
@@ -303,7 +313,7 @@ function NameStep({ profile, onChange, onNext, onBack }) {
           />
           {profile.name.trim().length >= 2 && (
             <p style={{ color: '#a0a0a0', fontSize: '0.875rem', marginTop: 12, paddingLeft: 4, lineHeight: 1.5 }}>
-              Welcome to PicklePro, <span style={{ color: '#c8f135', fontWeight: 700 }}>{profile.name}</span>. Your growth journey starts right now.
+              Welcome, <span style={{ color: '#c8f135', fontWeight: 700 }}>{profile.name}</span>. Your training profile starts here.
             </p>
           )}
         </div>
@@ -315,16 +325,16 @@ function NameStep({ profile, onChange, onNext, onBack }) {
 }
 
 function SelectionStep({ title, subtitle, options, selected, onSelect, onNext, onBack, multiSelect }) {
-  const canContinue = selected.length > 0;
+  const canContinue = selected.length > 0 && selected[0] !== '';
   return (
     <div className="min-h-screen flex flex-col px-6 pt-16 pb-8 animate-slide-up" style={{ maxWidth: 480, margin: '0 auto' }}>
       <BackButton onBack={onBack} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 24 }}>
         <div>
           <div className="label-xs" style={{ color: '#c8f135', marginBottom: 12 }}>
-            {multiSelect ? 'Select all that apply' : 'Choose one'}
+            {multiSelect ? 'SELECT ALL THAT APPLY' : 'CHOOSE ONE'}
           </div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f5f5f5', lineHeight: 1.2 }}>{title}</h2>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#f5f5f5', lineHeight: 1.2, letterSpacing: '-0.01em' }}>{title}</h2>
           <p style={{ color: '#888', fontSize: '0.875rem', marginTop: 8, lineHeight: 1.5 }}>{subtitle}</p>
         </div>
 
@@ -337,7 +347,7 @@ function SelectionStep({ title, subtitle, options, selected, onSelect, onNext, o
                 onClick={() => onSelect(opt.id)}
                 className="press-scale"
                 style={{
-                  background: isSelected ? 'rgba(200,241,53,0.1)' : '#141414',
+                  background: isSelected ? 'rgba(200,241,53,0.08)' : '#141414',
                   border: isSelected ? '1.5px solid #c8f135' : '1px solid #2a2a2a',
                   borderRadius: 14,
                   padding: options.length > 6 ? '12px 14px' : '14px 16px',
@@ -346,11 +356,19 @@ function SelectionStep({ title, subtitle, options, selected, onSelect, onNext, o
                   transition: 'all 0.2s',
                 }}
               >
-                <span style={{ fontSize: options.length > 6 ? '1.1rem' : '1.5rem', flexShrink: 0 }}>{opt.emoji}</span>
+                <div style={{
+                  width: 20, height: 20, borderRadius: multiSelect ? 4 : '50%',
+                  border: isSelected ? 'none' : '2px solid #444',
+                  background: isSelected ? '#c8f135' : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0, transition: 'all 0.2s',
+                }}>
+                  {isSelected && <Check size={12} color="#0a0a0a" strokeWidth={3} />}
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
                     color: isSelected ? '#c8f135' : '#f5f5f5',
-                    fontWeight: 600, fontSize: options.length > 6 ? '0.8rem' : '0.9rem',
+                    fontWeight: 700, fontSize: options.length > 6 ? '0.8rem' : '0.9rem',
                     lineHeight: 1.3,
                   }}>{opt.label}</div>
                   {opt.description && (
@@ -360,14 +378,6 @@ function SelectionStep({ title, subtitle, options, selected, onSelect, onNext, o
                     <div style={{ color: '#555', fontSize: '0.7rem', marginTop: 2 }}>DUPR {opt.dupr}</div>
                   )}
                 </div>
-                {isSelected && (
-                  <div style={{
-                    width: 20, height: 20, borderRadius: '50%',
-                    background: '#c8f135', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  }}>
-                    <Check size={12} color="#0a0a0a" />
-                  </div>
-                )}
               </button>
             );
           })}
@@ -385,12 +395,13 @@ function PlayerTypeStep({ profile, updateProfile, onNext, onBack }) {
       <BackButton onBack={onBack} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 24 }}>
         <div>
-          <div className="label-xs" style={{ color: '#c8f135', marginBottom: 12 }}>Your Identity</div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f5f5f5', lineHeight: 1.2 }}>
-            What kind of player<br />do you want to become?
+          <div className="label-xs" style={{ color: '#c8f135', marginBottom: 12 }}>PLAYER IDENTITY</div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#f5f5f5', lineHeight: 1.2 }}>
+            WHAT TYPE OF PLAYER
+            <br />ARE YOU BUILDING?
           </h2>
           <p style={{ color: '#888', fontSize: '0.875rem', marginTop: 8, lineHeight: 1.5 }}>
-            This shapes your coaching style and daily intentions. There&apos;s no wrong answer — only your answer.
+            This determines your coaching style and daily training focus.
           </p>
         </div>
 
@@ -403,26 +414,33 @@ function PlayerTypeStep({ profile, updateProfile, onNext, onBack }) {
                 onClick={() => updateProfile('playerType', opt.id)}
                 className="press-scale"
                 style={{
-                  background: isSelected ? 'rgba(200,241,53,0.1)' : '#141414',
+                  background: isSelected ? 'rgba(200,241,53,0.08)' : '#141414',
                   border: isSelected ? '1.5px solid #c8f135' : '1px solid #2a2a2a',
                   borderRadius: 16, padding: '16px 18px',
                   display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer',
                   textAlign: 'left', width: '100%', transition: 'all 0.2s',
                 }}
               >
-                <span style={{ fontSize: '1.75rem' }}>{opt.emoji}</span>
+                <div style={{
+                  width: 20, height: 20, borderRadius: '50%',
+                  border: isSelected ? 'none' : '2px solid #444',
+                  background: isSelected ? '#c8f135' : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0, transition: 'all 0.2s',
+                }}>
+                  {isSelected && <Check size={12} color="#0a0a0a" strokeWidth={3} />}
+                </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ color: isSelected ? '#c8f135' : '#f5f5f5', fontWeight: 700, fontSize: '0.95rem' }}>{opt.label}</div>
+                  <div style={{ color: isSelected ? '#c8f135' : '#f5f5f5', fontWeight: 800, fontSize: '0.95rem' }}>{opt.label}</div>
                   <div style={{ color: '#888', fontSize: '0.8rem', marginTop: 3, lineHeight: 1.4 }}>{opt.description}</div>
                 </div>
-                {isSelected && <Check size={18} color="#c8f135" />}
               </button>
             );
           })}
         </div>
 
         <div>
-          <p style={{ color: '#888', fontSize: '0.8rem', marginBottom: 10 }}>Singles, doubles, or both?</p>
+          <p style={{ color: '#888', fontSize: '0.8rem', marginBottom: 10, fontWeight: 700 }}>FORMAT PREFERENCE</p>
           <div style={{ display: 'flex', gap: 10 }}>
             {DOUBLES_SINGLES_OPTIONS.map(opt => {
               const isSelected = profile.format === opt.id;
@@ -432,21 +450,21 @@ function PlayerTypeStep({ profile, updateProfile, onNext, onBack }) {
                   onClick={() => updateProfile('format', opt.id)}
                   className="press-scale"
                   style={{
-                    flex: 1, background: isSelected ? 'rgba(200,241,53,0.1)' : '#141414',
+                    flex: 1, background: isSelected ? 'rgba(200,241,53,0.08)' : '#141414',
                     border: isSelected ? '1.5px solid #c8f135' : '1px solid #2a2a2a',
-                    borderRadius: 14, padding: '12px 8px', cursor: 'pointer',
+                    borderRadius: 14, padding: '14px 8px', cursor: 'pointer',
                     textAlign: 'center', transition: 'all 0.2s',
                   }}
                 >
-                  <div style={{ fontSize: '1.25rem', marginBottom: 4 }}>{opt.emoji}</div>
-                  <div style={{ color: isSelected ? '#c8f135' : '#f5f5f5', fontWeight: 600, fontSize: '0.8rem' }}>{opt.label}</div>
+                  <div style={{ color: isSelected ? '#c8f135' : '#f5f5f5', fontWeight: 800, fontSize: '0.85rem' }}>{opt.label}</div>
+                  <div style={{ color: '#666', fontSize: '0.7rem', marginTop: 4 }}>{opt.description}</div>
                 </button>
               );
             })}
           </div>
         </div>
 
-        <NextButton onClick={onNext} disabled={!profile.playerType || !profile.format} label="Almost Done" />
+        <NextButton onClick={onNext} disabled={!profile.playerType || !profile.format} label="Continue" />
       </div>
     </div>
   );
@@ -456,59 +474,28 @@ function SummaryStep({ profile, onComplete, onBack }) {
   const levelData = EXPERIENCE_LEVELS.find(l => l.id === profile.level);
   const topStruggles = profile.struggles.slice(0, 3);
   const topMentalWeaknesses = profile.mentalWeaknesses.slice(0, 2);
-  const topGoals = profile.goals.slice(0, 2);
+  const topGoals = profile.goals.slice(0, 3);
   const playerType = PLAYER_TYPE_OPTIONS.find(p => p.id === profile.playerType);
-
-  // Personalized coaching promise based on selections
-  const getCoachingPromise = () => {
-    const promises = [];
-    if (profile.struggles.includes('patience') || profile.mentalWeaknesses.includes('patience-mental')) {
-      promises.push('building patience into every rally');
-    }
-    if (profile.struggles.includes('frustration') || profile.mentalWeaknesses.includes('frustration')) {
-      promises.push('turning frustration into focus');
-    }
-    if (profile.struggles.includes('communication') || profile.mentalWeaknesses.includes('communication')) {
-      promises.push('strengthening your on-court communication');
-    }
-    if (profile.goals.includes('compete')) {
-      promises.push('preparing you for competitive play');
-    }
-    if (profile.goals.includes('mental')) {
-      promises.push('developing an unshakeable mental game');
-    }
-    if (promises.length === 0) promises.push('helping you grow every single session');
-    return promises.slice(0, 2).join(' and ');
-  };
 
   return (
     <div className="min-h-screen flex flex-col px-6 pt-16 pb-8 animate-slide-up" style={{ maxWidth: 480, margin: '0 auto' }}>
       <BackButton onBack={onBack} />
 
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
-        <div style={{
-          width: 80, height: 80, borderRadius: '50%',
-          background: 'linear-gradient(135deg, #c8f135, #a8d820)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '2rem', margin: '0 auto 16px',
-          boxShadow: '0 0 40px rgba(200,241,53,0.4)',
-        }}>
-          🏓
-        </div>
-        <div className="label-xs" style={{ color: '#c8f135', marginBottom: 8 }}>Your Journey Begins</div>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#f5f5f5', lineHeight: 1.2 }}>
-          {profile.name ? `${profile.name}, you're` : "You're"} ready.
+        <div className="label-xs" style={{ color: '#c8f135', marginBottom: 12 }}>PROFILE COMPLETE</div>
+        <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#f5f5f5', lineHeight: 1.2 }}>
+          {profile.name ? `${profile.name}, your` : 'Your'} training
+          <br />plan is ready.
         </h2>
         <p style={{ color: '#888', fontSize: '0.875rem', marginTop: 8, lineHeight: 1.5 }}>
-          Your personalized coaching plan is set. We&apos;ll focus on {getCoachingPromise()}.
+          Review your athlete profile below.
         </p>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
         {levelData && (
           <SummaryCard
-            icon={levelData.emoji}
-            label="Level"
+            label="LEVEL"
             value={levelData.label}
             sub={levelData.dupr}
           />
@@ -516,24 +503,23 @@ function SummaryStep({ profile, onComplete, onBack }) {
 
         {playerType && (
           <SummaryCard
-            icon={playerType.emoji}
-            label="Player Identity"
+            label="PLAYER IDENTITY"
             value={playerType.label}
           />
         )}
 
         {topStruggles.length > 0 && (
           <div style={{ background: '#141414', border: '1px solid #2a2a2a', borderRadius: 16, padding: '14px 16px' }}>
-            <div className="label-xs" style={{ color: '#666', marginBottom: 10 }}>Growth Areas</div>
+            <div className="label-xs" style={{ color: '#666', marginBottom: 10 }}>GROWTH AREAS</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {topStruggles.map(id => {
                 const item = STRUGGLE_OPTIONS.find(s => s.id === id);
                 return item ? (
                   <span key={id} style={{
                     background: 'rgba(200,241,53,0.1)', border: '1px solid rgba(200,241,53,0.3)',
-                    color: '#c8f135', borderRadius: 20, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 600,
+                    color: '#c8f135', borderRadius: 20, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700,
                   }}>
-                    {item.emoji} {item.label}
+                    {item.label}
                   </span>
                 ) : null;
               })}
@@ -543,16 +529,16 @@ function SummaryStep({ profile, onComplete, onBack }) {
 
         {topMentalWeaknesses.length > 0 && (
           <div style={{ background: '#141414', border: '1px solid #2a2a2a', borderRadius: 16, padding: '14px 16px' }}>
-            <div className="label-xs" style={{ color: '#666', marginBottom: 10 }}>Mindset Priorities</div>
+            <div className="label-xs" style={{ color: '#666', marginBottom: 10 }}>MENTAL PRIORITIES</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {topMentalWeaknesses.map(id => {
                 const item = MENTAL_WEAKNESSES.find(m => m.id === id);
                 return item ? (
                   <span key={id} style={{
                     background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)',
-                    color: '#60a5fa', borderRadius: 20, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 600,
+                    color: '#60a5fa', borderRadius: 20, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700,
                   }}>
-                    {item.emoji} {item.label}
+                    {item.label}
                   </span>
                 ) : null;
               })}
@@ -562,32 +548,22 @@ function SummaryStep({ profile, onComplete, onBack }) {
 
         {topGoals.length > 0 && (
           <div style={{ background: '#141414', border: '1px solid #2a2a2a', borderRadius: 16, padding: '14px 16px' }}>
-            <div className="label-xs" style={{ color: '#666', marginBottom: 10 }}>Your Goals</div>
+            <div className="label-xs" style={{ color: '#666', marginBottom: 10 }}>GOALS</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {topGoals.map(id => {
                 const item = GOAL_OPTIONS.find(g => g.id === id);
                 return item ? (
                   <span key={id} style={{
                     background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)',
-                    color: '#c084fc', borderRadius: 20, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 600,
+                    color: '#c084fc', borderRadius: 20, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700,
                   }}>
-                    {item.emoji} {item.label}
+                    {item.label}
                   </span>
                 ) : null;
               })}
             </div>
           </div>
         )}
-
-        <div style={{
-          background: 'rgba(200,241,53,0.06)', border: '1px solid rgba(200,241,53,0.2)',
-          borderRadius: 16, padding: '16px',
-        }}>
-          <p style={{ color: '#a0a0a0', fontSize: '0.875rem', lineHeight: 1.7, margin: 0 }}>
-            &ldquo;Every session from here forward is a deposit in your growth. Stay process-focused. Stay patient.{' '}
-            <span style={{ color: '#c8f135' }}>Play with intention. Play with joy.</span>&rdquo;
-          </p>
-        </div>
       </div>
 
       <button
@@ -596,29 +572,32 @@ function SummaryStep({ profile, onComplete, onBack }) {
         style={{
           background: 'linear-gradient(135deg, #c8f135, #a8d820)',
           color: '#0a0a0a', border: 'none', borderRadius: 16,
-          padding: '18px 24px', fontSize: '1rem', fontWeight: 800,
-          cursor: 'pointer', width: '100%', letterSpacing: '0.01em',
+          padding: '18px 24px', fontSize: '1rem', fontWeight: 900,
+          cursor: 'pointer', width: '100%', letterSpacing: '0.08em',
         }}
       >
-        Start My PicklePro Journey
+        START TRAINING
       </button>
       <p style={{ color: '#555', fontSize: '0.75rem', textAlign: 'center', marginTop: 12 }}>
-        You can update your profile anytime
+        Profile can be updated anytime in settings
       </p>
     </div>
   );
 }
 
-function SummaryCard({ icon, label, value, sub }) {
+function SummaryCard({ label, value, sub }) {
   return (
     <div style={{
       background: '#141414', border: '1px solid #2a2a2a', borderRadius: 16,
       padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
     }}>
-      <span style={{ fontSize: '1.5rem' }}>{icon}</span>
+      <div style={{
+        width: 4, height: 32, borderRadius: 2,
+        background: '#c8f135', flexShrink: 0,
+      }} />
       <div>
         <div className="label-xs" style={{ color: '#555' }}>{label}</div>
-        <div style={{ color: '#f5f5f5', fontWeight: 700, fontSize: '0.95rem' }}>{value}</div>
+        <div style={{ color: '#f5f5f5', fontWeight: 800, fontSize: '0.95rem' }}>{value}</div>
         {sub && <div style={{ color: '#666', fontSize: '0.75rem', marginTop: 2 }}>DUPR {sub}</div>}
       </div>
     </div>
@@ -651,9 +630,9 @@ function NextButton({ onClick, disabled, label }) {
         color: disabled ? '#555' : '#0a0a0a',
         border: disabled ? '1px solid #2a2a2a' : 'none',
         borderRadius: 16, padding: '18px 24px',
-        fontSize: '1rem', fontWeight: 800, cursor: disabled ? 'not-allowed' : 'pointer',
+        fontSize: '1rem', fontWeight: 900, cursor: disabled ? 'not-allowed' : 'pointer',
         width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        transition: 'all 0.2s', marginTop: 8,
+        transition: 'all 0.2s', marginTop: 8, letterSpacing: '0.04em',
       }}
     >
       {label} {!disabled && <ChevronRight size={18} />}

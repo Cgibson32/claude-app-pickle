@@ -186,9 +186,10 @@ function AppShell() {
           <div style={{
             width: 28, height: 28, borderRadius: 8,
             background: 'linear-gradient(135deg, #c8f135, #a8d820)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '0.7rem', fontWeight: 900, color: '#0a0a0a',
           }}>
-            🏓
+            PP
           </div>
           <span style={{ fontWeight: 900, fontSize: '1rem', color: '#f5f5f5', letterSpacing: '-0.01em' }}>
             Pickle<span style={{ color: '#c8f135' }}>Pro</span>
@@ -205,7 +206,7 @@ function AppShell() {
               color: '#a855f7', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer',
             }}
           >
-            🤖 AI Coach
+            AI Coach
           </button>
           <button
             onClick={() => setShowProfile(true)}
@@ -216,7 +217,7 @@ function AppShell() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
           >
-            👤
+            <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#0a0a0a' }}>P</span>
           </button>
         </div>
       </header>

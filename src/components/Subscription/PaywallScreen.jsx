@@ -29,14 +29,13 @@ const FREE_FEATURES = [
 ];
 
 const PREMIUM_FEATURES = [
-  { icon: '🤖', text: 'Full AI coaching & personalized insights' },
-  { icon: '📓', text: 'Unlimited journal entries & reflection' },
-  { icon: '🎯', text: 'Complete skill library with drills' },
-  { icon: '🧠', text: 'Full mental game library (9 pillars)' },
-  { icon: '📊', text: 'Advanced progress analytics & trends' },
-  { icon: '⚡', text: 'Daily personalized coaching plans' },
-  { icon: '🏆', text: 'Streak tracking & habit building' },
-  { icon: '💡', text: 'Saved lessons & bookmarks' },
+  'Full AI coaching and personalized insights',
+  'Unlimited journal entries and reflection',
+  'Complete skill library with drills',
+  'Full mental game library (9 pillars)',
+  'Advanced progress analytics and trends',
+  'Daily personalized coaching plans',
+  'Saved lessons and bookmarks',
 ];
 
 export default function PaywallScreen({ onBack, onSubscribe }) {
@@ -75,10 +74,10 @@ export default function PaywallScreen({ onBack, onSubscribe }) {
           width: 72, height: 72, borderRadius: '50%',
           background: 'linear-gradient(135deg, #c8f135, #a8d820)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 16px', fontSize: '2rem',
+          margin: '0 auto 16px',
           boxShadow: '0 0 30px rgba(200,241,53,0.4)',
         }}>
-          ⚡
+          <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#0a0a0a' }}>PP</span>
         </div>
         <h1 style={{ fontSize: '2rem', fontWeight: 900, color: '#f5f5f5', letterSpacing: '-0.03em', marginBottom: 8 }}>
           Pickle<span style={{ color: '#c8f135' }}>Pro</span> Premium
@@ -100,10 +99,16 @@ export default function PaywallScreen({ onBack, onSubscribe }) {
             <div className="label-xs" style={{ color: '#c8f135' }}>Everything in Premium</div>
           </div>
           <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {PREMIUM_FEATURES.map((f, i) => (
+            {PREMIUM_FEATURES.map((text, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: '1.1rem' }}>{f.icon}</span>
-                <span style={{ color: '#c0c0c0', fontSize: '0.875rem' }}>{f.text}</span>
+                <div style={{
+                  width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                  background: 'rgba(200,241,53,0.15)', border: '1px solid rgba(200,241,53,0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Check size={10} color="#c8f135" />
+                </div>
+                <span style={{ color: '#c0c0c0', fontSize: '0.875rem' }}>{text}</span>
               </div>
             ))}
           </div>
@@ -199,15 +204,10 @@ export default function PaywallScreen({ onBack, onSubscribe }) {
         </p>
 
         {/* Trust signals */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 20 }}>
-          {[
-            { icon: '🔒', label: 'Secure' },
-            { icon: '↩️', label: 'Cancel anytime' },
-            { icon: '⚡', label: 'Instant access' },
-          ].map(t => (
-            <div key={t.label} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '1rem', marginBottom: 4 }}>{t.icon}</div>
-              <div style={{ color: '#444', fontSize: '0.65rem', fontWeight: 600 }}>{t.label}</div>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 20 }}>
+          {['Secure', 'Cancel anytime', 'Instant access'].map(label => (
+            <div key={label} style={{ textAlign: 'center' }}>
+              <div style={{ color: '#555', fontSize: '0.7rem', fontWeight: 600 }}>{label}</div>
             </div>
           ))}
         </div>
@@ -273,10 +273,10 @@ function SuccessScreen({ onBack }) {
         width: 100, height: 100, borderRadius: '50%',
         background: 'linear-gradient(135deg, #c8f135, #a8d820)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '2.5rem', marginBottom: 24,
+        marginBottom: 24,
         boxShadow: '0 0 60px rgba(200,241,53,0.5)',
       }}>
-        🏆
+        <span style={{ fontSize: '2rem', fontWeight: 900, color: '#0a0a0a' }}>PP</span>
       </div>
       <h2 style={{ color: '#f5f5f5', fontWeight: 900, fontSize: '1.75rem', marginBottom: 12 }}>
         Welcome to Premium!

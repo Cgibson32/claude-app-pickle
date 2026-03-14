@@ -32,9 +32,11 @@ export default function MentalGameDetail({ categoryId, onBack }) {
           <div style={{
             width: 60, height: 60, borderRadius: 18,
             background: category.colorDim, border: `1px solid ${category.color}30`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.75rem', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
-            {category.emoji}
+            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: category.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {category.name.slice(0, 3)}
+            </span>
           </div>
           <div>
             <h1 style={{ color: '#f5f5f5', fontWeight: 800, fontSize: '1.4rem', margin: '0 0 4px' }}>

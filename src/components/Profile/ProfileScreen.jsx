@@ -66,10 +66,12 @@ export default function ProfileScreen({ onNavigate, onResetOnboarding }) {
           width: 72, height: 72, borderRadius: '50%',
           background: 'linear-gradient(135deg, #c8f135, #a8d820)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '0 auto 12px', fontSize: '2rem',
+          margin: '0 auto 12px',
           boxShadow: '0 0 20px rgba(200,241,53,0.3)',
         }}>
-          🏓
+          <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#0a0a0a' }}>
+            {(profile?.name || 'P')[0].toUpperCase()}
+          </span>
         </div>
 
         {editing ? (
@@ -94,7 +96,7 @@ export default function ProfileScreen({ onNavigate, onResetOnboarding }) {
               background: 'rgba(200,241,53,0.1)', border: '1px solid rgba(200,241,53,0.25)',
               color: '#c8f135', borderRadius: 20, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700,
             }}>
-              {level.emoji} {level.label}
+              {level.label}
             </span>
           )}
           {playerType && (
@@ -102,7 +104,7 @@ export default function ProfileScreen({ onNavigate, onResetOnboarding }) {
               background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.25)',
               color: '#a855f7', borderRadius: 20, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 700,
             }}>
-              {playerType.emoji} {playerType.label.split(' ').slice(1, 3).join(' ')}
+              {playerType.label}
             </span>
           )}
         </div>
@@ -135,7 +137,7 @@ export default function ProfileScreen({ onNavigate, onResetOnboarding }) {
               {EXPERIENCE_LEVELS.map(l => (
                 <ToggleRow
                   key={l.id}
-                  label={`${l.emoji} ${l.label}`}
+                  label={l.label}
                   sub={l.dupr}
                   selected={editedProfile.level === l.id}
                   onToggle={() => setEditedProfile(p => ({ ...p, level: l.id }))}
@@ -150,7 +152,7 @@ export default function ProfileScreen({ onNavigate, onResetOnboarding }) {
               {STRUGGLE_OPTIONS.map(s => (
                 <TagToggle
                   key={s.id}
-                  label={`${s.emoji} ${s.label}`}
+                  label={s.label}
                   selected={(editedProfile.struggles || []).includes(s.id)}
                   onToggle={() => toggleItem('struggles', s.id)}
                 />
@@ -163,7 +165,7 @@ export default function ProfileScreen({ onNavigate, onResetOnboarding }) {
               {MENTAL_WEAKNESSES.map(m => (
                 <TagToggle
                   key={m.id}
-                  label={`${m.emoji} ${m.label}`}
+                  label={m.label}
                   selected={(editedProfile.mentalWeaknesses || []).includes(m.id)}
                   onToggle={() => toggleItem('mentalWeaknesses', m.id)}
                   color="#3b82f6"
@@ -184,7 +186,7 @@ export default function ProfileScreen({ onNavigate, onResetOnboarding }) {
                     background: 'rgba(200,241,53,0.08)', border: '1px solid rgba(200,241,53,0.2)',
                     color: '#c8f135', borderRadius: 20, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 600,
                   }}>
-                    {item.emoji} {item.label}
+                    {item.label}
                   </span>
                 ) : null;
               })}
@@ -203,7 +205,7 @@ export default function ProfileScreen({ onNavigate, onResetOnboarding }) {
                     background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',
                     color: '#60a5fa', borderRadius: 20, padding: '4px 12px', fontSize: '0.75rem', fontWeight: 600,
                   }}>
-                    {item.emoji} {item.label}
+                    {item.label}
                   </span>
                 ) : null;
               })}
@@ -252,7 +254,7 @@ export default function ProfileScreen({ onNavigate, onResetOnboarding }) {
           padding: '18px', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', marginBottom: 16,
         }}
       >
-        ⚡ Upgrade to PicklePro Premium
+        UPGRADE TO PICKLEPRO PREMIUM
       </button>
 
       {/* Reset */}

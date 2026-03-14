@@ -59,7 +59,7 @@ export default function SkillLibrary({ onSelectSkill, savedSkills = [] }) {
 
       {filtered.length === 0 && (
         <div style={{ textAlign: 'center', padding: '60px 0', color: '#555' }}>
-          <div style={{ fontSize: '2rem', marginBottom: 12 }}>🔍</div>
+          <div style={{ fontSize: '1rem', marginBottom: 12, color: '#555' }}>No results</div>
           <p>No skills match your search</p>
         </div>
       )}
@@ -84,9 +84,11 @@ function SkillCard({ skill, onClick }) {
           width: 52, height: 52, borderRadius: 16, flexShrink: 0,
           background: `${skill.colorDim}`,
           border: `1px solid ${skill.color}30`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          {skill.emoji}
+          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: skill.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {skill.name.slice(0, 3)}
+          </span>
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>

@@ -21,7 +21,7 @@ export default function MentalGameLibrary({ onSelectCategory }) {
         border: '1px solid rgba(59,130,246,0.25)', borderRadius: 24,
         padding: '22px', marginBottom: 24,
       }}>
-        <div style={{ fontSize: '1.5rem', marginBottom: 12 }}>🧠</div>
+        <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#3b82f6', letterSpacing: '0.05em', marginBottom: 12 }}>MND</div>
         <p style={{ color: '#f5f5f5', fontSize: '1rem', fontWeight: 700, lineHeight: 1.5, margin: '0 0 8px' }}>
           "Your mindset is part of your shot selection."
         </p>
@@ -55,9 +55,11 @@ function MentalCard({ category, onClick }) {
         <div style={{
           width: 52, height: 52, borderRadius: 16, flexShrink: 0,
           background: category.colorDim, border: `1px solid ${category.color}30`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          {category.emoji}
+          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: category.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            {category.name.slice(0, 3)}
+          </span>
         </div>
         <div style={{ flex: 1 }}>
           <h3 style={{ color: '#f5f5f5', fontWeight: 700, fontSize: '0.95rem', margin: '0 0 4px' }}>

@@ -2,7 +2,7 @@ export const SKILL_CATEGORIES = [
   {
     id: 'third-shot-drop',
     name: 'Third Shot Drop',
-    emoji: '🎯',
+
     color: '#c8f135',
     colorDim: 'rgba(200, 241, 53, 0.12)',
     tagline: 'The key that unlocks the net',
@@ -44,7 +44,7 @@ export const SKILL_CATEGORIES = [
   {
     id: 'dinking',
     name: 'Dink Patterns',
-    emoji: '🏓',
+
     color: '#3b82f6',
     colorDim: 'rgba(59, 130, 246, 0.12)',
     tagline: 'The chess match at the net',
@@ -86,7 +86,7 @@ export const SKILL_CATEGORIES = [
   {
     id: 'resets',
     name: 'Resets',
-    emoji: '🔄',
+
     color: '#a855f7',
     colorDim: 'rgba(168, 85, 247, 0.12)',
     tagline: 'Control under fire',
@@ -124,7 +124,7 @@ export const SKILL_CATEGORIES = [
   {
     id: 'speed-ups',
     name: 'Speed-Up Attack',
-    emoji: '⚡',
+
     color: '#f97316',
     colorDim: 'rgba(249, 115, 22, 0.12)',
     tagline: 'Attack at the right moment',
@@ -162,7 +162,7 @@ export const SKILL_CATEGORIES = [
   {
     id: 'court-positioning',
     name: 'Court Positioning',
-    emoji: '📍',
+
     color: '#14b8a6',
     colorDim: 'rgba(20, 184, 166, 0.12)',
     tagline: 'Play from the right space',
@@ -200,7 +200,7 @@ export const SKILL_CATEGORIES = [
   {
     id: 'serve-return',
     name: 'Serves & Returns',
-    emoji: '🎾',
+
     color: '#f59e0b',
     colorDim: 'rgba(245, 158, 11, 0.12)',
     tagline: 'Start every point with intent',
@@ -236,7 +236,7 @@ export const SKILL_CATEGORIES = [
   {
     id: 'defense',
     name: 'Defense',
-    emoji: '🛡️',
+
     color: '#ef4444',
     colorDim: 'rgba(239, 68, 68, 0.12)',
     tagline: 'Win more by giving away less',
@@ -272,7 +272,7 @@ export const SKILL_CATEGORIES = [
   {
     id: 'partner-communication',
     name: 'Partner Communication',
-    emoji: '🤝',
+
     color: '#22c55e',
     colorDim: 'rgba(34, 197, 94, 0.12)',
     tagline: 'One team, one vision',
@@ -308,7 +308,7 @@ export const SKILL_CATEGORIES = [
   {
     id: 'transition-zone',
     name: 'Transition Zone',
-    emoji: '🚶',
+
     color: '#8b5cf6',
     colorDim: 'rgba(139, 92, 246, 0.12)',
     tagline: 'Survive the no man\'s land',

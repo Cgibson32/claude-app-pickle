@@ -10,10 +10,10 @@ export default function SkillDetail({ skillId, onBack, savedSkills = [], onToggl
   if (!skill) return null;
 
   const sections = [
-    { id: 'tips', label: '💡 Coaching Tips', content: skill.tips },
-    { id: 'mental', label: '🧠 Mental Cues', content: skill.mentalCues },
-    { id: 'mistakes', label: '⚠️ Common Mistakes', content: skill.commonMistakes },
-    { id: 'drills', label: '🎯 Practice Drills', content: skill.drills },
+    { id: 'tips', label: 'Coaching Tips', content: skill.tips },
+    { id: 'mental', label: 'Mental Cues', content: skill.mentalCues },
+    { id: 'mistakes', label: 'Common Mistakes', content: skill.commonMistakes },
+    { id: 'drills', label: 'Practice Drills', content: skill.drills },
   ];
 
   return (
@@ -56,9 +56,11 @@ export default function SkillDetail({ skillId, onBack, savedSkills = [], onToggl
           <div style={{
             width: 64, height: 64, borderRadius: 20,
             background: skill.colorDim, border: `1px solid ${skill.color}30`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
-            {skill.emoji}
+            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: skill.color, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {skill.name.slice(0, 3)}
+            </span>
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>

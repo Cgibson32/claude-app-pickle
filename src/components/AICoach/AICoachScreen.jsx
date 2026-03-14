@@ -33,7 +33,7 @@ function generateInsights(profile, sessions) {
       title: 'Third Shot Drop is Your Gateway Skill',
       body: `Based on your profile, the third shot drop is your highest-leverage technical focus right now. This single skill will unlock more improvement than any other. Practice 50 drops per session — soft grip, committed swing, landing deep in the kitchen.`,
       cue: 'Soft hands. Trust the arc.',
-      icon: '🎯',
+      icon: null,
       color: '#c8f135',
     });
   }
@@ -45,7 +45,7 @@ function generateInsights(profile, sessions) {
       title: 'Cross-Court Dinking: Your Point Builder',
       body: `Cross-court dinking is the foundation of the kitchen game. Aim cross-court 70-80% of the time — lower net, wider angle, more margin for error. Build this pattern until it becomes automatic.`,
       cue: 'Cross-court first. Every time.',
-      icon: '🏓',
+      icon: null,
       color: '#3b82f6',
     });
   }
@@ -57,7 +57,7 @@ function generateInsights(profile, sessions) {
       title: 'Patience is Your #1 Mental Skill',
       body: `Your reflections show patience is a key growth area. Most errors at your level come from forcing the point before the right opportunity arrives. Practice waiting for balls above net height before attacking. Every dink is a deposit.`,
       cue: 'Build first. Attack when ready.',
-      icon: '🧘',
+      icon: null,
       color: '#a855f7',
     });
   }
@@ -69,7 +69,7 @@ function generateInsights(profile, sessions) {
       title: 'Patience Trend: Room to Grow',
       body: `Your recent sessions show patience scoring around ${avgPatience.toFixed(1)}/10. This is an area of active development. Before your next match, set one specific patience cue: "I won't attack until the ball is above shoulder height." Track this intentionally.`,
       cue: 'High ball = attack. Low ball = dink on.',
-      icon: '⏳',
+      icon: null,
       color: '#f59e0b',
     });
   }
@@ -81,7 +81,7 @@ function generateInsights(profile, sessions) {
       title: 'Emotional Control: Your Competitive Edge',
       body: `Your journal shows emotional control as a growth area. The 10-second reset is your tool: after any frustrating point, walk to the baseline, take one breath, and return your focus to the next ball. Practice this ritual until it becomes automatic.`,
       cue: '10 seconds. Breathe. Next ball.',
-      icon: '🌊',
+      icon: null,
       color: '#14b8a6',
     });
   }
@@ -93,7 +93,7 @@ function generateInsights(profile, sessions) {
       title: 'Position Yourself to Win',
       body: `Court positioning is the invisible skill that separates recreational from competitive players. Your first goal after every return should be: get to the kitchen line. Practice the advance movement until it's automatic — serve, return, advance.`,
       cue: 'Move forward with every return.',
-      icon: '📍',
+      icon: null,
       color: '#22c55e',
     });
   }
@@ -105,7 +105,7 @@ function generateInsights(profile, sessions) {
       title: 'Communication is a Competitive Weapon',
       body: `Partner communication is one of the most underused competitive advantages. Before your next match, agree on: who takes middle balls, encouragement after mistakes, and one tactical goal. Teams that communicate play with shared confidence.`,
       cue: 'Call every ball. Encourage every miss.',
-      icon: '🤝',
+      icon: null,
       color: '#f97316',
     });
   }
@@ -118,7 +118,7 @@ function generateInsights(profile, sessions) {
       title: 'The Kitchen Line is Your Power Position',
       body: `At your current level, getting to the kitchen line consistently will transform your game more than any single shot. Most recreational players stay at the baseline — getting to the kitchen line puts you in the minority and gives you enormous tactical advantage.`,
       cue: 'Get to the kitchen. Stay there.',
-      icon: '🏠',
+      icon: null,
       color: '#c8f135',
     });
   }
@@ -130,7 +130,7 @@ function generateInsights(profile, sessions) {
       title: 'Disguise Your Speed-Ups',
       body: `At your level, pattern recognition is everything. The best attackers look exactly like dinkers before they speed up. Work on creating the same paddle preparation for dinks and attacks — the disguise is what makes the attack work.`,
       cue: 'Look the same. Change the speed.',
-      icon: '⚡',
+      icon: null,
       color: '#ef4444',
     });
   }
@@ -156,42 +156,42 @@ function generateDailyDrill() {
       description: 'Stand at the baseline, drop a ball, and hit 50 consecutive soft drops over the net into the kitchen. Track your make percentage. Goal: 80%+ in the kitchen.',
       focus: 'Third Shot Drop',
       time: '10 min',
-      icon: '🎯',
+      icon: null,
     },
     {
       name: 'Cross-Court Dink Rally',
       description: 'With a partner, rally cross-court from the kitchen for 50 consecutive shots without error. Focus on arc, soft hands, and consistent placement.',
       focus: 'Dinking',
       time: '8 min',
-      icon: '🏓',
+      icon: null,
     },
     {
       name: '10-Second Reset Practice',
       description: 'After every error in your next drill or match, use your 10-second reset: walk to baseline, one breath, one positive cue, then return focus. Count how many times you successfully reset.',
       focus: 'Mental Game',
       time: 'Full session',
-      icon: '🧘',
+      icon: null,
     },
     {
       name: 'Advance Drill',
       description: 'Practice the serve-return-advance sequence 20 times in a row. Focus on smooth forward movement through the transition zone, landing at the kitchen line ready for the next shot.',
       focus: 'Positioning',
       time: '10 min',
-      icon: '📍',
+      icon: null,
     },
     {
       name: 'Backhand Isolation',
       description: 'Spend 10 minutes dinking only with your backhand. Move your feet to each ball. This builds the weaker side into a reliable weapon.',
       focus: 'Backhand',
       time: '10 min',
-      icon: '🤚',
+      icon: null,
     },
     {
       name: 'Pattern Game',
       description: 'Play points where you commit to dinking cross-court 5 times before going anywhere else. Build the pattern habit. First player to deviate from the pattern loses a point.',
       focus: 'Dink Patterns',
       time: '15 min',
-      icon: '🔄',
+      icon: null,
     },
   ];
 
@@ -273,7 +273,6 @@ export default function AICoachScreen({ onNavigate }) {
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-            <span style={{ fontSize: '1.5rem' }}>{drill.icon}</span>
             <div>
               <h3 style={{ color: '#f5f5f5', fontWeight: 700, fontSize: '0.95rem', margin: '0 0 6px' }}>
                 {drill.name}
@@ -392,7 +391,10 @@ function InsightCard({ insight, index }) {
           display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer', textAlign: 'left',
         }}
       >
-        <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{insight.icon}</span>
+        <div style={{
+            width: 8, height: 8, borderRadius: '50%', flexShrink: 0, marginTop: 6,
+            background: insight.color,
+          }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
             <span style={{ color: '#f5f5f5', fontWeight: 700, fontSize: '0.875rem' }}>{insight.title}</span>
