@@ -3,6 +3,7 @@ import SwiftData
 
 enum SequencePhase: Equatable {
     case loading
+    case alarmSound
     case greeting
     case affirmation(index: Int)
     case breathing
@@ -16,8 +17,10 @@ class AffirmationSequenceViewModel {
     var affirmations: [String] = []
     var userName: String = ""
     var closingMessage: String = "Have a wonderful day"
+    var alarmSoundName: String = "alarm_gentle"
 
     private let speechService = SpeechService.shared
+    private let audioService = AudioService.shared
 
     func loadAndStart(modelContext: ModelContext) {
         // Load user profile
@@ -25,6 +28,14 @@ class AffirmationSequenceViewModel {
         if let profile = try? modelContext.fetch(profileDescriptor).first {
             userName = profile.name
             speechService.configure(rate: profile.speechRate, pitch: profile.speechPitch)
+        }
+
+        // Load alarm sound from the most recent enabled alarm
+        let alarmDescriptor = FetchDescriptor<Alarm>(
+            sortBy: [SortDescriptor(\Alarm.hour), SortDescriptor(\Alarm.minute)]
+        )
+        if let alarm = (try? modelContext.fetch(alarmDescriptor))?.first(where: \.isEnabled) {
+            alarmSoundName = alarm.soundName
         }
 
         // Load favorited affirmations (these repeat until un-favorited)
@@ -57,7 +68,18 @@ class AffirmationSequenceViewModel {
             closingMessage = cached
         }
 
-        startSequence()
+        startAlarmSound()
+    }
+
+    func startAlarmSound() {
+        phase = .alarmSound
+        audioService.playSound(named: alarmSoundName)
+
+        // Play alarm sound for 10 seconds, then transition to affirmation sequence
+        DispatchQueue.main.asyncAfter(deadline: .now() + AppConstants.alarmSoundDuration) { [weak self] in
+            self?.audioService.stop()
+            self?.startSequence()
+        }
     }
 
     func startSequence() {
@@ -109,6 +131,7 @@ class AffirmationSequenceViewModel {
     }
 
     func stopSpeech() {
+        audioService.stop()
         speechService.stop()
     }
 

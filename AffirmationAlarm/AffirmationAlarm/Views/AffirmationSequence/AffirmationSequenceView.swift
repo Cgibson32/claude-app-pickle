@@ -24,6 +24,9 @@ struct AffirmationSequenceView: View {
                             .tint(.white)
                             .scaleEffect(1.5)
 
+                    case .alarmSound:
+                        alarmSoundView
+
                     case .greeting:
                         greetingView
 
@@ -92,6 +95,20 @@ struct AffirmationSequenceView: View {
 
     // MARK: - Subviews
 
+    private var alarmSoundView: some View {
+        VStack(spacing: 20) {
+            Image(systemName: "alarm.fill")
+                .font(.system(size: 60))
+                .foregroundColor(.white.opacity(0.8))
+                .symbolEffect(.pulse)
+
+            Text("Rise & Shine")
+                .font(.title2)
+                .fontWeight(.medium)
+                .foregroundColor(.white)
+        }
+    }
+
     private var greetingView: some View {
         VStack(spacing: 16) {
             Image(systemName: "sunrise.fill")
@@ -145,7 +162,7 @@ struct AffirmationSequenceView: View {
 
     private var backgroundStyle: GradientBackground.GradientStyle {
         switch viewModel.phase {
-        case .loading, .greeting:
+        case .loading, .alarmSound, .greeting:
             return .calm
         case .affirmation, .breathing:
             return .sunrise

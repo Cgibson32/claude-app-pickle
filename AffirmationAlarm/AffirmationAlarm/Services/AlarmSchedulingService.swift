@@ -106,47 +106,18 @@ class AlarmSchedulingService {
     ) -> [String] {
         var identifiers: [String] = []
 
-        // Primary notification
-        let primaryId = "\(alarm.id.uuidString)-\(idSuffix)-primary"
-        let primaryContent = makeNotificationContent(alarm: alarm, isFollowUp: false)
-        let primaryTrigger = UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: repeats)
-        let primaryRequest = UNNotificationRequest(identifier: primaryId, content: primaryContent, trigger: primaryTrigger)
+        // Single notification — alarm sound plays for 10 seconds in-app when user taps
+        let notificationId = "\(alarm.id.uuidString)-\(idSuffix)"
+        let content = makeNotificationContent(alarm: alarm, isFollowUp: false)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: repeats)
+        let request = UNNotificationRequest(identifier: notificationId, content: content, trigger: trigger)
 
-        center.add(primaryRequest) { error in
+        center.add(request) { error in
             if let error {
-                print("Failed to schedule primary notification: \(error)")
+                print("Failed to schedule notification: \(error)")
             }
         }
-        identifiers.append(primaryId)
-
-        // Follow-up notification (35 seconds later) for "rings twice" effect
-        let followUpId = "\(alarm.id.uuidString)-\(idSuffix)-followup"
-        let followUpContent = makeNotificationContent(alarm: alarm, isFollowUp: true)
-
-        // For the follow-up, use a time interval from the calendar trigger
-        // We schedule it as a separate calendar trigger offset by adding seconds
-        var followUpComponents = triggerComponents
-        let currentSecond = triggerComponents.second ?? 0
-        followUpComponents.second = currentSecond + Int(AppConstants.secondNotificationDelay)
-        // Handle minute overflow
-        if let sec = followUpComponents.second, sec >= 60 {
-            followUpComponents.second = sec - 60
-            followUpComponents.minute = (followUpComponents.minute ?? 0) + 1
-            if let min = followUpComponents.minute, min >= 60 {
-                followUpComponents.minute = min - 60
-                followUpComponents.hour = (followUpComponents.hour ?? 0) + 1
-            }
-        }
-
-        let followUpTrigger = UNCalendarNotificationTrigger(dateMatching: followUpComponents, repeats: repeats)
-        let followUpRequest = UNNotificationRequest(identifier: followUpId, content: followUpContent, trigger: followUpTrigger)
-
-        center.add(followUpRequest) { error in
-            if let error {
-                print("Failed to schedule follow-up notification: \(error)")
-            }
-        }
-        identifiers.append(followUpId)
+        identifiers.append(notificationId)
 
         return identifiers
     }

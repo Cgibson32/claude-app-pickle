@@ -16,6 +16,7 @@ enum AppConstants {
     static let breathingPostDelay: TimeInterval = 3.0
 
     static let snoozeMinutes = 9
+    static let alarmSoundDuration: TimeInterval = 10
     static let secondNotificationDelay: TimeInterval = 35
     static let maxScheduledNotifications = 56 // Leave some headroom under 64 limit
     static let scheduleDaysAhead = 7
