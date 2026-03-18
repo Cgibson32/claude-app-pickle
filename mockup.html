@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Affirmation Alarm - App Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --forest-green: #2E7D32;
+  --deep-green: #1B5E20;
+  --brown: #8D6E63;
+  --dark-brown: #5D4037;
+  --darker-brown: #4E342E;
+  --gold: #C9A227;
+  --cream: #FAF3E0;
+  --muted-green: #1B4332;
+  --green-brown: #3E5243;
+  --warm-brown-green: #2E5D2A;
+
+  --text-primary: #FAF3E0;
+  --text-secondary: rgba(250, 243, 224, 0.7);
+  --text-tertiary: rgba(250, 243, 224, 0.5);
+  --text-disabled: rgba(250, 243, 224, 0.35);
+  --accent: #C9A227;
+  --accent-text: #1B5E20;
+  --card-bg: rgba(250, 243, 224, 0.1);
+  --card-bg-hover: rgba(250, 243, 224, 0.15);
+  --input-bg: rgba(250, 243, 224, 0.15);
+  --stroke-light: rgba(250, 243, 224, 0.2);
+  --chip-unselected: rgba(250, 243, 224, 0.15);
+  --button-disabled: rgba(250, 243, 224, 0.3);
+  --destructive: rgba(230, 77, 77, 1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #111;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: 'Montserrat', sans-serif;
+  color: #ccc;
+  padding: 20px;
+}
+
+h1.page-title {
+  font-family: 'Playfair Display', serif;
+  color: var(--cream);
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+.page-subtitle {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+/* iPhone Frame */
+.phone-frame {
+  width: 375px;
+  height: 812px;
+  border-radius: 44px;
+  border: 3px solid #333;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  flex-shrink: 0;
+}
+
+.phone-notch {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 160px;
+  height: 34px;
+  background: #000;
+  border-radius: 0 0 20px 20px;
+  z-index: 100;
+}
+
+.phone-home-indicator {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 134px;
+  height: 5px;
+  background: rgba(250,243,224,0.3);
+  border-radius: 3px;
+  z-index: 100;
+}
+
+/* Screens */
+.screen {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: none;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 60px 20px 40px;
+  scrollbar-width: none;
+}
+.screen::-webkit-scrollbar { display: none; }
+.screen.active { display: flex; }
+
+/* Gradients */
+.grad-sunrise {
+  background: linear-gradient(135deg, #1B5E20, #2E5D2A, #5D4037);
+}
+.grad-evening {
+  background: linear-gradient(135deg, #5D4037, #4E342E, #1B5E20);
+}
+.grad-calm {
+  background: linear-gradient(135deg, #1B4332, #3E5243, #4E342E);
+}
+
+/* Typography */
+.heading-large {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: 34px;
+  color: var(--text-primary);
+}
+.heading-title {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: 28px;
+  color: var(--text-primary);
+}
+.heading-title2 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+  font-size: 22px;
+  color: var(--text-primary);
+}
+.heading-title3 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 500;
+  font-size: 20px;
+  color: var(--text-primary);
+}
+.text-headline {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 17px;
+  color: var(--text-primary);
+}
+.text-body {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  font-size: 17px;
+  color: var(--text-primary);
+}
+.text-subhead {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+.text-caption {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Common components */
+.btn-gold {
+  background: var(--gold);
+  color: var(--accent-text);
+  border: none;
+  border-radius: 50px;
+  padding: 16px 40px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 17px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-gold:hover { opacity: 0.9; }
+.btn-gold:disabled, .btn-gold.disabled {
+  background: var(--button-disabled);
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--stroke-light);
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.card {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.card-hover {
+  background: var(--card-bg-hover);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 50px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  font-family: 'Montserrat', sans-serif;
+}
+.chip.selected {
+  background: var(--gold);
+  color: var(--accent-text);
+}
+.chip.unselected {
+  background: var(--chip-unselected);
+  color: var(--text-primary);
+}
+
+.input-field {
+  background: var(--input-bg);
+  border: none;
+  border-radius: 12px;
+  padding: 14px 16px;
+  color: var(--text-primary);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 17px;
+  width: 100%;
+  outline: none;
+}
+.input-field::placeholder {
+  color: var(--text-tertiary);
+}
+
+textarea.input-field {
+  min-height: 120px;
+  resize: none;
+}
+
+.toggle {
+  width: 51px;
+  height: 31px;
+  border-radius: 16px;
+  background: rgba(250,243,224,0.2);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.toggle.on { background: var(--gold); }
+.toggle .knob {
+  width: 27px;
+  height: 27px;
+  border-radius: 14px;
+  background: white;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+}
+.toggle.on .knob { transform: translateX(20px); }
+
+.day-selector {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.day-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.day-btn.selected {
+  background: var(--gold);
+  color: var(--accent-text);
+}
+.day-btn.unselected {
+  background: var(--chip-unselected);
+  color: var(--text-primary);
+}
+
+.section-label {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  margin-top: 20px;
+}
+
+.icon-placeholder {
+  font-size: 60px;
+  text-align: center;
+  margin-bottom: 16px;
+  opacity: 0.8;
+}
+
+.spacer { flex: 1; }
+.gap-8 { height: 8px; }
+.gap-12 { height: 12px; }
+.gap-16 { height: 16px; }
+.gap-20 { height: 20px; }
+.gap-24 { height: 24px; }
+
+.center { text-align: center; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-row { display: flex; align-items: center; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; }
+
+/* Nav bar at bottom of page */
+.screen-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 24px;
+  justify-content: center;
+  max-width: 600px;
+}
+.screen-nav button {
+  background: rgba(250,243,224,0.1);
+  color: var(--cream);
+  border: 1px solid rgba(250,243,224,0.2);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.screen-nav button:hover, .screen-nav button.active {
+  background: var(--gold);
+  color: var(--accent-text);
+  border-color: var(--gold);
+}
+
+/* Alarm row */
+.alarm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--stroke-light);
+}
+.alarm-time {
+  font-family: 'Playfair Display', serif;
+  font-weight: 300;
+  font-size: 36px;
+  color: var(--text-primary);
+}
+
+/* Quick action buttons */
+.quick-actions {
+  display: flex;
+  gap: 12px;
+}
+.quick-action {
+  flex: 1;
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 16px 8px;
+  text-align: center;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+.quick-action:hover { background: var(--card-bg-hover); }
+.quick-action .qa-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+.quick-action .qa-label {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Settings row */
+.settings-row {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.settings-icon {
+  width: 28px;
+  text-align: center;
+  color: var(--gold);
+  font-size: 16px;
+  margin-right: 12px;
+}
+.settings-row .row-content { flex: 1; }
+.settings-row .row-title {
+  font-size: 15px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.settings-row .row-detail {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.settings-chevron {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+/* Sound option */
+.sound-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.sound-option.selected { background: var(--chip-unselected); }
+.sound-option .radio {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--text-tertiary);
+  display: flex; align-items: center; justify-content: center;
+}
+.sound-option.selected .radio {
+  border-color: var(--gold);
+  background: var(--gold);
+}
+.sound-option.selected .radio::after {
+  content: '✓';
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Breathing animation */
+.breathing-circle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(250,243,224,0.4) 0%, rgba(250,243,224,0.1) 70%);
+  border: 2px solid rgba(250,243,224,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: breathe 4s ease-in-out infinite;
+  margin: 0 auto;
+}
+@keyframes breathe {
+  0%, 100% { transform: scale(0.8); opacity: 0.7; }
+  50% { transform: scale(1.2); opacity: 1; }
+}
+
+/* Count selector */
+.count-selector {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.count-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.count-btn.selected {
+  background: var(--gold);
+  color: var(--accent-text);
+}
+.count-btn.unselected {
+  background: var(--chip-unselected);
+  color: var(--text-primary);
+}
+
+/* Affirmation item */
+.affirmation-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+.affirmation-item .quote-icon {
+  color: var(--text-tertiary);
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.affirmation-item .aff-text {
+  flex: 1;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+.affirmation-item .heart-btn {
+  color: var(--gold);
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+}
+
+/* Slider mock */
+.slider-mock {
+  width: 100%;
+  height: 4px;
+  background: rgba(250,243,224,0.2);
+  border-radius: 2px;
+  position: relative;
+  margin: 10px 0;
+}
+.slider-mock .slider-fill {
+  height: 100%;
+  background: var(--gold);
+  border-radius: 2px;
+}
+.slider-mock .slider-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--gold);
+  position: absolute;
+  top: -8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+/* Chip flow */
+.chip-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Nav title */
+.nav-title {
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+/* Fav empty */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Affirmation Alarm - App Preview</h1>
+<p class="page-subtitle">Click the buttons below the phone to navigate between screens</p>
+
+<div class="phone-frame">
+  <div class="phone-notch"></div>
+  <div class="phone-home-indicator"></div>
+
+  <!-- Screen 1: Welcome -->
+  <div id="screen-welcome" class="screen grad-sunrise active">
+    <div class="spacer"></div>
+    <div class="center">
+      <div class="icon-placeholder">☀️</div>
+      <div class="gap-16"></div>
+      <div class="heading-large" style="color: var(--text-primary);">Affirmation Alarm</div>
+      <div class="gap-12"></div>
+      <div class="heading-title3" style="color: var(--text-secondary);">Wake up inspired.<br>Every morning.</div>
+      <div class="gap-20"></div>
+      <div class="text-body" style="color: var(--text-secondary); padding: 0 20px;">Start each day with personalized affirmations crafted by AI to support your unique goals and aspirations.</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="center">
+      <button class="btn-gold" onclick="showScreen('screen-name')">Get Started</button>
+    </div>
+    <div class="gap-24"></div>
+  </div>
+
+  <!-- Screen 2: Name Entry -->
+  <div id="screen-name" class="screen grad-sunrise">
+    <div class="gap-20"></div>
+    <div class="center">
+      <div style="font-size:60px; opacity:0.6;">👤</div>
+      <div class="gap-16"></div>
+      <div class="heading-title2">What should we call you?</div>
+      <div class="gap-8"></div>
+      <div class="text-body" style="color: var(--text-secondary);">We'll use your name to personalize your daily affirmations.</div>
+    </div>
+    <div class="gap-24"></div>
+    <input class="input-field" type="text" placeholder="Enter your name" value="Sarah" style="text-align:center; font-size: 20px;">
+    <div class="spacer"></div>
+    <div class="center">
+      <button class="btn-gold" onclick="showScreen('screen-goals')">Continue</button>
+    </div>
+    <div class="gap-24"></div>
+  </div>
+
+  <!-- Screen 3: Goals -->
+  <div id="screen-goals" class="screen grad-sunrise">
+    <div class="gap-8"></div>
+    <div class="center">
+      <div style="font-size:60px; opacity:0.6;">⭐</div>
+      <div class="gap-12"></div>
+      <div class="heading-title2">What are your goals?</div>
+      <div class="gap-8"></div>
+      <div class="text-body" style="color: var(--text-secondary); font-size:15px;">Tell us what you'd like to focus on and we'll craft affirmations just for you.</div>
+    </div>
+    <div class="gap-16"></div>
+    <div class="section-label">Your Goals</div>
+    <textarea class="input-field" placeholder="e.g., Build confidence, reduce stress...">Build confidence in my career and find more inner peace</textarea>
+    <div class="section-label">Focus Areas</div>
+    <div class="chip-flow">
+      <button class="chip selected" onclick="this.classList.toggle('selected');this.classList.toggle('unselected')">🧘 Mindfulness</button>
+      <button class="chip unselected" onclick="this.classList.toggle('selected');this.classList.toggle('unselected')">💪 Confidence</button>
+      <button class="chip selected" onclick="this.classList.toggle('selected');this.classList.toggle('unselected')">❤️ Self-Love</button>
+      <button class="chip unselected" onclick="this.classList.toggle('selected');this.classList.toggle('unselected')">🎯 Career</button>
+      <button class="chip unselected" onclick="this.classList.toggle('selected');this.classList.toggle('unselected')">🌱 Growth</button>
+      <button class="chip unselected" onclick="this.classList.toggle('selected');this.classList.toggle('unselected')">😊 Gratitude</button>
+    </div>
+    <div class="section-label">Daily Affirmations</div>
+    <div class="count-selector">
+      <button class="count-btn unselected">1</button>
+      <button class="count-btn unselected">2</button>
+      <button class="count-btn selected">3</button>
+      <button class="count-btn unselected">4</button>
+      <button class="count-btn unselected">5</button>
+    </div>
+    <div class="gap-20"></div>
+    <div class="center">
+      <button class="btn-gold" onclick="showScreen('screen-home')">Continue</button>
+    </div>
+    <div class="gap-16"></div>
+  </div>
+
+  <!-- Screen 4: Home -->
+  <div id="screen-home" class="screen grad-sunrise">
+    <div class="gap-8"></div>
+    <div class="heading-title3" style="color: var(--text-secondary);">Good Morning,</div>
+    <div class="heading-large">Sarah</div>
+    <div class="gap-20"></div>
+
+    <!-- Next Alarm Card -->
+    <div class="card card-hover">
+      <div class="flex-row" style="gap:8px; margin-bottom:12px;">
+        <span style="color: var(--gold);">⏰</span>
+        <span class="text-subhead" style="color: var(--text-secondary);">Next Alarm</span>
+      </div>
+      <div style="font-family: 'Playfair Display', serif; font-size: 48px; font-weight: 300; color: var(--text-primary);">6:30 AM</div>
+      <div class="text-subhead" style="color: var(--text-secondary); margin-top: 4px;">In 8 hours, 22 minutes</div>
+      <div class="text-caption" style="margin-top: 4px;">Mon, Tue, Wed, Thu, Fri</div>
+    </div>
+
+    <!-- Today's Affirmations Card -->
+    <div class="card">
+      <div class="flex-row" style="gap:8px; margin-bottom:12px;">
+        <span style="color: var(--gold);">✨</span>
+        <span class="text-subhead" style="color: var(--text-secondary);">Today's Affirmations</span>
+      </div>
+      <div class="affirmation-item" style="background:transparent; padding: 8px 0;">
+        <span class="quote-icon">"</span>
+        <span class="aff-text text-subhead">I am capable of achieving great things in my career.</span>
+        <button class="heart-btn">♥</button>
+      </div>
+      <div class="affirmation-item" style="background:transparent; padding: 8px 0; border-top: 1px solid var(--stroke-light);">
+        <span class="quote-icon">"</span>
+        <span class="aff-text text-subhead">I choose peace and calm in every moment.</span>
+        <button class="heart-btn" style="color: var(--text-tertiary);">♡</button>
+      </div>
+      <div class="affirmation-item" style="background:transparent; padding: 8px 0; border-top: 1px solid var(--stroke-light);">
+        <span class="quote-icon">"</span>
+        <span class="aff-text text-subhead">I am worthy of love and belonging.</span>
+        <button class="heart-btn">♥</button>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <button class="quick-action" onclick="showScreen('screen-alarms')">
+        <div class="qa-icon">⏰</div>
+        <div class="qa-label">Alarms</div>
+      </button>
+      <button class="quick-action" onclick="showScreen('screen-favorites')">
+        <div class="qa-icon">♥</div>
+        <div class="qa-label">Favorites</div>
+      </button>
+      <button class="quick-action" onclick="showScreen('screen-settings')">
+        <div class="qa-icon">⚙️</div>
+        <div class="qa-label">Settings</div>
+      </button>
+    </div>
+
+    <div class="gap-16"></div>
+    <button class="btn-outline" style="width:100%; text-align:center;" onclick="showScreen('screen-sequence')">
+      ✨ Preview Affirmation Sequence
+    </button>
+    <div class="gap-24"></div>
+  </div>
+
+  <!-- Screen 5: Alarm List -->
+  <div id="screen-alarms" class="screen grad-evening">
+    <div class="flex-between">
+      <div class="nav-title">Alarms</div>
+      <button style="background: var(--card-bg); border: none; color: var(--gold); width: 32px; height: 32px; border-radius: 50%; font-size: 20px; cursor: pointer;" onclick="showScreen('screen-alarm-detail')">+</button>
+    </div>
+
+    <div class="alarm-row">
+      <div>
+        <div class="alarm-time">6:30 <span style="font-size:16px; font-weight:500;">AM</span></div>
+        <div class="text-caption">Mon, Tue, Wed, Thu, Fri</div>
+        <div class="text-caption" style="font-size:11px; margin-top:2px;">Morning Routine</div>
+      </div>
+      <div class="toggle on" onclick="this.classList.toggle('on')"><div class="knob"></div></div>
+    </div>
+
+    <div class="alarm-row">
+      <div>
+        <div class="alarm-time">7:00 <span style="font-size:16px; font-weight:500;">AM</span></div>
+        <div class="text-caption">Sat, Sun</div>
+        <div class="text-caption" style="font-size:11px; margin-top:2px;">Weekend</div>
+      </div>
+      <div class="toggle on" onclick="this.classList.toggle('on')"><div class="knob"></div></div>
+    </div>
+
+    <div class="alarm-row">
+      <div>
+        <div class="alarm-time">8:00 <span style="font-size:16px; font-weight:500;">AM</span></div>
+        <div class="text-caption">Every day</div>
+      </div>
+      <div class="toggle" onclick="this.classList.toggle('on')"><div class="knob"></div></div>
+    </div>
+    <div class="gap-24"></div>
+  </div>
+
+  <!-- Screen 6: Alarm Detail -->
+  <div id="screen-alarm-detail" class="screen grad-evening">
+    <div class="flex-between" style="margin-bottom: 20px;">
+      <button style="background: none; border:none; color: var(--text-secondary); font-size: 15px; cursor: pointer;" onclick="showScreen('screen-alarms')">Cancel</button>
+      <span class="text-headline">New Alarm</span>
+      <button style="background: none; border:none; color: var(--gold); font-size: 15px; font-weight: 600; cursor: pointer;" onclick="showScreen('screen-alarms')">Save</button>
+    </div>
+
+    <!-- Time display -->
+    <div class="center" style="margin: 20px 0;">
+      <div style="font-family: 'Playfair Display', serif; font-size: 56px; font-weight: 300; color: var(--text-primary);">7:00 AM</div>
+    </div>
+
+    <div class="section-label">Label</div>
+    <input class="input-field" type="text" placeholder="Alarm label" value="Morning Mindfulness">
+
+    <div class="section-label">Repeat</div>
+    <div class="day-selector">
+      <button class="day-btn unselected" onclick="this.classList.toggle('selected');this.classList.toggle('unselected')">S</button>
+      <button class="day-btn selected" onclick="this.classList.toggle('selected');this.classList.toggle('unselected')">M</button>
+      <button class="day-btn selected" onclick="this.classList.toggle('selected');this.classList.toggle('unselected')">T</button>
+      <button class="day-btn selected" onclick="this.classList.toggle('selected');this.classList.toggle('unselected')">W</button>
+      <button class="day-btn selected" onclick="this.classList.toggle('selected');this.classList.toggle('unselected')">T</button>
+      <button class="day-btn selected" onclick="this.classList.toggle('selected');this.classList.toggle('unselected')">F</button>
+      <button class="day-btn unselected" onclick="this.classList.toggle('selected');this.classList.toggle('unselected')">S</button>
+    </div>
+
+    <div class="section-label">Sound</div>
+    <div class="sound-option selected" onclick="selectSound(this)">
+      <div class="radio"></div>
+      <span class="text-body" style="font-size:15px;">Gentle</span>
+    </div>
+    <div class="sound-option" onclick="selectSound(this)">
+      <div class="radio"></div>
+      <span class="text-body" style="font-size:15px;">Sunrise</span>
+    </div>
+    <div class="sound-option" onclick="selectSound(this)">
+      <div class="radio"></div>
+      <span class="text-body" style="font-size:15px;">Chime</span>
+    </div>
+    <div class="sound-option" onclick="selectSound(this)">
+      <div class="radio"></div>
+      <span class="text-body" style="font-size:15px;">Birds</span>
+    </div>
+
+    <div class="gap-16"></div>
+    <div class="card flex-between">
+      <span class="text-body" style="font-size:15px;">Enabled</span>
+      <div class="toggle on" onclick="this.classList.toggle('on')"><div class="knob"></div></div>
+    </div>
+    <div class="gap-24"></div>
+  </div>
+
+  <!-- Screen 7: Affirmation Sequence -->
+  <div id="screen-sequence" class="screen grad-sunrise">
+    <div class="spacer"></div>
+    <div class="center">
+      <div style="font-size: 50px; margin-bottom: 20px; animation: breathe 4s ease-in-out infinite;">☀️</div>
+      <div class="heading-title3" style="color: var(--text-secondary); margin-bottom: 8px;">Good Morning,</div>
+      <div class="heading-title" style="margin-bottom: 40px;">Sarah</div>
+
+      <div style="padding: 0 16px;">
+        <div class="heading-title2" style="line-height: 1.6; font-weight: 600;">
+          "I am capable of achieving great things in my career and I trust my unique path."
+        </div>
+        <div class="gap-16"></div>
+        <div class="text-caption">1 of 3</div>
+      </div>
+
+      <div class="gap-40" style="height:40px;"></div>
+
+      <div class="heading-title3" style="color: var(--text-secondary); margin-bottom: 16px;">
+        Take a deep breath...
+      </div>
+      <div class="breathing-circle">
+        <span style="font-size: 28px;">♥</span>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="center">
+      <button class="btn-gold" onclick="showScreen('screen-home')">Start My Day</button>
+    </div>
+    <div class="gap-24"></div>
+  </div>
+
+  <!-- Screen 8: Favorites -->
+  <div id="screen-favorites" class="screen grad-evening">
+    <div class="nav-title">Favorites</div>
+
+    <div class="affirmation-item">
+      <span class="quote-icon">"</span>
+      <span class="aff-text">I am capable of achieving great things in my career.</span>
+      <button class="heart-btn">♥</button>
+    </div>
+    <div class="affirmation-item">
+      <span class="quote-icon">"</span>
+      <span class="aff-text">I am worthy of love, belonging, and deep connection.</span>
+      <button class="heart-btn">♥</button>
+    </div>
+    <div class="affirmation-item">
+      <span class="quote-icon">"</span>
+      <span class="aff-text">I choose peace and calm in every moment of my day.</span>
+      <button class="heart-btn">♥</button>
+    </div>
+    <div class="affirmation-item">
+      <span class="quote-icon">"</span>
+      <span class="aff-text">My confidence grows stronger with each challenge I face.</span>
+      <button class="heart-btn">♥</button>
+    </div>
+    <div class="affirmation-item">
+      <span class="quote-icon">"</span>
+      <span class="aff-text">I am grateful for the abundance that flows into my life.</span>
+      <button class="heart-btn">♥</button>
+    </div>
+    <div class="gap-24"></div>
+  </div>
+
+  <!-- Screen 9: Settings -->
+  <div id="screen-settings" class="screen grad-calm">
+    <div class="nav-title">Settings</div>
+
+    <div class="section-label" style="margin-top:0;">Profile</div>
+    <div class="settings-row">
+      <div class="settings-icon">👤</div>
+      <div class="row-content">
+        <div class="row-title">Name & Goals</div>
+        <div class="row-detail">Sarah • 2 focus areas</div>
+      </div>
+      <span class="settings-chevron">›</span>
+    </div>
+
+    <div class="section-label">Alarm</div>
+    <div class="settings-row">
+      <div class="settings-icon">⏰</div>
+      <div class="row-content">
+        <div class="row-title">Alarm Preferences</div>
+        <div class="row-detail">3 affirmations • Gentle sound</div>
+      </div>
+      <span class="settings-chevron">›</span>
+    </div>
+
+    <div class="section-label">Voice</div>
+    <div class="settings-row">
+      <div class="settings-icon">🔊</div>
+      <div class="row-content">
+        <div class="row-title">Voice Settings</div>
+        <div class="row-detail">Text-to-speech enabled</div>
+      </div>
+      <span class="settings-chevron">›</span>
+    </div>
+
+    <div class="section-label">AI Configuration</div>
+    <div class="card" style="padding: 16px;">
+      <div class="flex-row" style="gap:10px; margin-bottom: 12px;">
+        <span style="color: var(--gold);">🤖</span>
+        <span class="text-subhead" style="color: var(--text-secondary);">API Key</span>
+      </div>
+      <input class="input-field" type="password" placeholder="Enter Anthropic API key" value="sk-ant-••••••••••••" style="font-size: 14px;">
+    </div>
+
+    <div class="section-label">About</div>
+    <div class="card" style="padding: 16px;">
+      <div class="flex-between">
+        <span class="text-body" style="font-size:14px; color: var(--text-secondary);">Version</span>
+        <span class="text-body" style="font-size:14px; color: var(--text-tertiary);">1.0.0</span>
+      </div>
+    </div>
+    <div class="gap-24"></div>
+  </div>
+
+</div>
+
+<!-- Screen navigation -->
+<div class="screen-nav">
+  <button class="active" onclick="showScreen('screen-welcome')">Welcome</button>
+  <button onclick="showScreen('screen-name')">Name</button>
+  <button onclick="showScreen('screen-goals')">Goals</button>
+  <button onclick="showScreen('screen-home')">Home</button>
+  <button onclick="showScreen('screen-alarms')">Alarms</button>
+  <button onclick="showScreen('screen-alarm-detail')">Alarm Detail</button>
+  <button onclick="showScreen('screen-sequence')">Affirmation</button>
+  <button onclick="showScreen('screen-favorites')">Favorites</button>
+  <button onclick="showScreen('screen-settings')">Settings</button>
+</div>
+
+<script>
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.screen-nav button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.screen-nav button').forEach(b => {
+    if (b.textContent.toLowerCase().replace(/\s/g, '') === id.replace('screen-', '').replace('-', '').toLowerCase() ||
+        (id === 'screen-alarm-detail' && b.textContent === 'Alarm Detail') ||
+        (id === 'screen-sequence' && b.textContent === 'Affirmation')) {
+      b.classList.add('active');
+    }
+  });
+}
+
+function selectSound(el) {
+  el.parentElement.querySelectorAll('.sound-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+}
+</script>
+</body>
+</html>
