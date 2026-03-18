@@ -76,7 +76,7 @@ class AlarmSchedulingService {
         components.hour = alarm.hour
         components.minute = alarm.minute
 
-        return scheduleNotificationPair(
+        return scheduleNotification(
             alarm: alarm,
             triggerComponents: components,
             repeats: false,
@@ -90,7 +90,7 @@ class AlarmSchedulingService {
         components.minute = alarm.minute
         components.weekday = weekday
 
-        return scheduleNotificationPair(
+        return scheduleNotification(
             alarm: alarm,
             triggerComponents: components,
             repeats: true,
@@ -98,17 +98,14 @@ class AlarmSchedulingService {
         )
     }
 
-    private func scheduleNotificationPair(
+    private func scheduleNotification(
         alarm: Alarm,
         triggerComponents: DateComponents,
         repeats: Bool,
         idSuffix: String
     ) -> [String] {
-        var identifiers: [String] = []
-
-        // Single notification — alarm sound plays for 10 seconds in-app when user taps
         let notificationId = "\(alarm.id.uuidString)-\(idSuffix)"
-        let content = makeNotificationContent(alarm: alarm, isFollowUp: false)
+        let content = makeNotificationContent(alarm: alarm)
         let trigger = UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: repeats)
         let request = UNNotificationRequest(identifier: notificationId, content: content, trigger: trigger)
 
@@ -117,23 +114,17 @@ class AlarmSchedulingService {
                 print("Failed to schedule notification: \(error)")
             }
         }
-        identifiers.append(notificationId)
 
-        return identifiers
+        return [notificationId]
     }
 
-    private func makeNotificationContent(alarm: Alarm, isFollowUp: Bool) -> UNMutableNotificationContent {
+    private func makeNotificationContent(alarm: Alarm) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
-        content.title = isFollowUp ? "Time to Rise!" : "Good Morning!"
-        content.body = isFollowUp
-            ? "Your affirmations are waiting for you. Tap to start your day with positivity."
-            : "Tap to hear your personalized morning affirmations."
+        content.title = "Good Morning!"
+        content.body = "Tap to hear your personalized morning affirmations."
         content.categoryIdentifier = "ALARM_CATEGORY"
         content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: "\(alarm.soundName).caf"))
-        content.userInfo = [
-            "alarmId": alarm.id.uuidString,
-            "isFollowUp": isFollowUp
-        ]
+        content.userInfo = ["alarmId": alarm.id.uuidString]
         content.interruptionLevel = .timeSensitive
         return content
     }

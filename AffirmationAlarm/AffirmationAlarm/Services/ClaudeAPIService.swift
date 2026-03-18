@@ -56,7 +56,11 @@ actor ClaudeAPIService {
             throw APIError.invalidResponse
         }
 
-        var request = URLRequest(url: URL(string: AppConstants.anthropicAPIURL)!)
+        guard let apiURL = URL(string: AppConstants.anthropicAPIURL) else {
+            throw APIError.invalidResponse
+        }
+
+        var request = URLRequest(url: apiURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")

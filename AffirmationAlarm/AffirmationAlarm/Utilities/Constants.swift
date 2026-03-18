@@ -5,7 +5,6 @@ enum AppConstants {
     static let anthropicModel = "claude-opus-4-6-20250610"
     static let maxAffirmationsPerDay = 5
     static let defaultAffirmationCount = 3
-    static let cacheDaysAhead = 7
 
     static let defaultSpeechRate: Float = 0.42
     static let defaultSpeechPitch: Float = 0.85
@@ -16,9 +15,6 @@ enum AppConstants {
     static let breathingPostDelay: TimeInterval = 3.0
 
     static let snoozeMinutes = 9
-    static let alarmSoundDuration: TimeInterval = 10
-    static let secondNotificationDelay: TimeInterval = 35
-    static let maxScheduledNotifications = 56 // Leave some headroom under 64 limit
     static let scheduleDaysAhead = 7
 
     enum AlarmSounds: String, CaseIterable {

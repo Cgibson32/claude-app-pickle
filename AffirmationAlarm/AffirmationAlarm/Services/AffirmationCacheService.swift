@@ -23,7 +23,9 @@ actor AffirmationCacheService {
         }
     }
 
-    func getAffirmations(for date: Date, modelContext: ModelContext) -> [Affirmation] {
+    // MARK: - Read-only queries (nonisolated — safe because callers own the ModelContext)
+
+    nonisolated func getAffirmations(for date: Date, modelContext: ModelContext) -> [Affirmation] {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? date
@@ -38,16 +40,14 @@ actor AffirmationCacheService {
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
-    func getTodayAffirmations(modelContext: ModelContext) -> [Affirmation] {
+    nonisolated func getTodayAffirmations(modelContext: ModelContext) -> [Affirmation] {
         getAffirmations(for: Date(), modelContext: modelContext)
     }
 
-    func getLatestAffirmations(modelContext: ModelContext) -> [Affirmation] {
-        // Get today's affirmations, or fall back to most recent
+    nonisolated func getLatestAffirmations(modelContext: ModelContext) -> [Affirmation] {
         let today = getTodayAffirmations(modelContext: modelContext)
         if !today.isEmpty { return today }
 
-        // Fall back to most recent affirmations
         var descriptor = FetchDescriptor<Affirmation>(
             sortBy: [SortDescriptor(\Affirmation.generatedFor, order: .reverse)]
         )
@@ -56,7 +56,7 @@ actor AffirmationCacheService {
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
-    func getFavoritedAffirmations(modelContext: ModelContext) -> [Affirmation] {
+    nonisolated func getFavoritedAffirmations(modelContext: ModelContext) -> [Affirmation] {
         let descriptor = FetchDescriptor<Affirmation>(
             predicate: #Predicate { affirmation in
                 affirmation.isFavorited == true
@@ -66,7 +66,7 @@ actor AffirmationCacheService {
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
-    func getClosingMessage(for date: Date, modelContext: ModelContext) -> String? {
+    nonisolated func getClosingMessage(for date: Date, modelContext: ModelContext) -> String? {
         let calendar = Calendar.current
         let startOfDay = calendar.startOfDay(for: date)
         let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? date
@@ -80,11 +80,10 @@ actor AffirmationCacheService {
         return (try? modelContext.fetch(descriptor))?.first?.message
     }
 
-    func cleanOldAffirmations(modelContext: ModelContext) {
+    nonisolated func cleanOldAffirmations(modelContext: ModelContext) {
         let calendar = Calendar.current
         guard let cutoff = calendar.date(byAdding: .day, value: -14, to: Date()) else { return }
 
-        // Clean old non-favorited affirmations
         let affirmationDescriptor = FetchDescriptor<Affirmation>(
             predicate: #Predicate { affirmation in
                 affirmation.generatedFor < cutoff && affirmation.isFavorited == false
@@ -97,7 +96,6 @@ actor AffirmationCacheService {
             }
         }
 
-        // Clean old closing messages
         let closingDescriptor = FetchDescriptor<DailyClosingMessage>(
             predicate: #Predicate { message in
                 message.generatedFor < cutoff
@@ -115,7 +113,7 @@ actor AffirmationCacheService {
 
     // MARK: - Private
 
-    private func hasAffirmations(for dayKey: String, in modelContext: ModelContext) -> Bool {
+    private nonisolated func hasAffirmations(for dayKey: String, in modelContext: ModelContext) -> Bool {
         guard let date = DateFormatters.dayKeyFormatter.date(from: dayKey) else { return false }
         return !getAffirmations(for: date, modelContext: modelContext).isEmpty
     }
@@ -140,7 +138,6 @@ actor AffirmationCacheService {
                 modelContext.insert(affirmation)
             }
 
-            // Store the closing message
             let closingMessage = DailyClosingMessage(
                 message: response.closing,
                 generatedFor: date

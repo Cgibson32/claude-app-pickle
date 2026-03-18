@@ -71,7 +71,9 @@ final class Alarm {
                 return date
             }
             // If time has passed today, schedule for tomorrow
-            components.day! += 1
+            if let day = components.day {
+                components.day = day + 1
+            }
             return calendar.date(from: components)
         }
 

@@ -4,14 +4,16 @@ A native iOS app that wakes you up with AI-generated personalized affirmations. 
 
 ## What It Does
 
-1. **Onboarding**: Enter your name, type your personal goals, and pick focus areas
-2. **Alarm fires**: Your phone plays an alarm sound 1-2 times
-3. **Tap to start**: A full-screen sequence begins:
+1. **Onboarding**: Enter your name, type your personal goals, pick focus areas, and choose how many affirmations you want (1-5)
+2. **Alarm fires**: A notification wakes you up — tap it to open the app
+3. **Affirmation sequence begins**:
+   - Alarm sound plays for a configurable duration (3-15 seconds, default 10)
    - "Good Morning, [Your Name]"
-   - 3-5 personalized affirmations based on YOUR specific goals (spoken aloud)
+   - 1-5 personalized affirmations based on YOUR specific goals (spoken aloud via TTS)
    - "Take a deep breath into your heart... you are worthy of everything you desire, [Name]"
-   - "Have a wonderful day, [Name]"
-4. **Start your day** feeling motivated and focused
+   - A dynamic, AI-generated motivational closing (varies each day)
+4. **Favorite affirmations**: Tap the heart on any affirmation to save it — favorites repeat in every alarm until removed
+5. **Start your day** feeling motivated and focused
 
 ## Setup Instructions
 
@@ -56,7 +58,7 @@ You have two options:
 
 ## Adding Custom Alarm Sounds
 
-The app supports custom alarm sounds in CAF format (max 30 seconds). To convert audio files:
+The app supports custom alarm sounds in CAF format. To convert audio files:
 
 ```bash
 # Convert WAV to CAF
@@ -74,11 +76,10 @@ Place the `.caf` files in `AffirmationAlarm/Resources/` and they'll appear in th
 - **MVVM** pattern
 - **AVSpeechSynthesizer** for text-to-speech
 - **UNUserNotificationCenter** for alarm scheduling
-- **Claude API** (Anthropic Messages API) for generating personalized affirmations
+- **Claude API** (Anthropic Messages API via Opus 4.6) for generating personalized affirmations
 
 ## Important iOS Notes
 
 - **Do Not Disturb**: For the alarm to work reliably, add this app to your Focus mode's "Allowed Apps"
-- **Notification sounds** are limited to 30 seconds by iOS. The app schedules two notifications (35 seconds apart) to simulate ringing twice
 - **Text-to-speech** only plays when you open the app (tap the notification). It cannot play in the background
 - **Affirmations are cached**: The app pre-generates affirmations so they work even without internet
