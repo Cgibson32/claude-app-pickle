@@ -2,7 +2,7 @@ import Foundation
 
 enum AppConstants {
     static let anthropicAPIURL = "https://api.anthropic.com/v1/messages"
-    static let anthropicModel = "claude-sonnet-4-20250514"
+    static let anthropicModel = "claude-opus-4-6-20250610"
     static let maxAffirmationsPerDay = 5
     static let defaultAffirmationCount = 3
     static let cacheDaysAhead = 7
