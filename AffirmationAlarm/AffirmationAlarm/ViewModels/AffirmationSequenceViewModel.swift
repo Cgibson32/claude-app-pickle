@@ -25,10 +25,12 @@ class AffirmationSequenceViewModel {
 
     func loadAndStart(modelContext: ModelContext) {
         // Load user profile
+        var maxCount = AppConstants.defaultAffirmationCount
         let profileDescriptor = FetchDescriptor<UserProfile>()
         if let profile = try? modelContext.fetch(profileDescriptor).first {
             userName = profile.name
             alarmSoundDuration = TimeInterval(profile.alarmSoundDuration)
+            maxCount = profile.affirmationCount
             speechService.configure(rate: profile.speechRate, pitch: profile.speechPitch)
         }
 
@@ -40,7 +42,7 @@ class AffirmationSequenceViewModel {
             alarmSoundName = alarm.soundName
         }
 
-        // Load favorited affirmations (these repeat until un-favorited)
+        // Load favorited affirmations first (these take priority)
         let favorites = AffirmationCacheService.shared.getFavoritedAffirmations(modelContext: modelContext)
         let favoritedTexts = Set(favorites.map(\.text))
 
@@ -48,21 +50,21 @@ class AffirmationSequenceViewModel {
         let cachedAffirmations = AffirmationCacheService.shared.getLatestAffirmations(modelContext: modelContext)
 
         if cachedAffirmations.isEmpty && favorites.isEmpty {
-            // Use fallback affirmations
             affirmations = [
                 "I am worthy of all the good things coming my way today.",
                 "I trust in my ability to create the life I desire.",
                 "I radiate confidence, positivity, and strength."
             ]
         } else {
-            // Start with favorited affirmations, then add today's (deduplicated)
+            // Favorites first, then fill remaining slots with generated ones
             var combined = Array(favoritedTexts)
             for affirmation in cachedAffirmations {
+                guard combined.count < maxCount else { break }
                 if !favoritedTexts.contains(affirmation.text) {
                     combined.append(affirmation.text)
                 }
             }
-            affirmations = combined
+            affirmations = Array(combined.prefix(maxCount))
         }
 
         // Load dynamic closing message

@@ -75,7 +75,7 @@ struct AlarmPreferencesView: View {
                             }
                         }
 
-                        Text("Changes apply to your next alarm. Favorited affirmations are added on top of this count.")
+                        Text("Changes apply to your next alarm. Favorited affirmations are included in this count.")
                             .font(.caption2)
                             .foregroundColor(.white.opacity(0.4))
                     }
