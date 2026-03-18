@@ -15,16 +15,15 @@ struct FavoritesView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "heart.slash")
                         .font(.system(size: 50))
-                        .foregroundColor(.white.opacity(0.4))
+                        .foregroundColor(AppTheme.textTertiary)
 
                     Text("No favorited affirmations yet")
-                        .font(.title3)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white.opacity(0.7))
+                        .font(AppTheme.title3)
+                        .foregroundColor(AppTheme.textSecondary)
 
                     Text("Tap the heart on any affirmation\nto save it here. Favorited affirmations\nrepeat in your alarm until removed.")
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.5))
+                        .font(AppTheme.subheadline)
+                        .foregroundColor(AppTheme.textTertiary)
                         .multilineTextAlignment(.center)
                 }
                 .padding()
@@ -32,21 +31,21 @@ struct FavoritesView: View {
                 ScrollView {
                     VStack(spacing: 12) {
                         Text("Favorited affirmations repeat in your alarm sequence until you remove them.")
-                            .font(.caption)
-                            .foregroundColor(.white.opacity(0.5))
+                            .font(AppTheme.caption)
+                            .foregroundColor(AppTheme.textTertiary)
                             .padding(.horizontal)
                             .padding(.top, 8)
 
                         ForEach(favorites) { affirmation in
                             HStack(alignment: .top, spacing: 12) {
                                 Image(systemName: "quote.opening")
-                                    .font(.caption)
-                                    .foregroundColor(.white.opacity(0.4))
+                                    .font(.system(size: 12))
+                                    .foregroundColor(AppTheme.textTertiary)
                                     .padding(.top, 4)
 
                                 Text(affirmation.text)
-                                    .font(.body)
-                                    .foregroundColor(.white.opacity(0.9))
+                                    .font(AppTheme.bodyFont)
+                                    .foregroundColor(AppTheme.textPrimary)
 
                                 Spacer()
 
@@ -56,15 +55,15 @@ struct FavoritesView: View {
                                     }
                                 } label: {
                                     Image(systemName: "heart.fill")
-                                        .font(.title3)
-                                        .foregroundColor(.pink)
+                                        .font(.system(size: 20))
+                                        .foregroundColor(AppTheme.favorite)
                                 }
                                 .buttonStyle(.plain)
                             }
                             .padding(16)
                             .background(
                                 RoundedRectangle(cornerRadius: 14)
-                                    .fill(.white.opacity(0.1))
+                                    .fill(AppTheme.cardBackground)
                             )
                         }
                     }

@@ -15,16 +15,15 @@ struct FirstAlarmSetupView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "alarm.fill")
                         .font(.system(size: 60))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(AppTheme.textSecondary)
 
                     Text("Set Your First Alarm")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
+                        .font(AppTheme.title2)
+                        .foregroundColor(AppTheme.textPrimary)
 
                     Text("Choose when you'd like to start\nyour mornings with affirmations.")
-                        .font(.body)
-                        .foregroundColor(.white.opacity(0.8))
+                        .font(AppTheme.bodyFont)
+                        .foregroundColor(AppTheme.textSecondary)
                         .multilineTextAlignment(.center)
                 }
 
@@ -38,9 +37,8 @@ struct FirstAlarmSetupView: View {
                 // Day selector
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Repeat")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white.opacity(0.9))
+                        .font(AppTheme.subheadline)
+                        .foregroundColor(AppTheme.textSecondary)
 
                     DayOfWeekSelector(selectedDays: $selectedDays)
                 }
@@ -49,9 +47,8 @@ struct FirstAlarmSetupView: View {
                 // Sound picker
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Alarm Sound")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white.opacity(0.9))
+                        .font(AppTheme.subheadline)
+                        .foregroundColor(AppTheme.textSecondary)
 
                     AlarmSoundPicker(selectedSound: $selectedSound)
                 }
@@ -59,11 +56,11 @@ struct FirstAlarmSetupView: View {
 
                 Button(action: onComplete) {
                     Text("Set Alarm & Start")
-                        .font(.headline)
-                        .foregroundColor(.black)
+                        .font(AppTheme.headline)
+                        .foregroundColor(AppTheme.accentText)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(Capsule().fill(.white))
+                        .background(Capsule().fill(AppTheme.buttonBackground))
                 }
                 .padding(.horizontal, 40)
 

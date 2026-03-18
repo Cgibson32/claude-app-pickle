@@ -10,9 +10,8 @@ struct AffirmationCardView: View {
     var body: some View {
         VStack(spacing: 20) {
             Text(text)
-                .font(.title2)
-                .fontWeight(.medium)
-                .foregroundColor(.white)
+                .font(AppTheme.title2)
+                .foregroundColor(AppTheme.textPrimary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(6)
                 .padding(.horizontal, 32)
@@ -20,8 +19,8 @@ struct AffirmationCardView: View {
                 .offset(y: appeared ? 0 : 20)
 
             Text("\(index + 1) of \(total)")
-                .font(.caption)
-                .foregroundColor(.white.opacity(0.5))
+                .font(AppTheme.caption)
+                .foregroundColor(AppTheme.textTertiary)
                 .opacity(appeared ? 1 : 0)
         }
         .onAppear {

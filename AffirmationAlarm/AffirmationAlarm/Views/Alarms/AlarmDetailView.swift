@@ -52,26 +52,24 @@ struct AlarmDetailView: View {
                         // Label
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Label")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white.opacity(0.9))
+                                .font(AppTheme.subheadline)
+                                .foregroundColor(AppTheme.textSecondary)
 
                             TextField("Alarm label", text: $label)
                                 .padding()
                                 .background(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .fill(.white.opacity(0.2))
+                                        .fill(AppTheme.chipUnselected)
                                 )
-                                .foregroundColor(.white)
-                                .tint(.white)
+                                .foregroundColor(AppTheme.textPrimary)
+                                .tint(AppTheme.textPrimary)
                         }
 
                         // Days
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Repeat")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white.opacity(0.9))
+                                .font(AppTheme.subheadline)
+                                .foregroundColor(AppTheme.textSecondary)
 
                             DayOfWeekSelector(selectedDays: $selectedDays)
                         }
@@ -79,9 +77,8 @@ struct AlarmDetailView: View {
                         // Sound
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Sound")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white.opacity(0.9))
+                                .font(AppTheme.subheadline)
+                                .foregroundColor(AppTheme.textSecondary)
 
                             AlarmSoundPicker(selectedSound: $selectedSound)
                         }
@@ -89,13 +86,13 @@ struct AlarmDetailView: View {
                         // Enable/Disable
                         Toggle(isOn: $isEnabled) {
                             Text("Enabled")
-                                .foregroundColor(.white)
+                                .foregroundColor(AppTheme.textPrimary)
                         }
-                        .tint(.orange)
+                        .tint(AppTheme.accent)
                         .padding()
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(.white.opacity(0.1))
+                                .fill(AppTheme.cardBackground)
                         )
 
                         // Delete button (for existing alarms)
@@ -104,11 +101,11 @@ struct AlarmDetailView: View {
                                 showDeleteConfirmation = true
                             } label: {
                                 Text("Delete Alarm")
-                                    .font(.headline)
+                                    .font(AppTheme.headline)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 14)
                             }
-                            .tint(.red)
+                            .tint(AppTheme.destructive)
                             .padding(.top, 8)
                         }
                     }
@@ -121,12 +118,12 @@ struct AlarmDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
-                        .foregroundColor(.white)
+                        .foregroundColor(AppTheme.textPrimary)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
+                        .font(AppTheme.subheadline)
+                        .foregroundColor(AppTheme.textPrimary)
                 }
             }
             .alert("Delete Alarm?", isPresented: $showDeleteConfirmation) {

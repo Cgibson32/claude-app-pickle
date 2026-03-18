@@ -16,5 +16,17 @@
 		<string>fetch</string>
 		<string>audio</string>
 	</array>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Fonts/PlayfairDisplay-Regular.ttf</string>
+		<string>Fonts/PlayfairDisplay-Medium.ttf</string>
+		<string>Fonts/PlayfairDisplay-SemiBold.ttf</string>
+		<string>Fonts/PlayfairDisplay-Bold.ttf</string>
+		<string>Fonts/Montserrat-Light.ttf</string>
+		<string>Fonts/Montserrat-Regular.ttf</string>
+		<string>Fonts/Montserrat-Medium.ttf</string>
+		<string>Fonts/Montserrat-SemiBold.ttf</string>
+		<string>Fonts/Montserrat-Bold.ttf</string>
+	</array>
 </dict>
 </plist>

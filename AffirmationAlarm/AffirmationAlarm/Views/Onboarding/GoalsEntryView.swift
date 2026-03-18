@@ -15,25 +15,23 @@ struct GoalsEntryView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "star.circle.fill")
                         .font(.system(size: 60))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(AppTheme.textSecondary)
 
                     Text("What are your goals?")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
+                        .font(AppTheme.title2)
+                        .foregroundColor(AppTheme.textPrimary)
 
                     Text("Tell us about your dreams and aspirations.\nYour affirmations will be tailored to these.")
-                        .font(.body)
-                        .foregroundColor(.white.opacity(0.8))
+                        .font(AppTheme.bodyFont)
+                        .foregroundColor(AppTheme.textSecondary)
                         .multilineTextAlignment(.center)
                 }
 
                 // Freeform goals text editor
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Your Goals")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white.opacity(0.9))
+                        .font(AppTheme.subheadline)
+                        .foregroundColor(AppTheme.textSecondary)
 
                     TextEditor(text: $freeformGoals)
                         .frame(minHeight: 120)
@@ -41,18 +39,17 @@ struct GoalsEntryView: View {
                         .scrollContentBackground(.hidden)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(.white.opacity(0.2))
+                                .fill(AppTheme.inputBackground)
                         )
-                        .foregroundColor(.white)
-                        .tint(.white)
+                        .foregroundColor(AppTheme.textPrimary)
+                        .tint(AppTheme.textPrimary)
                 }
 
                 // Category chips
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Focus Areas")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white.opacity(0.9))
+                        .font(AppTheme.subheadline)
+                        .foregroundColor(AppTheme.textSecondary)
 
                     FlowLayout(spacing: 8) {
                         ForEach(GoalCategory.allCases) { category in
@@ -73,13 +70,12 @@ struct GoalsEntryView: View {
                 // Affirmation count
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Daily Affirmations")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white.opacity(0.9))
+                        .font(AppTheme.subheadline)
+                        .foregroundColor(AppTheme.textSecondary)
 
                     Text("How many affirmations would you like each morning?")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.6))
+                        .font(AppTheme.caption)
+                        .foregroundColor(AppTheme.textTertiary)
 
                     HStack(spacing: 8) {
                         ForEach(1...5, id: \.self) { count in
@@ -87,15 +83,15 @@ struct GoalsEntryView: View {
                                 affirmationCount = count
                             } label: {
                                 Text("\(count)")
-                                    .font(.headline)
+                                    .font(AppTheme.headline)
                                     .frame(width: 44, height: 44)
                                     .background(
                                         Circle()
                                             .fill(affirmationCount == count
-                                                  ? Color.white
-                                                  : Color.white.opacity(0.2))
+                                                  ? AppTheme.chipSelected
+                                                  : AppTheme.strokeLight)
                                     )
-                                    .foregroundColor(affirmationCount == count ? .black : .white)
+                                    .foregroundColor(affirmationCount == count ? AppTheme.chipTextSelected : AppTheme.textPrimary)
                             }
                             .animation(.easeInOut(duration: 0.15), value: affirmationCount == count)
                         }
@@ -104,13 +100,13 @@ struct GoalsEntryView: View {
 
                 Button(action: onContinue) {
                     Text("Continue")
-                        .font(.headline)
-                        .foregroundColor(.black)
+                        .font(AppTheme.headline)
+                        .foregroundColor(AppTheme.accentText)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(
                             Capsule()
-                                .fill(canContinue ? .white : .white.opacity(0.4))
+                                .fill(canContinue ? AppTheme.buttonBackground : AppTheme.buttonDisabled)
                         )
                 }
                 .disabled(!canContinue)

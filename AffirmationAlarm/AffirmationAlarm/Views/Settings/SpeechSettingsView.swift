@@ -15,17 +15,17 @@ struct SpeechSettingsView: View {
                     Toggle(isOn: $profile.ttsEnabled) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Text-to-Speech")
-                                .foregroundColor(.white)
+                                .foregroundColor(AppTheme.textPrimary)
                             Text("Speak affirmations aloud during alarm")
-                                .font(.caption)
-                                .foregroundColor(.white.opacity(0.6))
+                                .font(AppTheme.caption)
+                                .foregroundColor(AppTheme.textSecondary)
                         }
                     }
-                    .tint(.orange)
+                    .tint(AppTheme.accent)
                     .padding()
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(.white.opacity(0.1))
+                            .fill(AppTheme.cardBackground)
                     )
 
                     if profile.ttsEnabled {
@@ -33,60 +33,60 @@ struct SpeechSettingsView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Text("Speech Rate")
-                                    .foregroundColor(.white)
+                                    .foregroundColor(AppTheme.textPrimary)
                                 Spacer()
                                 Text(rateLabel)
-                                    .font(.caption)
-                                    .foregroundColor(.white.opacity(0.6))
+                                    .font(AppTheme.caption)
+                                    .foregroundColor(AppTheme.textSecondary)
                             }
 
                             Slider(value: $profile.speechRate, in: 0.3...0.6, step: 0.02)
-                                .tint(.orange)
+                                .tint(AppTheme.accent)
 
                             HStack {
                                 Text("Slower")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.4))
+                                    .font(AppTheme.caption2)
+                                    .foregroundColor(AppTheme.textTertiary)
                                 Spacer()
                                 Text("Faster")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.4))
+                                    .font(AppTheme.caption2)
+                                    .foregroundColor(AppTheme.textTertiary)
                             }
                         }
                         .padding()
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(.white.opacity(0.1))
+                                .fill(AppTheme.cardBackground)
                         )
 
                         // Speech Pitch
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Text("Voice Pitch")
-                                    .foregroundColor(.white)
+                                    .foregroundColor(AppTheme.textPrimary)
                                 Spacer()
                                 Text(pitchLabel)
-                                    .font(.caption)
-                                    .foregroundColor(.white.opacity(0.6))
+                                    .font(AppTheme.caption)
+                                    .foregroundColor(AppTheme.textSecondary)
                             }
 
                             Slider(value: $profile.speechPitch, in: 0.5...1.5, step: 0.05)
-                                .tint(.orange)
+                                .tint(AppTheme.accent)
 
                             HStack {
                                 Text("Lower")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.4))
+                                    .font(AppTheme.caption2)
+                                    .foregroundColor(AppTheme.textTertiary)
                                 Spacer()
                                 Text("Higher")
-                                    .font(.caption2)
-                                    .foregroundColor(.white.opacity(0.4))
+                                    .font(AppTheme.caption2)
+                                    .foregroundColor(AppTheme.textTertiary)
                             }
                         }
                         .padding()
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(.white.opacity(0.1))
+                                .fill(AppTheme.cardBackground)
                         )
 
                         // Preview button
@@ -97,13 +97,13 @@ struct SpeechSettingsView: View {
                                 Image(systemName: isPreviewing ? "speaker.wave.3.fill" : "play.fill")
                                 Text(isPreviewing ? "Speaking..." : "Preview Voice")
                             }
-                            .font(.headline)
-                            .foregroundColor(.white)
+                            .font(AppTheme.headline)
+                            .foregroundColor(AppTheme.textPrimary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(.white.opacity(0.2))
+                                    .fill(AppTheme.chipUnselected)
                             )
                         }
                         .disabled(isPreviewing)

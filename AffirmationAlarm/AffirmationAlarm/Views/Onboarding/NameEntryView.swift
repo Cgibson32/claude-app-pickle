@@ -13,28 +13,27 @@ struct NameEntryView: View {
             VStack(spacing: 12) {
                 Image(systemName: "person.circle.fill")
                     .font(.system(size: 60))
-                    .foregroundColor(.white.opacity(0.9))
+                    .foregroundColor(AppTheme.textSecondary)
 
                 Text("What should we call you?")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
+                    .font(AppTheme.title2)
+                    .foregroundColor(AppTheme.textPrimary)
 
                 Text("We'll use your name to make your\nmorning affirmations feel personal.")
-                    .font(.body)
-                    .foregroundColor(.white.opacity(0.8))
+                    .font(AppTheme.bodyFont)
+                    .foregroundColor(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
             }
 
             TextField("Your name", text: $name)
-                .font(.title3)
+                .font(AppTheme.title3)
                 .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(.white.opacity(0.2))
+                        .fill(AppTheme.inputBackground)
                 )
-                .foregroundColor(.white)
-                .tint(.white)
+                .foregroundColor(AppTheme.textPrimary)
+                .tint(AppTheme.textPrimary)
                 .focused($isFocused)
                 .submitLabel(.continue)
                 .onSubmit {
@@ -47,13 +46,13 @@ struct NameEntryView: View {
 
             Button(action: onContinue) {
                 Text("Continue")
-                    .font(.headline)
-                    .foregroundColor(.black)
+                    .font(AppTheme.headline)
+                    .foregroundColor(AppTheme.accentText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(
                         Capsule()
-                            .fill(name.trimmingCharacters(in: .whitespaces).isEmpty ? .white.opacity(0.4) : .white)
+                            .fill(name.trimmingCharacters(in: .whitespaces).isEmpty ? AppTheme.buttonDisabled : AppTheme.buttonBackground)
                     )
             }
             .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)

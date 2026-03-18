@@ -15,8 +15,8 @@ struct OnboardingContainerView: View {
                     HStack {
                         Button(action: { viewModel.previousStep() }) {
                             Image(systemName: "chevron.left")
-                                .font(.title3)
-                                .foregroundColor(.white)
+                                .font(.system(size: 20))
+                                .foregroundColor(AppTheme.textPrimary)
                         }
 
                         Spacer()
@@ -24,7 +24,7 @@ struct OnboardingContainerView: View {
                         HStack(spacing: 6) {
                             ForEach(0..<viewModel.totalSteps, id: \.self) { step in
                                 Circle()
-                                    .fill(step <= viewModel.currentStep ? Color.white : Color.white.opacity(0.3))
+                                    .fill(step <= viewModel.currentStep ? AppTheme.accent : AppTheme.textTertiary)
                                     .frame(width: 8, height: 8)
                             }
                         }
@@ -33,7 +33,7 @@ struct OnboardingContainerView: View {
 
                         // Invisible balance element
                         Image(systemName: "chevron.left")
-                            .font(.title3)
+                            .font(.system(size: 20))
                             .foregroundColor(.clear)
                     }
                     .padding(.horizontal)

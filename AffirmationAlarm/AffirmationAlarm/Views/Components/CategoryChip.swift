@@ -9,18 +9,17 @@ struct CategoryChip: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Image(systemName: category.icon)
-                    .font(.caption)
+                    .font(.system(size: 12))
                 Text(category.rawValue)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(AppTheme.subheadline)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(
                 Capsule()
-                    .fill(isSelected ? Color.white : Color.white.opacity(0.25))
+                    .fill(isSelected ? AppTheme.buttonBackground : AppTheme.cardBackground)
             )
-            .foregroundColor(isSelected ? .black : .white)
+            .foregroundColor(isSelected ? AppTheme.accentText : AppTheme.textPrimary)
         }
         .animation(.easeInOut(duration: 0.2), value: isSelected)
     }

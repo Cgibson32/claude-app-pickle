@@ -7,9 +7,8 @@ struct BreathingPromptView: View {
     var body: some View {
         VStack(spacing: 32) {
             Text("Take a deep breath\ninto your heart...")
-                .font(.title3)
-                .fontWeight(.medium)
-                .foregroundColor(.white)
+                .font(AppTheme.title3)
+                .foregroundColor(AppTheme.textPrimary)
                 .multilineTextAlignment(.center)
                 .opacity(appeared ? 1 : 0)
 
@@ -19,8 +18,8 @@ struct BreathingPromptView: View {
                     .fill(
                         RadialGradient(
                             colors: [
-                                Color.white.opacity(0.4),
-                                Color.white.opacity(0.1),
+                                AppTheme.cream.opacity(0.4),
+                                AppTheme.cream.opacity(0.1),
                                 Color.clear
                             ],
                             center: .center,
@@ -31,12 +30,12 @@ struct BreathingPromptView: View {
                     .frame(width: isExpanded ? 200 : 80, height: isExpanded ? 200 : 80)
 
                 Circle()
-                    .stroke(Color.white.opacity(0.5), lineWidth: 2)
+                    .stroke(AppTheme.cream.opacity(0.5), lineWidth: 2)
                     .frame(width: isExpanded ? 200 : 80, height: isExpanded ? 200 : 80)
 
                 Image(systemName: "heart.fill")
                     .font(.system(size: isExpanded ? 36 : 20))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppTheme.cream)
             }
             .animation(.easeInOut(duration: 4).repeatForever(autoreverses: true), value: isExpanded)
         }

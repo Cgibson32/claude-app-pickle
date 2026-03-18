@@ -21,7 +21,7 @@ struct AffirmationSequenceView: View {
                     switch viewModel.phase {
                     case .loading:
                         ProgressView()
-                            .tint(.white)
+                            .tint(AppTheme.cream)
                             .scaleEffect(1.5)
 
                     case .alarmSound:
@@ -58,11 +58,11 @@ struct AffirmationSequenceView: View {
                 if viewModel.phase == .complete {
                     Button(action: { dismiss() }) {
                         Text("Start My Day")
-                            .font(.headline)
-                            .foregroundColor(.black)
+                            .font(AppTheme.headline)
+                            .foregroundColor(AppTheme.accentText)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
-                            .background(Capsule().fill(.white))
+                            .background(Capsule().fill(AppTheme.buttonBackground))
                     }
                     .padding(.horizontal, 40)
                     .padding(.bottom, 40)
@@ -73,8 +73,8 @@ struct AffirmationSequenceView: View {
                         dismiss()
                     }) {
                         Text("Skip")
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.6))
+                            .font(AppTheme.subheadline)
+                            .foregroundColor(AppTheme.textTertiary)
                     }
                     .padding(.bottom, 40)
                 }
@@ -99,13 +99,12 @@ struct AffirmationSequenceView: View {
         VStack(spacing: 20) {
             Image(systemName: "alarm.fill")
                 .font(.system(size: 60))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(AppTheme.textSecondary)
                 .symbolEffect(.pulse)
 
             Text("Rise & Shine")
-                .font(.title2)
-                .fontWeight(.medium)
-                .foregroundColor(.white)
+                .font(AppTheme.title2)
+                .foregroundColor(AppTheme.textPrimary)
         }
     }
 
@@ -113,18 +112,16 @@ struct AffirmationSequenceView: View {
         VStack(spacing: 16) {
             Image(systemName: "sunrise.fill")
                 .font(.system(size: 50))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(AppTheme.textSecondary)
                 .symbolEffect(.breathe)
 
             Text("Good Morning")
-                .font(.title)
-                .fontWeight(.light)
-                .foregroundColor(.white.opacity(0.8))
+                .font(AppTheme.heading(28, weight: .light))
+                .foregroundColor(AppTheme.textSecondary)
 
             Text(viewModel.userName)
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .foregroundColor(.white)
+                .font(AppTheme.largeTitle)
+                .foregroundColor(AppTheme.textPrimary)
         }
     }
 
@@ -132,17 +129,16 @@ struct AffirmationSequenceView: View {
         VStack(spacing: 16) {
             Image(systemName: "sparkles")
                 .font(.system(size: 40))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(AppTheme.textSecondary)
 
             Text(viewModel.closingMessage)
-                .font(.title3)
-                .foregroundColor(.white.opacity(0.8))
+                .font(AppTheme.title3)
+                .foregroundColor(AppTheme.textSecondary)
                 .multilineTextAlignment(.center)
 
             Text(viewModel.userName)
-                .font(.title)
-                .fontWeight(.bold)
-                .foregroundColor(.white)
+                .font(AppTheme.title)
+                .foregroundColor(AppTheme.textPrimary)
         }
     }
 
@@ -150,12 +146,11 @@ struct AffirmationSequenceView: View {
         VStack(spacing: 20) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(AppTheme.textSecondary)
 
             Text("You're ready to\nconquer the day!")
-                .font(.title2)
-                .fontWeight(.medium)
-                .foregroundColor(.white)
+                .font(AppTheme.title2)
+                .foregroundColor(AppTheme.textPrimary)
                 .multilineTextAlignment(.center)
         }
     }

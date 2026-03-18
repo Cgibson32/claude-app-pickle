@@ -76,29 +76,28 @@ struct SettingsView: View {
                                         .padding()
                                         .background(
                                             RoundedRectangle(cornerRadius: 10)
-                                                .fill(.white.opacity(0.15))
+                                                .fill(AppTheme.inputBackground)
                                         )
-                                        .foregroundColor(.white)
-                                        .tint(.white)
+                                        .foregroundColor(AppTheme.textPrimary)
+                                        .tint(AppTheme.cream)
 
                                     Button {
                                         saveAPIKey()
                                     } label: {
                                         Text(apiKeySaved ? "Saved!" : "Save Key")
-                                            .font(.subheadline)
-                                            .fontWeight(.semibold)
-                                            .foregroundColor(.black)
+                                            .font(AppTheme.subheadline)
+                                            .foregroundColor(AppTheme.accentText)
                                             .frame(maxWidth: .infinity)
                                             .padding(.vertical, 10)
                                             .background(
-                                                Capsule().fill(apiKey.isEmpty ? .white.opacity(0.4) : .white)
+                                                Capsule().fill(apiKey.isEmpty ? AppTheme.buttonDisabled : AppTheme.buttonBackground)
                                             )
                                     }
                                     .disabled(apiKey.isEmpty)
 
                                     Text("Your API key is stored securely in the iOS Keychain.")
-                                        .font(.caption2)
-                                        .foregroundColor(.white.opacity(0.5))
+                                        .font(AppTheme.caption2)
+                                        .foregroundColor(AppTheme.textTertiary)
                                 }
                                 .padding(.horizontal, 4)
                             }
@@ -124,17 +123,16 @@ struct SettingsView: View {
     private func settingsSection(title: String, @ViewBuilder content: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundColor(.white.opacity(0.6))
+                .font(AppTheme.caption)
                 .textCase(.uppercase)
+                .foregroundColor(AppTheme.textSecondary)
 
             VStack(spacing: 1) {
                 content()
             }
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(.white.opacity(0.1))
+                    .fill(AppTheme.cardBackground)
             )
         }
     }
@@ -142,24 +140,24 @@ struct SettingsView: View {
     private func settingsRow(icon: String, title: String, detail: String) -> some View {
         HStack {
             Image(systemName: icon)
-                .font(.body)
-                .foregroundColor(.orange)
+                .font(AppTheme.bodyFont)
+                .foregroundColor(AppTheme.accent)
                 .frame(width: 28)
 
             Text(title)
-                .foregroundColor(.white)
+                .foregroundColor(AppTheme.textPrimary)
 
             Spacer()
 
             if !detail.isEmpty {
                 Text(detail)
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.5))
+                    .font(AppTheme.subheadline)
+                    .foregroundColor(AppTheme.textTertiary)
             }
 
             Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundColor(.white.opacity(0.3))
+                .font(AppTheme.caption)
+                .foregroundColor(AppTheme.textTertiary)
         }
         .padding()
     }

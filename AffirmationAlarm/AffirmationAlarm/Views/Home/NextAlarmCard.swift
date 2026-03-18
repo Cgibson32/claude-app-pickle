@@ -8,11 +8,10 @@ struct NextAlarmCard: View {
         VStack(spacing: 12) {
             HStack {
                 Image(systemName: "alarm.fill")
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(AppTheme.textSecondary)
                 Text("Next Alarm")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white.opacity(0.7))
+                    .font(AppTheme.subheadline)
+                    .foregroundColor(AppTheme.textSecondary)
                 Spacer()
             }
 
@@ -20,24 +19,24 @@ struct NextAlarmCard: View {
                 VStack(spacing: 4) {
                     Text(alarm.timeString)
                         .font(.system(size: 48, weight: .light, design: .rounded))
-                        .foregroundColor(.white)
+                        .foregroundColor(AppTheme.textPrimary)
 
                     Text(DateFormatters.relativeAlarmTime(nextFire))
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.7))
+                        .font(AppTheme.subheadline)
+                        .foregroundColor(AppTheme.textSecondary)
 
                     Text(alarm.repeatDaysString)
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.5))
+                        .font(AppTheme.caption)
+                        .foregroundColor(AppTheme.textTertiary)
                 }
             } else {
                 VStack(spacing: 8) {
                     Image(systemName: "moon.zzz.fill")
-                        .font(.title)
-                        .foregroundColor(.white.opacity(0.4))
+                        .font(.system(size: 28))
+                        .foregroundColor(AppTheme.textTertiary)
                     Text("No alarm set")
-                        .font(.body)
-                        .foregroundColor(.white.opacity(0.5))
+                        .font(AppTheme.bodyFont)
+                        .foregroundColor(AppTheme.textTertiary)
                 }
                 .padding(.vertical, 8)
             }
@@ -45,7 +44,7 @@ struct NextAlarmCard: View {
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(.white.opacity(0.15))
+                .fill(AppTheme.cardBackgroundHover)
         )
     }
 }

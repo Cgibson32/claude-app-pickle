@@ -33,12 +33,11 @@ struct HomeView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(greetingText)
-                                        .font(.title3)
-                                        .foregroundColor(.white.opacity(0.7))
+                                        .font(AppTheme.title3)
+                                        .foregroundColor(AppTheme.textSecondary)
                                     Text(profile.name)
-                                        .font(.largeTitle)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.white)
+                                        .font(AppTheme.largeTitle)
+                                        .foregroundColor(AppTheme.textPrimary)
                                 }
                                 Spacer()
                             }
@@ -79,13 +78,13 @@ struct HomeView: View {
                                 Image(systemName: "play.fill")
                                 Text("Preview Affirmation Sequence")
                             }
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.7))
+                            .font(AppTheme.subheadline)
+                            .foregroundColor(AppTheme.textSecondary)
                             .padding(.vertical, 12)
                             .frame(maxWidth: .infinity)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                                    .stroke(AppTheme.strokeLight, lineWidth: 1)
                             )
                         }
                     }
@@ -116,16 +115,16 @@ struct HomeView: View {
     private func quickActionButton(icon: String, title: String) -> some View {
         VStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(.system(size: 22))
             Text(title)
-                .font(.caption)
+                .font(AppTheme.caption)
         }
-        .foregroundColor(.white)
+        .foregroundColor(AppTheme.textPrimary)
         .frame(maxWidth: .infinity)
         .padding(.vertical, 20)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(.white.opacity(0.12))
+                .fill(AppTheme.cardBackground)
         )
     }
 

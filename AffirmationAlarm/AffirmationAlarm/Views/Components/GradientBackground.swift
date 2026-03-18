@@ -11,22 +11,25 @@ struct GradientBackground: View {
         var colors: [Color] {
             switch self {
             case .sunrise:
+                // Deep forest green → warm brown-green
                 return [
-                    Color(red: 1.0, green: 0.7, blue: 0.4),
-                    Color(red: 1.0, green: 0.5, blue: 0.5),
-                    Color(red: 0.6, green: 0.3, blue: 0.7)
+                    AppTheme.deepGreen,
+                    Color(hex: "2E5D2A"),
+                    AppTheme.darkBrown
                 ]
             case .warmEvening:
+                // Rich brown → deep green
                 return [
-                    Color(red: 0.95, green: 0.6, blue: 0.4),
-                    Color(red: 0.85, green: 0.4, blue: 0.5),
-                    Color(red: 0.5, green: 0.25, blue: 0.6)
+                    AppTheme.darkBrown,
+                    Color(hex: "4E342E"),
+                    AppTheme.deepGreen
                 ]
             case .calm:
+                // Muted green → dark brown with warm undertone
                 return [
-                    Color(red: 0.4, green: 0.5, blue: 0.8),
-                    Color(red: 0.5, green: 0.4, blue: 0.7),
-                    Color(red: 0.3, green: 0.3, blue: 0.5)
+                    Color(hex: "1B4332"),
+                    Color(hex: "3E5243"),
+                    Color(hex: "4E342E")
                 ]
             }
         }

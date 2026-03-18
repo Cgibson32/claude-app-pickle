@@ -29,7 +29,7 @@ struct AlarmListView: View {
                     showingAddAlarm = true
                 } label: {
                     Image(systemName: "plus")
-                        .foregroundColor(.white)
+                        .foregroundColor(AppTheme.textPrimary)
                 }
             }
         }
@@ -58,17 +58,17 @@ struct AlarmRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(alarm.timeString)
-                    .font(.system(size: 36, weight: .light, design: .rounded))
-                    .foregroundColor(alarm.isEnabled ? .white : .white.opacity(0.4))
+                    .font(AppTheme.heading(36, weight: .light))
+                    .foregroundColor(alarm.isEnabled ? AppTheme.textPrimary : AppTheme.textDisabled)
 
                 Text(alarm.repeatDaysString)
-                    .font(.caption)
-                    .foregroundColor(alarm.isEnabled ? .white.opacity(0.7) : .white.opacity(0.3))
+                    .font(AppTheme.caption)
+                    .foregroundColor(alarm.isEnabled ? AppTheme.textSecondary : AppTheme.textTertiary)
 
                 if !alarm.label.isEmpty {
                     Text(alarm.label)
-                        .font(.caption2)
-                        .foregroundColor(.white.opacity(0.5))
+                        .font(AppTheme.caption2)
+                        .foregroundColor(AppTheme.textTertiary)
                 }
             }
 
@@ -76,7 +76,7 @@ struct AlarmRow: View {
 
             Toggle("", isOn: $alarm.isEnabled)
                 .labelsHidden()
-                .tint(.orange)
+                .tint(AppTheme.accent)
                 .onChange(of: alarm.isEnabled) { _, newValue in
                     if newValue {
                         AlarmSchedulingService.shared.scheduleAlarm(alarm)

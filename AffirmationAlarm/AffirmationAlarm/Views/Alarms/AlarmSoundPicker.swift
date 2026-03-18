@@ -13,17 +13,17 @@ struct AlarmSoundPicker: View {
                 } label: {
                     HStack {
                         Image(systemName: selectedSound == sound.rawValue ? "checkmark.circle.fill" : "circle")
-                            .foregroundColor(.white)
+                            .foregroundColor(AppTheme.textPrimary)
 
                         Text(sound.displayName)
-                            .foregroundColor(.white)
+                            .foregroundColor(AppTheme.textPrimary)
 
                         Spacer()
 
                         if previewingSound == sound.rawValue {
                             Image(systemName: "speaker.wave.2.fill")
-                                .foregroundColor(.white.opacity(0.7))
-                                .font(.caption)
+                                .foregroundColor(AppTheme.textSecondary)
+                                .font(.system(size: 12))
                         }
                     }
                     .padding(.vertical, 10)
@@ -31,7 +31,7 @@ struct AlarmSoundPicker: View {
                     .background(
                         RoundedRectangle(cornerRadius: 8)
                             .fill(selectedSound == sound.rawValue
-                                  ? Color.white.opacity(0.2)
+                                  ? AppTheme.chipUnselected
                                   : Color.clear)
                     )
                 }

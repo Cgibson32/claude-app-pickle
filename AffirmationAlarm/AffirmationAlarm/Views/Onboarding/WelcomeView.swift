@@ -10,17 +10,16 @@ struct WelcomeView: View {
             VStack(spacing: 16) {
                 Image(systemName: "sunrise.fill")
                     .font(.system(size: 80))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.textPrimary)
                     .symbolEffect(.breathe)
 
                 Text("Affirmation Alarm")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
+                    .font(AppTheme.largeTitle)
+                    .foregroundColor(AppTheme.textPrimary)
 
                 Text("Wake up inspired.\nEvery morning.")
-                    .font(.title3)
-                    .foregroundColor(.white.opacity(0.9))
+                    .font(AppTheme.title3)
+                    .foregroundColor(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
             }
 
@@ -28,17 +27,17 @@ struct WelcomeView: View {
 
             VStack(spacing: 16) {
                 Text("Start each day with personalized affirmations\ntailored to your goals and dreams.")
-                    .font(.body)
-                    .foregroundColor(.white.opacity(0.8))
+                    .font(AppTheme.bodyFont)
+                    .foregroundColor(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
 
                 Button(action: onContinue) {
                     Text("Get Started")
-                        .font(.headline)
-                        .foregroundColor(.black)
+                        .font(AppTheme.headline)
+                        .foregroundColor(AppTheme.accentText)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(Capsule().fill(.white))
+                        .background(Capsule().fill(AppTheme.buttonBackground))
                 }
                 .padding(.horizontal, 40)
             }

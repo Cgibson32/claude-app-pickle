@@ -18,16 +18,15 @@ struct DayOfWeekSelector: View {
                     }
                 } label: {
                     Text(day.symbol)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(AppTheme.subheadline)
                         .frame(width: 38, height: 38)
                         .background(
                             Circle()
                                 .fill(selectedDays.contains(day.weekday)
-                                      ? Color.white
-                                      : Color.white.opacity(0.2))
+                                      ? AppTheme.chipSelected
+                                      : AppTheme.chipUnselected)
                         )
-                        .foregroundColor(selectedDays.contains(day.weekday) ? .black : .white)
+                        .foregroundColor(selectedDays.contains(day.weekday) ? AppTheme.chipTextSelected : AppTheme.chipTextUnselected)
                 }
                 .animation(.easeInOut(duration: 0.15), value: selectedDays.contains(day.weekday))
             }

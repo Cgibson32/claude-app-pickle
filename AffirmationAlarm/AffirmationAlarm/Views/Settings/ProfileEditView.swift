@@ -15,26 +15,24 @@ struct ProfileEditView: View {
                     // Name
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Name")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white.opacity(0.9))
+                            .font(AppTheme.subheadline)
+                            .foregroundColor(AppTheme.textSecondary)
 
                         TextField("Your name", text: $profile.name)
                             .padding()
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(.white.opacity(0.2))
+                                    .fill(AppTheme.inputBackground)
                             )
-                            .foregroundColor(.white)
-                            .tint(.white)
+                            .foregroundColor(AppTheme.textPrimary)
+                            .tint(AppTheme.cream)
                     }
 
                     // Goals
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Your Goals")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white.opacity(0.9))
+                            .font(AppTheme.subheadline)
+                            .foregroundColor(AppTheme.textSecondary)
 
                         TextEditor(text: $profile.freeformGoals)
                             .frame(minHeight: 120)
@@ -42,18 +40,17 @@ struct ProfileEditView: View {
                             .scrollContentBackground(.hidden)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(.white.opacity(0.2))
+                                    .fill(AppTheme.inputBackground)
                             )
-                            .foregroundColor(.white)
-                            .tint(.white)
+                            .foregroundColor(AppTheme.textPrimary)
+                            .tint(AppTheme.cream)
                     }
 
                     // Categories
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Focus Areas")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white.opacity(0.9))
+                            .font(AppTheme.subheadline)
+                            .foregroundColor(AppTheme.textSecondary)
 
                         FlowLayout(spacing: 8) {
                             ForEach(GoalCategory.allCases) { category in
