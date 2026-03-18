@@ -41,14 +41,14 @@ enum AppTheme {
     static let chipTextSelected = Color(hex: "1B5E20")
     static let chipTextUnselected = cream
 
-    // MARK: - Heading Fonts (Playfair Display)
+    // MARK: - Heading Fonts (Cormorant Garamond)
 
     static let largeTitle = heading(34, weight: .bold)
     static let title = heading(28, weight: .bold)
     static let title2 = heading(22, weight: .semibold)
     static let title3 = heading(20, weight: .medium)
 
-    // MARK: - Body Fonts (Montserrat)
+    // MARK: - Body Fonts (Inter)
 
     static let headline = body(17, weight: .semibold)
     static let bodyFont = body(17, weight: .regular)
@@ -62,13 +62,13 @@ enum AppTheme {
         let name: String
         switch weight {
         case .medium:
-            name = "PlayfairDisplay-Medium"
+            name = "CormorantGaramond-Medium"
         case .semibold:
-            name = "PlayfairDisplay-SemiBold"
+            name = "CormorantGaramond-SemiBold"
         case .bold, .heavy, .black:
-            name = "PlayfairDisplay-Bold"
+            name = "CormorantGaramond-Bold"
         default:
-            name = "PlayfairDisplay-Regular"
+            name = "CormorantGaramond-Regular"
         }
         return .custom(name, size: size)
     }
@@ -77,15 +77,15 @@ enum AppTheme {
         let name: String
         switch weight {
         case .light, .ultraLight, .thin:
-            name = "Montserrat-Light"
+            name = "Inter-Light"
         case .medium:
-            name = "Montserrat-Medium"
+            name = "Inter-Medium"
         case .semibold:
-            name = "Montserrat-SemiBold"
+            name = "Inter-SemiBold"
         case .bold, .heavy, .black:
-            name = "Montserrat-Bold"
+            name = "Inter-Bold"
         default:
-            name = "Montserrat-Regular"
+            name = "Inter-Regular"
         }
         return .custom(name, size: size)
     }
