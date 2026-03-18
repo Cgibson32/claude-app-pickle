@@ -28,8 +28,8 @@ struct TodayAffirmationsCard: View {
                 }
                 .padding(.vertical, 8)
             } else {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(Array(affirmations.prefix(3).enumerated()), id: \.offset) { _, affirmation in
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(affirmations) { affirmation in
                         HStack(alignment: .top, spacing: 8) {
                             Image(systemName: "quote.opening")
                                 .font(.caption2)
@@ -39,7 +39,19 @@ struct TodayAffirmationsCard: View {
                             Text(affirmation.text)
                                 .font(.subheadline)
                                 .foregroundColor(.white.opacity(0.85))
-                                .lineLimit(2)
+
+                            Spacer()
+
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    affirmation.isFavorited.toggle()
+                                }
+                            } label: {
+                                Image(systemName: affirmation.isFavorited ? "heart.fill" : "heart")
+                                    .font(.body)
+                                    .foregroundColor(affirmation.isFavorited ? .pink : .white.opacity(0.3))
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }

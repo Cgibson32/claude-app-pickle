@@ -59,6 +59,12 @@ struct HomeView: View {
                             }
 
                             NavigationLink {
+                                FavoritesView()
+                            } label: {
+                                quickActionButton(icon: "heart.fill", title: "Favorites")
+                            }
+
+                            NavigationLink {
                                 SettingsView()
                             } label: {
                                 quickActionButton(icon: "gearshape", title: "Settings")

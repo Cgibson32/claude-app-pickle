@@ -15,6 +15,7 @@ class AffirmationSequenceViewModel {
     var phase: SequencePhase = .loading
     var affirmations: [String] = []
     var userName: String = ""
+    var closingMessage: String = "Have a wonderful day"
 
     private let speechService = SpeechService.shared
 
@@ -26,9 +27,14 @@ class AffirmationSequenceViewModel {
             speechService.configure(rate: profile.speechRate, pitch: profile.speechPitch)
         }
 
-        // Load affirmations
+        // Load favorited affirmations (these repeat until un-favorited)
+        let favorites = AffirmationCacheService.shared.getFavoritedAffirmations(modelContext: modelContext)
+        let favoritedTexts = Set(favorites.map(\.text))
+
+        // Load today's generated affirmations
         let cachedAffirmations = AffirmationCacheService.shared.getLatestAffirmations(modelContext: modelContext)
-        if cachedAffirmations.isEmpty {
+
+        if cachedAffirmations.isEmpty && favorites.isEmpty {
             // Use fallback affirmations
             affirmations = [
                 "I am worthy of all the good things coming my way today.",
@@ -36,7 +42,19 @@ class AffirmationSequenceViewModel {
                 "I radiate confidence, positivity, and strength."
             ]
         } else {
-            affirmations = cachedAffirmations.map(\.text)
+            // Start with favorited affirmations, then add today's (deduplicated)
+            var combined = Array(favoritedTexts)
+            for affirmation in cachedAffirmations {
+                if !favoritedTexts.contains(affirmation.text) {
+                    combined.append(affirmation.text)
+                }
+            }
+            affirmations = combined
+        }
+
+        // Load dynamic closing message
+        if let cached = AffirmationCacheService.shared.getClosingMessage(for: Date(), modelContext: modelContext) {
+            closingMessage = cached
         }
 
         startSequence()
@@ -65,9 +83,9 @@ class AffirmationSequenceViewModel {
             postDelay: AppConstants.breathingPostDelay
         ))
 
-        // Closing
+        // Closing — dynamic, AI-generated send-off
         speechItems.append(SpeechItem(
-            text: "Have a wonderful day, \(userName)",
+            text: "\(closingMessage), \(userName)",
             postDelay: 0
         ))
 

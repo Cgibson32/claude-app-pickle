@@ -117,9 +117,10 @@ struct AffirmationSequenceView: View {
                 .font(.system(size: 40))
                 .foregroundColor(.white.opacity(0.8))
 
-            Text("Have a wonderful day,")
+            Text(viewModel.closingMessage)
                 .font(.title3)
                 .foregroundColor(.white.opacity(0.8))
+                .multilineTextAlignment(.center)
 
             Text(viewModel.userName)
                 .font(.title)

@@ -56,22 +56,61 @@ actor AffirmationCacheService {
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
+    func getFavoritedAffirmations(modelContext: ModelContext) -> [Affirmation] {
+        let descriptor = FetchDescriptor<Affirmation>(
+            predicate: #Predicate { affirmation in
+                affirmation.isFavorited == true
+            },
+            sortBy: [SortDescriptor(\Affirmation.generatedFor, order: .reverse)]
+        )
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    func getClosingMessage(for date: Date, modelContext: ModelContext) -> String? {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: date)
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? date
+
+        let descriptor = FetchDescriptor<DailyClosingMessage>(
+            predicate: #Predicate { message in
+                message.generatedFor >= startOfDay && message.generatedFor < endOfDay
+            }
+        )
+
+        return (try? modelContext.fetch(descriptor))?.first?.message
+    }
+
     func cleanOldAffirmations(modelContext: ModelContext) {
         let calendar = Calendar.current
         guard let cutoff = calendar.date(byAdding: .day, value: -14, to: Date()) else { return }
 
-        let descriptor = FetchDescriptor<Affirmation>(
+        // Clean old non-favorited affirmations
+        let affirmationDescriptor = FetchDescriptor<Affirmation>(
             predicate: #Predicate { affirmation in
-                affirmation.generatedFor < cutoff
+                affirmation.generatedFor < cutoff && affirmation.isFavorited == false
             }
         )
 
-        if let old = try? modelContext.fetch(descriptor) {
+        if let old = try? modelContext.fetch(affirmationDescriptor) {
             for affirmation in old {
                 modelContext.delete(affirmation)
             }
-            try? modelContext.save()
         }
+
+        // Clean old closing messages
+        let closingDescriptor = FetchDescriptor<DailyClosingMessage>(
+            predicate: #Predicate { message in
+                message.generatedFor < cutoff
+            }
+        )
+
+        if let old = try? modelContext.fetch(closingDescriptor) {
+            for message in old {
+                modelContext.delete(message)
+            }
+        }
+
+        try? modelContext.save()
     }
 
     // MARK: - Private
@@ -83,7 +122,7 @@ actor AffirmationCacheService {
 
     private func generateAndCache(for date: Date, profile: UserProfile, modelContext: ModelContext) async {
         do {
-            let affirmationTexts = try await ClaudeAPIService.shared.generateAffirmations(
+            let response = try await ClaudeAPIService.shared.generateAffirmations(
                 name: profile.name,
                 freeformGoals: profile.freeformGoals,
                 categories: profile.selectedCategories,
@@ -92,7 +131,7 @@ actor AffirmationCacheService {
 
             let goalContext = "\(profile.freeformGoals) | \(profile.selectedCategories.joined(separator: ", "))"
 
-            for text in affirmationTexts {
+            for text in response.affirmations {
                 let affirmation = Affirmation(
                     text: text,
                     generatedFor: date,
@@ -100,6 +139,13 @@ actor AffirmationCacheService {
                 )
                 modelContext.insert(affirmation)
             }
+
+            // Store the closing message
+            let closingMessage = DailyClosingMessage(
+                message: response.closing,
+                generatedFor: date
+            )
+            modelContext.insert(closingMessage)
 
             try? modelContext.save()
         } catch {

@@ -8,18 +8,21 @@ final class Affirmation {
     var generatedFor: Date
     var goalContext: String
     var wasSpoken: Bool
+    var isFavorited: Bool
 
     init(
         id: UUID = UUID(),
         text: String,
         generatedFor: Date = .now,
         goalContext: String = "",
-        wasSpoken: Bool = false
+        wasSpoken: Bool = false,
+        isFavorited: Bool = false
     ) {
         self.id = id
         self.text = text
         self.generatedFor = generatedFor
         self.goalContext = goalContext
         self.wasSpoken = wasSpoken
+        self.isFavorited = isFavorited
     }
 }

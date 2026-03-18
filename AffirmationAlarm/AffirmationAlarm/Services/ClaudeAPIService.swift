@@ -5,6 +5,7 @@ actor ClaudeAPIService {
 
     struct AffirmationResponse {
         let affirmations: [String]
+        let closing: String
     }
 
     enum APIError: Error, LocalizedError {
@@ -35,7 +36,7 @@ actor ClaudeAPIService {
         freeformGoals: String,
         categories: [String],
         count: Int = AppConstants.defaultAffirmationCount
-    ) async throws -> [String] {
+    ) async throws -> AffirmationResponse {
         guard let apiKey = APIKeyConfiguration.getAPIKey() else {
             throw APIError.noAPIKey
         }
@@ -44,7 +45,7 @@ actor ClaudeAPIService {
 
         let requestBody: [String: Any] = [
             "model": AppConstants.anthropicModel,
-            "max_tokens": 500,
+            "max_tokens": 600,
             "system": systemPrompt,
             "messages": [
                 ["role": "user", "content": "Generate my morning affirmations for today."]
@@ -79,7 +80,7 @@ actor ClaudeAPIService {
             throw APIError.httpError(httpResponse.statusCode, errorBody)
         }
 
-        return try parseAffirmations(from: data)
+        return try parseResponse(from: data)
     }
 
     // MARK: - Private
@@ -106,13 +107,14 @@ actor ClaudeAPIService {
         - Use present tense ("I am", "I attract", "I create")
         - Make them feel personal and achievable
         - Vary the affirmations — don't repeat themes from day to day
-        - Return ONLY a JSON array of strings, no other text
+        - Also generate a short motivational closing/send-off message (5-10 words) that is broadly tied to their goals and dreams. This should be different every time. Examples: "Go make it happen", "Today is your day to shine", "Be your best self today", "Step into your greatness"
+        - Return ONLY a JSON object with two keys: "affirmations" (array of strings) and "closing" (the send-off string). No other text.
         """
 
         return prompt
     }
 
-    private func parseAffirmations(from data: Data) throws -> [String] {
+    private func parseResponse(from data: Data) throws -> AffirmationResponse {
         // Parse the Anthropic API response
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let content = json["content"] as? [[String: Any]],
@@ -121,22 +123,24 @@ actor ClaudeAPIService {
             throw APIError.invalidResponse
         }
 
-        // The text should be a JSON array of strings
-        // Try to extract JSON from the response (handle potential markdown wrapping)
         let cleanedText = text
             .replacingOccurrences(of: "```json", with: "")
             .replacingOccurrences(of: "```", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard let jsonData = cleanedText.data(using: .utf8),
-              let affirmations = try? JSONSerialization.jsonObject(with: jsonData) as? [String] else {
-            throw APIError.decodingError("Could not parse affirmations from response: \(text)")
+              let parsed = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
+            throw APIError.decodingError("Could not parse response JSON: \(text)")
         }
 
-        guard !affirmations.isEmpty else {
-            throw APIError.decodingError("Received empty affirmations array")
+        // Parse affirmations array
+        guard let affirmations = parsed["affirmations"] as? [String], !affirmations.isEmpty else {
+            throw APIError.decodingError("Missing or empty 'affirmations' in response")
         }
 
-        return affirmations
+        // Parse closing message (fall back to default if missing)
+        let closing = parsed["closing"] as? String ?? "Have a wonderful day"
+
+        return AffirmationResponse(affirmations: affirmations, closing: closing)
     }
 }

@@ -9,7 +9,7 @@ struct AffirmationAlarmApp: App {
         WindowGroup {
             RootView()
         }
-        .modelContainer(for: [UserProfile.self, Alarm.self, Affirmation.self])
+        .modelContainer(for: [UserProfile.self, Alarm.self, Affirmation.self, DailyClosingMessage.self])
     }
 }
 
