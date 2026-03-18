@@ -3,6 +3,7 @@ import SwiftUI
 struct GoalsEntryView: View {
     @Binding var freeformGoals: String
     @Binding var selectedCategories: Set<GoalCategory>
+    @Binding var affirmationCount: Int
     let onContinue: () -> Void
 
     var body: some View {
@@ -65,6 +66,38 @@ struct GoalsEntryView: View {
                                     selectedCategories.insert(category)
                                 }
                             }
+                        }
+                    }
+                }
+
+                // Affirmation count
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Daily Affirmations")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white.opacity(0.9))
+
+                    Text("How many affirmations would you like each morning?")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.6))
+
+                    HStack(spacing: 8) {
+                        ForEach(1...5, id: \.self) { count in
+                            Button {
+                                affirmationCount = count
+                            } label: {
+                                Text("\(count)")
+                                    .font(.headline)
+                                    .frame(width: 44, height: 44)
+                                    .background(
+                                        Circle()
+                                            .fill(affirmationCount == count
+                                                  ? Color.white
+                                                  : Color.white.opacity(0.2))
+                                    )
+                                    .foregroundColor(affirmationCount == count ? .black : .white)
+                            }
+                            .animation(.easeInOut(duration: 0.15), value: affirmationCount == count)
                         }
                     }
                 }
@@ -149,6 +182,7 @@ struct FlowLayout: Layout {
         GoalsEntryView(
             freeformGoals: .constant("I want to be the best basketball player"),
             selectedCategories: .constant([.successCareer]),
+            affirmationCount: .constant(3),
             onContinue: {}
         )
     }

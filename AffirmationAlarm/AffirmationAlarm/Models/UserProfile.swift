@@ -10,6 +10,8 @@ final class UserProfile {
     var speechRate: Float
     var speechPitch: Float
     var ttsEnabled: Bool
+    var alarmSoundDuration: Float
+    var affirmationCount: Int
     var createdAt: Date
 
     init(
@@ -20,6 +22,8 @@ final class UserProfile {
         speechRate: Float = 0.42,
         speechPitch: Float = 0.85,
         ttsEnabled: Bool = true,
+        alarmSoundDuration: Float = 10,
+        affirmationCount: Int = 3,
         createdAt: Date = .now
     ) {
         self.name = name
@@ -29,6 +33,8 @@ final class UserProfile {
         self.speechRate = speechRate
         self.speechPitch = speechPitch
         self.ttsEnabled = ttsEnabled
+        self.alarmSoundDuration = alarmSoundDuration
+        self.affirmationCount = affirmationCount
         self.createdAt = createdAt
     }
 }

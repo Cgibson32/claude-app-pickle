@@ -54,6 +54,7 @@ struct OnboardingContainerView: View {
                     GoalsEntryView(
                         freeformGoals: $viewModel.freeformGoals,
                         selectedCategories: $viewModel.selectedCategories,
+                        affirmationCount: $viewModel.affirmationCount,
                         onContinue: { viewModel.nextStep() }
                     )
                     .tag(2)

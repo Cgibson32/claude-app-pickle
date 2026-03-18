@@ -126,7 +126,7 @@ actor AffirmationCacheService {
                 name: profile.name,
                 freeformGoals: profile.freeformGoals,
                 categories: profile.selectedCategories,
-                count: AppConstants.defaultAffirmationCount
+                count: profile.affirmationCount
             )
 
             let goalContext = "\(profile.freeformGoals) | \(profile.selectedCategories.joined(separator: ", "))"

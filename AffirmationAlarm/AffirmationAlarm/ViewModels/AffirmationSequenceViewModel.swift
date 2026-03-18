@@ -18,6 +18,7 @@ class AffirmationSequenceViewModel {
     var userName: String = ""
     var closingMessage: String = "Have a wonderful day"
     var alarmSoundName: String = "alarm_gentle"
+    var alarmSoundDuration: TimeInterval = 10
 
     private let speechService = SpeechService.shared
     private let audioService = AudioService.shared
@@ -27,6 +28,7 @@ class AffirmationSequenceViewModel {
         let profileDescriptor = FetchDescriptor<UserProfile>()
         if let profile = try? modelContext.fetch(profileDescriptor).first {
             userName = profile.name
+            alarmSoundDuration = TimeInterval(profile.alarmSoundDuration)
             speechService.configure(rate: profile.speechRate, pitch: profile.speechPitch)
         }
 
@@ -75,8 +77,8 @@ class AffirmationSequenceViewModel {
         phase = .alarmSound
         audioService.playSound(named: alarmSoundName)
 
-        // Play alarm sound for 10 seconds, then transition to affirmation sequence
-        DispatchQueue.main.asyncAfter(deadline: .now() + AppConstants.alarmSoundDuration) { [weak self] in
+        // Play alarm sound, then transition to affirmation sequence
+        DispatchQueue.main.asyncAfter(deadline: .now() + alarmSoundDuration) { [weak self] in
             self?.audioService.stop()
             self?.startSequence()
         }

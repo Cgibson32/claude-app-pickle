@@ -7,6 +7,7 @@ class OnboardingViewModel {
     var name = ""
     var freeformGoals = ""
     var selectedCategories: Set<GoalCategory> = []
+    var affirmationCount = 3
     var alarmTime = Calendar.current.date(from: DateComponents(hour: 6, minute: 30)) ?? Date()
     var selectedDays: Set<Int> = [2, 3, 4, 5, 6] // Mon-Fri
     var selectedSound = "alarm_gentle"
@@ -36,6 +37,7 @@ class OnboardingViewModel {
         profile.name = name.trimmingCharacters(in: .whitespaces)
         profile.freeformGoals = freeformGoals.trimmingCharacters(in: .whitespacesAndNewlines)
         profile.selectedCategories = selectedCategories.map(\.rawValue)
+        profile.affirmationCount = affirmationCount
         profile.hasCompletedOnboarding = true
 
         // Create the first alarm

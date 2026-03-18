@@ -27,6 +27,21 @@ struct SettingsView: View {
                         }
                     }
 
+                    // Alarm Section
+                    settingsSection(title: "Alarm") {
+                        if let profile {
+                            NavigationLink {
+                                AlarmPreferencesView(profile: profile)
+                            } label: {
+                                settingsRow(
+                                    icon: "alarm.fill",
+                                    title: "Alarm Preferences",
+                                    detail: "\(profile.affirmationCount) affirmations"
+                                )
+                            }
+                        }
+                    }
+
                     // Voice Section
                     settingsSection(title: "Voice") {
                         if let profile {
