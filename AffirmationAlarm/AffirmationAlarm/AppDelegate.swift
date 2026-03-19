@@ -32,6 +32,19 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             options: [.customDismissAction]
         )
 
-        UNUserNotificationCenter.current().setNotificationCategories([alarmCategory])
+        let reflectAction = UNNotificationAction(
+            identifier: "REFLECT_ACTION",
+            title: "Reflect",
+            options: [.foreground]
+        )
+
+        let eveningCategory = UNNotificationCategory(
+            identifier: "EVENING_REFLECTION_CATEGORY",
+            actions: [reflectAction],
+            intentIdentifiers: [],
+            options: []
+        )
+
+        UNUserNotificationCenter.current().setNotificationCategories([alarmCategory, eveningCategory])
     }
 }

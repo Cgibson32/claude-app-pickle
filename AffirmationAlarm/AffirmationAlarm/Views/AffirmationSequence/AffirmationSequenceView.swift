@@ -43,8 +43,14 @@ struct AffirmationSequenceView: View {
                     case .breathing:
                         BreathingPromptView()
 
+                    case .gratitude:
+                        GratitudePromptView(text: $viewModel.gratitudeText)
+
                     case .closing:
                         closingView
+
+                    case .intention:
+                        IntentionPromptView(text: $viewModel.intentionText)
 
                     case .complete:
                         completeView
@@ -158,7 +164,34 @@ struct AffirmationSequenceView: View {
                 .foregroundColor(AppTheme.textPrimary)
                 .multilineTextAlignment(.center)
 
-            ShareLink(item: shareText) {
+            // Streak badge
+            if viewModel.streakCount > 0 {
+                HStack(spacing: 6) {
+                    Image(systemName: "flame.fill")
+                        .foregroundColor(AppTheme.sunsetOrange)
+                    Text("\(viewModel.streakCount) day streak")
+                        .font(AppTheme.subheadline)
+                        .foregroundColor(AppTheme.textPrimary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(Capsule().fill(AppTheme.cardBackground))
+            }
+
+            // Milestone celebration
+            if StreakService.shared.isMilestone(viewModel.streakCount),
+               let message = StreakService.shared.milestoneMessage(viewModel.streakCount) {
+                Text(message)
+                    .font(AppTheme.headline)
+                    .foregroundColor(AppTheme.gold)
+                    .transition(.scale.combined(with: .opacity))
+            }
+
+            Button {
+                if let first = viewModel.affirmations.first {
+                    AffirmationImageRenderer.share(text: first)
+                }
+            } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "square.and.arrow.up")
                     Text("Share Affirmations")
@@ -179,9 +212,9 @@ struct AffirmationSequenceView: View {
         switch viewModel.phase {
         case .loading, .alarmSound, .greeting:
             return .glow
-        case .affirmation, .breathing:
+        case .affirmation, .breathing, .gratitude:
             return .sunrise
-        case .closing, .complete:
+        case .closing, .intention, .complete:
             return .energy
         }
     }

@@ -25,19 +25,26 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, Observab
         let userInfo = response.notification.request.content.userInfo
         let alarmId = userInfo["alarmId"] as? String ?? ""
 
-        switch response.actionIdentifier {
-        case "DISMISS_ACTION", UNNotificationDefaultActionIdentifier:
-            // User tapped the notification or "Rise & Shine" — launch affirmation sequence
+        let categoryIdentifier = response.notification.request.content.categoryIdentifier
+
+        if categoryIdentifier == "EVENING_REFLECTION_CATEGORY" || response.actionIdentifier == "REFLECT_ACTION" {
             DispatchQueue.main.async {
-                self.shouldShowAffirmationSequence = true
-                NotificationCenter.default.post(name: .didTapAlarmNotification, object: nil)
+                NotificationCenter.default.post(name: .didTapEveningReflection, object: nil)
             }
+        } else {
+            switch response.actionIdentifier {
+            case "DISMISS_ACTION", UNNotificationDefaultActionIdentifier:
+                DispatchQueue.main.async {
+                    self.shouldShowAffirmationSequence = true
+                    NotificationCenter.default.post(name: .didTapAlarmNotification, object: nil)
+                }
 
-        case "SNOOZE_ACTION":
-            AlarmSchedulingService.shared.snoozeAlarm(alarmId: alarmId)
+            case "SNOOZE_ACTION":
+                AlarmSchedulingService.shared.snoozeAlarm(alarmId: alarmId)
 
-        default:
-            break
+            default:
+                break
+            }
         }
 
         completionHandler()

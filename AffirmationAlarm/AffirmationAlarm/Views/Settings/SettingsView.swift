@@ -57,6 +57,21 @@ struct SettingsView: View {
                         }
                     }
 
+                    // Evening Section
+                    settingsSection(title: "Evening") {
+                        if let profile {
+                            NavigationLink {
+                                EveningReflectionSettingsView(profile: profile)
+                            } label: {
+                                settingsRow(
+                                    icon: "moon.stars.fill",
+                                    title: "Evening Reflection",
+                                    detail: profile.eveningReflectionEnabled ? "On" : "Off"
+                                )
+                            }
+                        }
+                    }
+
                     // API Key Section
                     settingsSection(title: "AI Configuration") {
                         VStack(spacing: 12) {

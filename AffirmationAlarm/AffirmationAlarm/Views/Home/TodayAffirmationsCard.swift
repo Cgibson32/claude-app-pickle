@@ -54,11 +54,14 @@ struct TodayAffirmationsCard: View {
 
                             Spacer()
 
-                            ShareLink(item: "\"\(affirmation.text)\"\n\n— Affirmation Alarm") {
+                            Button {
+                                AffirmationImageRenderer.share(text: affirmation.text)
+                            } label: {
                                 Image(systemName: "square.and.arrow.up")
                                     .font(.system(size: 14))
                                     .foregroundColor(AppTheme.textTertiary)
                             }
+                            .buttonStyle(.plain)
 
                             Button {
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {

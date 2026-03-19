@@ -8,6 +8,8 @@ struct HomeView: View {
     @State private var todayAffirmations: [Affirmation] = []
     @State private var showAffirmationSequence = false
     @State private var appeared = false
+    @State private var currentStreak: Int = 0
+    @State private var todayIntention: DailyIntention?
 
     private var profile: UserProfile? { profiles.first }
 
@@ -41,7 +43,40 @@ struct HomeView: View {
                                         .foregroundColor(AppTheme.textPrimary)
                                 }
                                 Spacer()
+
+                                // Streak badge
+                                if currentStreak > 0 {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "flame.fill")
+                                            .foregroundColor(AppTheme.sunsetOrange)
+                                        Text("\(currentStreak)")
+                                            .font(AppTheme.headline)
+                                            .foregroundColor(AppTheme.textPrimary)
+                                    }
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(Capsule().fill(AppTheme.cardBackground))
+                                }
                             }
+                            .opacity(appeared ? 1 : 0)
+                            .offset(y: appeared ? 0 : 15)
+                        }
+
+                        // Today's intention
+                        if let intention = todayIntention {
+                            HStack(spacing: 10) {
+                                Image(systemName: "scope")
+                                    .foregroundColor(AppTheme.gold)
+                                Text(intention.text)
+                                    .font(AppTheme.subheadline)
+                                    .foregroundColor(AppTheme.textPrimary)
+                                Spacer()
+                            }
+                            .padding(16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(AppTheme.cardBackground)
+                            )
                             .opacity(appeared ? 1 : 0)
                             .offset(y: appeared ? 0 : 15)
                         }
@@ -68,6 +103,12 @@ struct HomeView: View {
                                 FavoritesView()
                             } label: {
                                 quickActionButton(icon: "heart.fill", title: "Favorites")
+                            }
+
+                            NavigationLink {
+                                JournalView()
+                            } label: {
+                                quickActionButton(icon: "book.fill", title: "Journal")
                             }
 
                             NavigationLink {
@@ -109,7 +150,7 @@ struct HomeView: View {
             }
         }
         .onAppear {
-            loadAffirmations()
+            loadData()
             refreshCache()
             withAnimation(.easeOut(duration: 0.6).delay(0.1)) {
                 appeared = true
@@ -142,8 +183,25 @@ struct HomeView: View {
         )
     }
 
-    private func loadAffirmations() {
+    private func loadData() {
         todayAffirmations = AffirmationCacheService.shared.getTodayAffirmations(modelContext: modelContext)
+        currentStreak = StreakService.shared.currentStreak(modelContext: modelContext)
+        loadTodayIntention()
+    }
+
+    private func loadTodayIntention() {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: Date())
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? Date()
+
+        let descriptor = FetchDescriptor<DailyIntention>(
+            predicate: #Predicate { intention in
+                intention.date >= startOfDay && intention.date < endOfDay
+            },
+            sortBy: [SortDescriptor(\DailyIntention.date, order: .reverse)]
+        )
+
+        todayIntention = (try? modelContext.fetch(descriptor))?.first
     }
 
     private func refreshCache() {
@@ -153,7 +211,7 @@ struct HomeView: View {
                 modelContext: modelContext,
                 profile: profile
             )
-            loadAffirmations()
+            loadData()
         }
     }
 }

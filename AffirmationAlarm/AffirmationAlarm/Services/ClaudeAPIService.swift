@@ -35,13 +35,22 @@ actor ClaudeAPIService {
         name: String,
         freeformGoals: String,
         categories: [String],
-        count: Int = AppConstants.defaultAffirmationCount
+        count: Int = AppConstants.defaultAffirmationCount,
+        recentGratitude: [String] = [],
+        recentIntentions: [String] = []
     ) async throws -> AffirmationResponse {
         guard let apiKey = APIKeyConfiguration.getAPIKey() else {
             throw APIError.noAPIKey
         }
 
-        let systemPrompt = buildSystemPrompt(name: name, freeformGoals: freeformGoals, categories: categories, count: count)
+        let systemPrompt = buildSystemPrompt(
+            name: name,
+            freeformGoals: freeformGoals,
+            categories: categories,
+            count: count,
+            recentGratitude: recentGratitude,
+            recentIntentions: recentIntentions
+        )
 
         let requestBody: [String: Any] = [
             "model": AppConstants.anthropicModel,
@@ -89,7 +98,7 @@ actor ClaudeAPIService {
 
     // MARK: - Private
 
-    private func buildSystemPrompt(name: String, freeformGoals: String, categories: [String], count: Int) -> String {
+    private func buildSystemPrompt(name: String, freeformGoals: String, categories: [String], count: Int, recentGratitude: [String], recentIntentions: [String]) -> String {
         var prompt = """
         You are a warm, encouraging life coach. Generate \(count) personalized morning affirmations for \(name).
         """
@@ -100,6 +109,18 @@ actor ClaudeAPIService {
 
         if !categories.isEmpty {
             prompt += "\n\nTheir focus areas: \(categories.joined(separator: ", "))"
+        }
+
+        if !recentGratitude.isEmpty {
+            prompt += "\n\nRecently, they expressed gratitude for: \(recentGratitude.joined(separator: "; "))"
+        }
+
+        if !recentIntentions.isEmpty {
+            prompt += "\n\nTheir recent daily intentions were: \(recentIntentions.joined(separator: "; "))"
+        }
+
+        if !recentGratitude.isEmpty || !recentIntentions.isEmpty {
+            prompt += "\n\nWeave these themes naturally into today's affirmations — reinforce what they're grateful for and support their stated intentions. Don't just repeat them back; build on them."
         }
 
         prompt += """

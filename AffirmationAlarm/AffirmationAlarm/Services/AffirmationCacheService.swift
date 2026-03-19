@@ -113,6 +113,24 @@ actor AffirmationCacheService {
 
     // MARK: - Private
 
+    private nonisolated func getRecentGratitude(modelContext: ModelContext) -> [String] {
+        var descriptor = FetchDescriptor<GratitudeEntry>(
+            sortBy: [SortDescriptor(\GratitudeEntry.date, order: .reverse)]
+        )
+        descriptor.fetchLimit = 3
+        let entries = (try? modelContext.fetch(descriptor)) ?? []
+        return entries.map(\.text)
+    }
+
+    private nonisolated func getRecentIntentions(modelContext: ModelContext) -> [String] {
+        var descriptor = FetchDescriptor<DailyIntention>(
+            sortBy: [SortDescriptor(\DailyIntention.date, order: .reverse)]
+        )
+        descriptor.fetchLimit = 3
+        let entries = (try? modelContext.fetch(descriptor)) ?? []
+        return entries.map(\.text)
+    }
+
     private nonisolated func hasAffirmations(for dayKey: String, in modelContext: ModelContext) -> Bool {
         guard let date = DateFormatters.dayKeyFormatter.date(from: dayKey) else { return false }
         return !getAffirmations(for: date, modelContext: modelContext).isEmpty
@@ -120,11 +138,17 @@ actor AffirmationCacheService {
 
     private func generateAndCache(for date: Date, profile: UserProfile, modelContext: ModelContext) async {
         do {
+            // Query recent gratitude and intentions to feed into affirmation generation
+            let recentGratitude = getRecentGratitude(modelContext: modelContext)
+            let recentIntentions = getRecentIntentions(modelContext: modelContext)
+
             let response = try await ClaudeAPIService.shared.generateAffirmations(
                 name: profile.name,
                 freeformGoals: profile.freeformGoals,
                 categories: profile.selectedCategories,
-                count: profile.affirmationCount
+                count: profile.affirmationCount,
+                recentGratitude: recentGratitude,
+                recentIntentions: recentIntentions
             )
 
             let goalContext = "\(profile.freeformGoals) | \(profile.selectedCategories.joined(separator: ", "))"

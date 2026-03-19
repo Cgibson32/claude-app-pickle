@@ -8,11 +8,13 @@ class OnboardingViewModel {
     var freeformGoals = ""
     var selectedCategories: Set<GoalCategory> = []
     var affirmationCount = 3
+    var eveningReflectionEnabled = false
+    var eveningReflectionTime = Calendar.current.date(from: DateComponents(hour: 20, minute: 0)) ?? Date()
     var alarmTime = Calendar.current.date(from: DateComponents(hour: 6, minute: 30)) ?? Date()
     var selectedDays: Set<Int> = [2, 3, 4, 5, 6] // Mon-Fri
     var selectedSound = "alarm_gentle"
 
-    let totalSteps = 4
+    let totalSteps = 5
 
     func nextStep() {
         if currentStep < totalSteps - 1 {
@@ -40,8 +42,16 @@ class OnboardingViewModel {
         profile.affirmationCount = affirmationCount
         profile.hasCompletedOnboarding = true
 
-        // Create the first alarm
+        // Evening reflection settings
         let calendar = Calendar.current
+        profile.eveningReflectionEnabled = eveningReflectionEnabled
+        if eveningReflectionEnabled {
+            let components = calendar.dateComponents([.hour, .minute], from: eveningReflectionTime)
+            profile.eveningReflectionHour = components.hour ?? 20
+            profile.eveningReflectionMinute = components.minute ?? 0
+        }
+
+        // Create the first alarm
         let alarm = Alarm(
             hour: calendar.component(.hour, from: alarmTime),
             minute: calendar.component(.minute, from: alarmTime),
@@ -56,6 +66,14 @@ class OnboardingViewModel {
 
         // Schedule the alarm notifications
         AlarmSchedulingService.shared.scheduleAlarm(alarm)
+
+        // Schedule evening reflection if enabled
+        if eveningReflectionEnabled {
+            EveningReflectionSchedulingService.shared.scheduleEveningNotification(
+                hour: profile.eveningReflectionHour,
+                minute: profile.eveningReflectionMinute
+            )
+        }
 
         // Request notification permissions
         AlarmSchedulingService.shared.requestPermission { _ in }

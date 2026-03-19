@@ -13,6 +13,9 @@ final class UserProfile {
     var alarmSoundDuration: Float
     var affirmationCount: Int
     var createdAt: Date
+    var eveningReflectionEnabled: Bool
+    var eveningReflectionHour: Int
+    var eveningReflectionMinute: Int
 
     init(
         name: String = "",
@@ -24,7 +27,10 @@ final class UserProfile {
         ttsEnabled: Bool = true,
         alarmSoundDuration: Float = 10,
         affirmationCount: Int = 3,
-        createdAt: Date = .now
+        createdAt: Date = .now,
+        eveningReflectionEnabled: Bool = false,
+        eveningReflectionHour: Int = 20,
+        eveningReflectionMinute: Int = 0
     ) {
         self.name = name
         self.freeformGoals = freeformGoals
@@ -36,5 +42,8 @@ final class UserProfile {
         self.alarmSoundDuration = alarmSoundDuration
         self.affirmationCount = affirmationCount
         self.createdAt = createdAt
+        self.eveningReflectionEnabled = eveningReflectionEnabled
+        self.eveningReflectionHour = eveningReflectionHour
+        self.eveningReflectionMinute = eveningReflectionMinute
     }
 }

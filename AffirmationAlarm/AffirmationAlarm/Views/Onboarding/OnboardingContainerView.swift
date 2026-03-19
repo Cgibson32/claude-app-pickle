@@ -59,6 +59,13 @@ struct OnboardingContainerView: View {
                     )
                     .tag(2)
 
+                    EveningReflectionSetupView(
+                        eveningReflectionEnabled: $viewModel.eveningReflectionEnabled,
+                        eveningReflectionTime: $viewModel.eveningReflectionTime,
+                        onContinue: { viewModel.nextStep() }
+                    )
+                    .tag(3)
+
                     FirstAlarmSetupView(
                         alarmTime: $viewModel.alarmTime,
                         selectedDays: $viewModel.selectedDays,
@@ -67,7 +74,7 @@ struct OnboardingContainerView: View {
                             viewModel.completeOnboarding(modelContext: modelContext)
                         }
                     )
-                    .tag(3)
+                    .tag(4)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .animation(.easeInOut(duration: 0.3), value: viewModel.currentStep)
