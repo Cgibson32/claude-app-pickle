@@ -18,7 +18,22 @@ targets:
           - "**/*.example"
           - Info.plist
     resources:
+      - path: AffirmationAlarm/Resources
+        excludes:
+          - "*.example"
       - path: AffirmationAlarm/Assets.xcassets
+    info:
+      properties:
+        UIAppFonts:
+          - Fonts/Sora-Regular.ttf
+          - Fonts/Sora-Medium.ttf
+          - Fonts/Sora-SemiBold.ttf
+          - Fonts/Sora-Bold.ttf
+          - Fonts/DMSans-Light.ttf
+          - Fonts/DMSans-Regular.ttf
+          - Fonts/DMSans-Medium.ttf
+          - Fonts/DMSans-SemiBold.ttf
+          - Fonts/DMSans-Bold.ttf
     settings:
       GENERATE_INFOPLIST_FILE: true
       PRODUCT_BUNDLE_IDENTIFIER: com.affirmationalarm.app
