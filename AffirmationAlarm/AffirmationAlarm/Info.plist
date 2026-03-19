@@ -11,11 +11,7 @@
 	<dict/>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>We need notification permissions to wake you up with your personalized affirmations each morning.</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>fetch</string>
-	</array>
-	<key>UIAppFonts</key>
+<key>UIAppFonts</key>
 	<array>
 		<string>Fonts/Sora-Regular.ttf</string>
 		<string>Fonts/Sora-Medium.ttf</string>

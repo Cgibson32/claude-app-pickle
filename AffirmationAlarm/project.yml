@@ -31,5 +31,3 @@ targets:
       CURRENT_PROJECT_VERSION: "1"
       INFOPLIST_KEY_UILaunchScreen_Generation: false
       CODE_SIGN_STYLE: Automatic
-    entitlements:
-      path: AffirmationAlarm/AffirmationAlarm.entitlements
