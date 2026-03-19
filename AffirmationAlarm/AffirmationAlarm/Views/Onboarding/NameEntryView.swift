@@ -17,10 +17,11 @@ struct NameEntryView: View {
                     .font(AppTheme.title)
                     .foregroundStyle(AppTheme.textPrimary)
 
-                Text("We'll use this to personalize your morning greetings")
+                Text("To personalize your mornings")
                     .font(AppTheme.bodyFont)
                     .foregroundStyle(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             TextField("Your name", text: $viewModel.name)

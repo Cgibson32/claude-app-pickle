@@ -9,31 +9,14 @@ struct WelcomeView: View {
         VStack(spacing: AppTheme.spacing3xl) {
             Spacer()
 
-            // Animated sunrise icon
-            ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [AppTheme.gold, AppTheme.sunsetOrange.opacity(0.3), .clear],
-                            center: .center,
-                            startRadius: 20,
-                            endRadius: 80
-                        )
-                    )
-                    .frame(width: 160, height: 160)
-                    .scaleEffect(sunriseScale)
-
-                Image(systemName: "sunrise.fill")
-                    .font(.system(size: 64))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [AppTheme.gold, AppTheme.sunsetOrange],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .scaleEffect(sunriseScale)
-            }
+            // App icon
+            Image("AppIcon")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 140, height: 140)
+                .clipShape(RoundedRectangle(cornerRadius: 30))
+                .shadow(color: AppTheme.sunsetOrange.opacity(0.4), radius: 20, y: 8)
+                .scaleEffect(sunriseScale)
 
             VStack(spacing: AppTheme.spacingLg) {
                 Text("Rise with Purpose")
