@@ -49,3 +49,101 @@ workflows:
     artifacts:
       - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
       - /tmp/xcodebuild_logs/*.log
+
+  # ============================================================
+  # TestFlight Workflow
+  # ============================================================
+  # BEFORE THIS WORKS, you must complete these steps:
+  #
+  # 1. Apple Developer Account — must be active
+  #
+  # 2. App Store Connect — create your app:
+  #    - Go to appstoreconnect.apple.com → My Apps → + → New App
+  #    - Bundle ID: com.affirmationalarm.app
+  #
+  # 3. App Store Connect API Key:
+  #    - Go to appstoreconnect.apple.com/access/api
+  #    - Create a new key with "App Manager" role
+  #    - Save the Issuer ID, Key ID, and download the .p8 file
+  #
+  # 4. Codemagic Dashboard Setup:
+  #    - Go to your app settings in codemagic.io
+  #    - Under Environment Variables, add:
+  #      APP_STORE_CONNECT_ISSUER_ID  (from step 3)
+  #      APP_STORE_CONNECT_KEY_IDENTIFIER  (Key ID from step 3)
+  #      APP_STORE_CONNECT_PRIVATE_KEY  (contents of .p8 file)
+  #      CERTIFICATE_PRIVATE_KEY  (your code signing private key)
+  #    - Mark all as "Secure" so they're encrypted
+  # ============================================================
+  ios-testflight:
+    name: iOS TestFlight Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      xcode: 16.4
+      vars:
+        BUNDLE_ID: "com.affirmationalarm.app"
+        XCODE_SCHEME: "AffirmationAlarm"
+        XCODE_PROJECT: "AffirmationAlarm.xcodeproj"
+        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
+        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
+        CERTIFICATE_PRIVATE_KEY: $CERTIFICATE_PRIVATE_KEY
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.affirmationalarm.app
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Install XcodeGen
+        script: |
+          brew install xcodegen
+      - name: Generate Xcode project
+        script: |
+          cd AffirmationAlarm
+          xcodegen generate
+      - name: Set up code signing
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles --project "AffirmationAlarm/$XCODE_PROJECT"
+      - name: Increment build number
+        script: |
+          cd AffirmationAlarm
+          agvtool new-version -all $(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_CONNECT_KEY_IDENTIFIER" || echo 0) + 1))
+      - name: Build archive
+        script: |
+          set -o pipefail
+          cd AffirmationAlarm
+          xcodebuild archive \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath build/AffirmationAlarm.xcarchive \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            | xcpretty
+      - name: Export IPA
+        script: |
+          set -o pipefail
+          cd AffirmationAlarm
+          xcode-project build-ipa \
+            --archive-path build/AffirmationAlarm.xcarchive \
+            --ipa-path build/AffirmationAlarm.ipa
+    artifacts:
+      - AffirmationAlarm/build/AffirmationAlarm.ipa
+      - AffirmationAlarm/build/AffirmationAlarm.xcarchive
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Internal Testers
