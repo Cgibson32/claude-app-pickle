@@ -17,7 +17,7 @@ struct NameEntryView: View {
                     .font(AppTheme.title)
                     .foregroundStyle(AppTheme.textPrimary)
 
-                Text("To personalize your mornings")
+                Text("To personalize your morning greetings")
                     .font(AppTheme.bodyFont)
                     .foregroundStyle(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
