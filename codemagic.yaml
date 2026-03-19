@@ -98,7 +98,7 @@ workflows:
       events:
         - push
       branch_patterns:
-        - pattern: main
+        - pattern: claude/ios-app-development-faMqt
           include: true
     scripts:
       - name: Install XcodeGen
