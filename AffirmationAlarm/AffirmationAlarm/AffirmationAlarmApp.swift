@@ -3,6 +3,7 @@ import SwiftData
 
 @main
 struct AffirmationAlarmApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     let modelContainer: ModelContainer
 
     init() {
@@ -16,22 +17,59 @@ struct AffirmationAlarmApp: App {
             EveningReflection.self,
             SequenceCompletion.self
         ])
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
         do {
+            let config = ModelConfiguration(isStoredInMemoryOnly: false)
             modelContainer = try ModelContainer(for: schema, configurations: [config])
         } catch {
-            fatalError("Failed to create ModelContainer: \(error)")
+            do {
+                let fallback = ModelConfiguration(isStoredInMemoryOnly: true)
+                modelContainer = try ModelContainer(for: schema, configurations: [fallback])
+            } catch {
+                fatalError("Failed to create ModelContainer: \(error)")
+            }
         }
     }
 
     var body: some Scene {
         WindowGroup {
-            Text("Hello")
-                .font(.custom("Sora-Bold", size: 34))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(red: 0.1, green: 0.1, blue: 0.18))
+            RootView()
         }
         .modelContainer(modelContainer)
+    }
+}
+
+struct RootView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query private var profiles: [UserProfile]
+    @State private var showSequence = false
+    @State private var showEveningReflection = false
+
+    var body: some View {
+        Group {
+            if let profile = profiles.first, profile.hasCompletedOnboarding {
+                HomeView()
+            } else {
+                OnboardingContainerView()
+            }
+        }
+        .onAppear { ensureProfileExists() }
+        .fullScreenCover(isPresented: $showSequence) {
+            AffirmationSequenceView()
+        }
+        .sheet(isPresented: $showEveningReflection) {
+            EveningReflectionView()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .didTapAlarmNotification)) { _ in
+            showSequence = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .didTapEveningReflection)) { _ in
+            showEveningReflection = true
+        }
+    }
+
+    private func ensureProfileExists() {
+        if profiles.isEmpty {
+            modelContext.insert(UserProfile())
+        }
     }
 }

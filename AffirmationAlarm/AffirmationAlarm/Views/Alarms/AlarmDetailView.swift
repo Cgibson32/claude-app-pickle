@@ -1,0 +1,153 @@
+import SwiftUI
+import SwiftData
+
+struct AlarmDetailView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+
+    let alarm: Alarm?
+
+    @State private var hour: Int
+    @State private var minute: Int
+    @State private var repeatDays: Set<Int>
+    @State private var soundName: AppConstants.AlarmSound
+    @State private var label: String
+    @State private var isEnabled: Bool
+
+    init(alarm: Alarm?) {
+        self.alarm = alarm
+        _hour = State(initialValue: alarm?.hour ?? 6)
+        _minute = State(initialValue: alarm?.minute ?? 30)
+        _repeatDays = State(initialValue: Set(alarm?.repeatDays ?? [2, 3, 4, 5, 6]))
+        _soundName = State(initialValue: AppConstants.AlarmSound(rawValue: alarm?.soundName ?? "alarm_gentle") ?? .gentle)
+        _label = State(initialValue: alarm?.label ?? "Morning Affirmations")
+        _isEnabled = State(initialValue: alarm?.isEnabled ?? true)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                GradientBackground(style: .sunrise, withBlobs: false)
+
+                ScrollView {
+                    VStack(spacing: AppTheme.spacingXxl) {
+                        DatePicker(
+                            "Time",
+                            selection: Binding(
+                                get: { Calendar.current.date(from: DateComponents(hour: hour, minute: minute)) ?? Date() },
+                                set: { date in
+                                    hour = Calendar.current.component(.hour, from: date)
+                                    minute = Calendar.current.component(.minute, from: date)
+                                }
+                            ),
+                            displayedComponents: .hourAndMinute
+                        )
+                        .datePickerStyle(.wheel)
+                        .labelsHidden()
+                        .frame(height: 140)
+
+                        VStack(spacing: AppTheme.spacingSm) {
+                            Text("Repeat")
+                                .font(AppTheme.subheadline)
+                                .foregroundStyle(AppTheme.textSecondary)
+                            DayOfWeekSelector(selectedDays: $repeatDays)
+                        }
+
+                        TextField("Label", text: $label)
+                            .font(AppTheme.bodyFont)
+                            .foregroundStyle(AppTheme.textPrimary)
+                            .padding(AppTheme.spacingLg)
+                            .background(AppTheme.inputBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
+
+                        VStack(spacing: AppTheme.spacingSm) {
+                            Text("Sound")
+                                .font(AppTheme.subheadline)
+                                .foregroundStyle(AppTheme.textSecondary)
+
+                            VStack(spacing: 0) {
+                                ForEach(AppConstants.AlarmSound.allCases, id: \.self) { sound in
+                                    Button {
+                                        HapticService.selection()
+                                        soundName = sound
+                                    } label: {
+                                        HStack {
+                                            Text(sound.displayName)
+                                                .font(AppTheme.bodyFont)
+                                                .foregroundStyle(AppTheme.textPrimary)
+                                            Spacer()
+                                            if soundName == sound {
+                                                Image(systemName: "checkmark.circle.fill")
+                                                    .foregroundStyle(AppTheme.gold)
+                                            }
+                                        }
+                                        .padding(.horizontal, AppTheme.spacingLg)
+                                        .padding(.vertical, AppTheme.spacingMd)
+                                    }
+
+                                    if sound != AppConstants.AlarmSound.allCases.last {
+                                        Divider().background(AppTheme.strokeLight)
+                                    }
+                                }
+                            }
+                            .background(AppTheme.cardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
+                        }
+
+                        if alarm != nil {
+                            Button(role: .destructive) {
+                                if let alarm {
+                                    modelContext.delete(alarm)
+                                }
+                                dismiss()
+                            } label: {
+                                Text("Delete Alarm")
+                                    .font(AppTheme.headline)
+                                    .foregroundStyle(.red)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(AppTheme.spacingLg)
+                                    .background(Color.red.opacity(0.1))
+                                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
+                            }
+                        }
+                    }
+                    .padding(AppTheme.spacingXl)
+                }
+            }
+            .navigationTitle(alarm == nil ? "New Alarm" : "Edit Alarm")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Save") { save() }
+                        .foregroundStyle(AppTheme.gold)
+                        .fontWeight(.semibold)
+                }
+            }
+        }
+    }
+
+    private func save() {
+        if let alarm {
+            alarm.hour = hour
+            alarm.minute = minute
+            alarm.repeatDays = Array(repeatDays)
+            alarm.soundName = soundName.rawValue
+            alarm.label = label
+            alarm.isEnabled = isEnabled
+        } else {
+            let newAlarm = Alarm(
+                hour: hour,
+                minute: minute,
+                repeatDays: Array(repeatDays),
+                soundName: soundName.rawValue,
+                label: label
+            )
+            modelContext.insert(newAlarm)
+        }
+        dismiss()
+    }
+}
