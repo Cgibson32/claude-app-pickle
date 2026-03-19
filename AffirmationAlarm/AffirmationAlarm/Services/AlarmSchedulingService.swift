@@ -123,7 +123,11 @@ class AlarmSchedulingService {
         content.title = "Good Morning!"
         content.body = "Tap to hear your personalized morning affirmations."
         content.categoryIdentifier = "ALARM_CATEGORY"
-        content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: "\(alarm.soundName).caf"))
+        if Bundle.main.url(forResource: alarm.soundName, withExtension: "caf") != nil {
+            content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: "\(alarm.soundName).caf"))
+        } else {
+            content.sound = .default
+        }
         content.userInfo = ["alarmId": alarm.id.uuidString]
         content.interruptionLevel = .timeSensitive
         return content

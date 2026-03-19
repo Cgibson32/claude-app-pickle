@@ -12,11 +12,18 @@ struct AffirmationAlarmApp: App {
             UserProfile.self, Alarm.self, Affirmation.self, DailyClosingMessage.self,
             GratitudeEntry.self, SequenceCompletion.self, DailyIntention.self, EveningReflection.self
         ])
-        let config = ModelConfiguration(isStoredInMemoryOnly: false)
         do {
+            let config = ModelConfiguration(isStoredInMemoryOnly: false)
             modelContainer = try ModelContainer(for: schema, configurations: [config])
         } catch {
-            fatalError("Failed to create ModelContainer: \(error)")
+            // Fall back to in-memory store if persistent store fails
+            // (handles SwiftData schema bugs on iOS 17.0-17.2)
+            let fallbackConfig = ModelConfiguration(isStoredInMemoryOnly: true)
+            do {
+                modelContainer = try ModelContainer(for: schema, configurations: [fallbackConfig])
+            } catch {
+                fatalError("Failed to create ModelContainer: \(error)")
+            }
         }
     }
 

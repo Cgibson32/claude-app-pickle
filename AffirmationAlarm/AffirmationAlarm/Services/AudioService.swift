@@ -8,11 +8,15 @@ class AudioService {
 
     private var audioPlayer: AVAudioPlayer?
 
-    private init() {
-        configureAudioSession()
-    }
+    private var isSessionConfigured = false
+
+    private init() {}
 
     func playSound(named name: String) {
+        if !isSessionConfigured {
+            configureAudioSession()
+            isSessionConfigured = true
+        }
         guard let url = Bundle.main.url(forResource: name, withExtension: "caf") else {
             print("Sound file '\(name).caf' not found in bundle")
             return
