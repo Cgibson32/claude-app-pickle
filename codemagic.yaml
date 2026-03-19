@@ -81,6 +81,8 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       xcode: 16.4
+      groups:
+        - appstore_credentials
       vars:
         BUNDLE_ID: "com.cgibson.affirmationalarm"
         XCODE_SCHEME: "AffirmationAlarm"
