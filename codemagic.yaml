@@ -59,7 +59,7 @@ workflows:
   #
   # 2. App Store Connect — create your app:
   #    - Go to appstoreconnect.apple.com → My Apps → + → New App
-  #    - Bundle ID: com.affirmationalarm.app
+  #    - Bundle ID: com.cgibson.affirmationalarm
   #
   # 3. App Store Connect API Key:
   #    - Go to appstoreconnect.apple.com/access/api
@@ -82,7 +82,7 @@ workflows:
     environment:
       xcode: 16.4
       vars:
-        BUNDLE_ID: "com.affirmationalarm.app"
+        BUNDLE_ID: "com.cgibson.affirmationalarm"
         XCODE_SCHEME: "AffirmationAlarm"
         XCODE_PROJECT: "AffirmationAlarm.xcodeproj"
         APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
@@ -91,7 +91,7 @@ workflows:
         CERTIFICATE_PRIVATE_KEY: $CERTIFICATE_PRIVATE_KEY
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.affirmationalarm.app
+        bundle_identifier: com.cgibson.affirmationalarm
     triggering:
       events:
         - push
