@@ -33,11 +33,12 @@ struct WelcomeView: View {
                     .font(AppTheme.largeTitle)
                     .foregroundStyle(AppTheme.textPrimary)
 
-                Text("Start every morning with personalized\naffirmations that inspire your day")
+                Text("Start every morning with personalized affirmations that inspire your day")
                     .font(AppTheme.bodyFont)
                     .foregroundStyle(AppTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .opacity(textOpacity)
 
