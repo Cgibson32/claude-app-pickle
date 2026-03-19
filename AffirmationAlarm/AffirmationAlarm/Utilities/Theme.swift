@@ -4,20 +4,20 @@ import SwiftUI
 
 enum AppTheme {
 
-    // MARK: - Brand Colors (Ember & Gold)
+    // MARK: - Brand Colors (Charcoal + Sunset Gold)
 
     static let charcoalBlue = Color(hex: "1A1A2E")
-    static let deepCharcoal = Color(hex: "0F0F1A")
-    static let amberGold = Color(hex: "F59E0B")
-    static let sunsetOrange = Color(hex: "F97316")
-    static let coralRose = Color(hex: "FB7185")
-    static let warmWhite = Color(hex: "FFF7ED")
+    static let darkSlate = Color(hex: "16213E")
+    static let sunsetOrange = Color(hex: "FF8C42")
+    static let gold = Color(hex: "FFD166")
+    static let warmAmber = Color(hex: "F4A261")
+    static let warmWhite = Color(hex: "FFF5EB")
 
     // Gradient accent colors
-    static let deepPlum = Color(hex: "44204A")
-    static let burntAmber = Color(hex: "7C2D12")
-    static let darkAmber = Color(hex: "422006")
-    static let deepRust = Color(hex: "9A3412")
+    static let deepPlum = Color(hex: "2D1B4E")
+    static let burntAmber = Color(hex: "7C3A1C")
+    static let darkAmber = Color(hex: "4A2600")
+    static let deepRust = Color(hex: "9A4012")
 
     // MARK: - Semantic Colors (for use on dark gradient backgrounds)
 
@@ -26,21 +26,21 @@ enum AppTheme {
     static let textTertiary = warmWhite.opacity(0.5)
     static let textDisabled = warmWhite.opacity(0.35)
 
-    static let accent = amberGold
+    static let accent = sunsetOrange
     static let accentText = charcoalBlue   // Dark text on gold buttons
-    static let favorite = coralRose
+    static let favorite = warmAmber
 
-    static let cardBackground = Color.white.opacity(0.07)
-    static let cardBackgroundHover = Color.white.opacity(0.12)
+    static let cardBackground = Color.white.opacity(0.10)
+    static let cardBackgroundHover = Color.white.opacity(0.14)
     static let inputBackground = Color.white.opacity(0.12)
     static let strokeLight = Color.white.opacity(0.15)
 
-    static let buttonBackground = amberGold
+    static let buttonBackground = sunsetOrange
     static let buttonDisabled = warmWhite.opacity(0.30)
     static let destructive = Color(red: 0.9, green: 0.3, blue: 0.3)
 
     // Selected / unselected chip states
-    static let chipSelected = amberGold
+    static let chipSelected = sunsetOrange
     static let chipUnselected = Color.white.opacity(0.12)
     static let chipTextSelected = charcoalBlue
     static let chipTextUnselected = warmWhite

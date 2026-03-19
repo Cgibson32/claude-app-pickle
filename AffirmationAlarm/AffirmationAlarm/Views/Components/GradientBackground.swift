@@ -18,18 +18,18 @@ struct GradientBackground: View {
                     AppTheme.burntAmber
                 ]
             case .energy:
-                // Charcoal blue → dark amber → amber gold
+                // Charcoal blue → dark amber → sunset gold
                 return [
                     AppTheme.charcoalBlue,
                     AppTheme.darkAmber,
-                    AppTheme.amberGold
+                    AppTheme.gold
                 ]
             case .glow:
-                // Deep plum → deep rust → coral rose
+                // Deep plum → deep rust → warm amber
                 return [
                     AppTheme.deepPlum,
                     AppTheme.deepRust,
-                    AppTheme.coralRose
+                    AppTheme.warmAmber
                 ]
             }
         }
