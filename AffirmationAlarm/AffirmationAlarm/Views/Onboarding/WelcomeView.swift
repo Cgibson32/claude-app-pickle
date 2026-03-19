@@ -15,8 +15,8 @@ struct WelcomeView: View {
                 .fill(
                     RadialGradient(
                         colors: [
-                            AppTheme.sunsetOrange.opacity(0.6),
-                            AppTheme.gold.opacity(0.3),
+                            AppTheme.sunsetOrange.opacity(0.35),
+                            AppTheme.gold.opacity(0.15),
                             Color.clear
                         ],
                         center: .center,
