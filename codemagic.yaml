@@ -48,5 +48,5 @@ workflows:
             CODE_SIGNING_ALLOWED=NO \
             | xcpretty || echo "No tests found or tests failed"
     artifacts:
-      - AffirmationAlarm/build/Build/Products/**/*.app
+      - /Users/builder/Library/Developer/Xcode/DerivedData/**/*.app
       - /tmp/xcodebuild_logs/*.log
