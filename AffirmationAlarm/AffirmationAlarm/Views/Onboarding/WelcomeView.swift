@@ -11,22 +11,19 @@ struct WelcomeView: View {
             Spacer()
 
             // Sunrise glow
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            AppTheme.sunsetOrange.opacity(0.35),
-                            AppTheme.gold.opacity(0.15),
-                            Color.clear
-                        ],
-                        center: .center,
-                        startRadius: 20,
-                        endRadius: 120
-                    )
-                )
-                .frame(width: 260, height: 260)
-                .offset(y: glowOffset)
-                .scaleEffect(sunriseScale)
+            ZStack {
+                Ellipse()
+                    .fill(AppTheme.sunsetOrange.opacity(0.25))
+                    .frame(width: 300, height: 160)
+                    .blur(radius: 60)
+
+                Ellipse()
+                    .fill(AppTheme.gold.opacity(0.3))
+                    .frame(width: 160, height: 80)
+                    .blur(radius: 40)
+            }
+            .offset(y: glowOffset)
+            .scaleEffect(sunriseScale)
 
             VStack(spacing: AppTheme.spacingLg) {
                 Text("Rise with Purpose")
