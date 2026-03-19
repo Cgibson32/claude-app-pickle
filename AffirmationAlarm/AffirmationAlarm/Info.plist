@@ -9,18 +9,6 @@
 	</dict>
 	<key>UILaunchScreen</key>
 	<dict/>
-	<key>UIAppFonts</key>
-	<array>
-		<string>Fonts/Sora-Regular.ttf</string>
-		<string>Fonts/Sora-Medium.ttf</string>
-		<string>Fonts/Sora-SemiBold.ttf</string>
-		<string>Fonts/Sora-Bold.ttf</string>
-		<string>Fonts/DMSans-Light.ttf</string>
-		<string>Fonts/DMSans-Regular.ttf</string>
-		<string>Fonts/DMSans-Medium.ttf</string>
-		<string>Fonts/DMSans-SemiBold.ttf</string>
-		<string>Fonts/DMSans-Bold.ttf</string>
-	</array>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
