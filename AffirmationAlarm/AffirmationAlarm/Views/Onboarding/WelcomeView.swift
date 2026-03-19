@@ -10,7 +10,7 @@ struct WelcomeView: View {
             Spacer()
 
             // App icon
-            Image("AppIcon")
+            Image("AppIconDisplay")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 140, height: 140)
