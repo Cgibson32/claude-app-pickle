@@ -27,6 +27,8 @@ targets:
     settings:
       INFOPLIST_FILE: AffirmationAlarm/Info.plist
       PRODUCT_BUNDLE_IDENTIFIER: com.affirmationalarm.app
+      MARKETING_VERSION: "1.0.0"
+      CURRENT_PROJECT_VERSION: "1"
       INFOPLIST_KEY_UILaunchScreen_Generation: true
       CODE_SIGN_STYLE: Automatic
     entitlements:
