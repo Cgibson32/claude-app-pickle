@@ -12,6 +12,7 @@ enum AppTheme {
     static let gold = Color(hex: "FFD166")
     static let warmAmber = Color(hex: "F4A261")
     static let warmWhite = Color(hex: "FFF5EB")
+    static let cream = warmWhite
 
     // Gradient accent colors
     static let deepPlum = Color(hex: "2D1B4E")
