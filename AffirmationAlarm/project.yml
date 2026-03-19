@@ -29,7 +29,7 @@ targets:
       PRODUCT_BUNDLE_IDENTIFIER: com.affirmationalarm.app
       MARKETING_VERSION: "1.0.0"
       CURRENT_PROJECT_VERSION: "1"
-      INFOPLIST_KEY_UILaunchScreen_Generation: true
+      INFOPLIST_KEY_UILaunchScreen_Generation: false
       CODE_SIGN_STYLE: Automatic
     entitlements:
       path: AffirmationAlarm/AffirmationAlarm.entitlements

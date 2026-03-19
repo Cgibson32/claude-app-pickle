@@ -14,7 +14,6 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
-		<string>audio</string>
 	</array>
 	<key>UIAppFonts</key>
 	<array>

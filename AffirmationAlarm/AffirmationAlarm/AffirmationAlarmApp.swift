@@ -5,14 +5,26 @@ import SwiftData
 struct AffirmationAlarmApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
+    let modelContainer: ModelContainer
+
+    init() {
+        let schema = Schema([
+            UserProfile.self, Alarm.self, Affirmation.self, DailyClosingMessage.self,
+            GratitudeEntry.self, SequenceCompletion.self, DailyIntention.self, EveningReflection.self
+        ])
+        let config = ModelConfiguration(isStoredInMemoryOnly: false)
+        do {
+            modelContainer = try ModelContainer(for: schema, configurations: [config])
+        } catch {
+            fatalError("Failed to create ModelContainer: \(error)")
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
         }
-        .modelContainer(for: [
-            UserProfile.self, Alarm.self, Affirmation.self, DailyClosingMessage.self,
-            GratitudeEntry.self, SequenceCompletion.self, DailyIntention.self, EveningReflection.self
-        ])
+        .modelContainer(modelContainer)
     }
 }
 
