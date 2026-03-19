@@ -17,6 +17,7 @@ struct AffirmationCardView: View {
                 .padding(.horizontal, 32)
                 .opacity(appeared ? 1 : 0)
                 .offset(y: appeared ? 0 : 20)
+                .scaleEffect(appeared ? 1 : 0.92)
 
             Text("\(index + 1) of \(total)")
                 .font(AppTheme.caption)
@@ -24,7 +25,7 @@ struct AffirmationCardView: View {
                 .opacity(appeared ? 1 : 0)
         }
         .onAppear {
-            withAnimation(.easeOut(duration: 0.8)) {
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.8)) {
                 appeared = true
             }
         }

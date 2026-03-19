@@ -7,6 +7,7 @@ struct HomeView: View {
     @Query(sort: [SortDescriptor(\Alarm.hour), SortDescriptor(\Alarm.minute)]) private var alarms: [Alarm]
     @State private var todayAffirmations: [Affirmation] = []
     @State private var showAffirmationSequence = false
+    @State private var appeared = false
 
     private var profile: UserProfile? { profiles.first }
 
@@ -41,13 +42,19 @@ struct HomeView: View {
                                 }
                                 Spacer()
                             }
+                            .opacity(appeared ? 1 : 0)
+                            .offset(y: appeared ? 0 : 15)
                         }
 
                         // Next alarm card
                         NextAlarmCard(alarm: nextAlarm)
+                            .opacity(appeared ? 1 : 0)
+                            .offset(y: appeared ? 0 : 15)
 
                         // Today's affirmations
                         TodayAffirmationsCard(affirmations: todayAffirmations)
+                            .opacity(appeared ? 1 : 0)
+                            .offset(y: appeared ? 0 : 15)
 
                         // Quick actions
                         HStack(spacing: 12) {
@@ -69,9 +76,12 @@ struct HomeView: View {
                                 quickActionButton(icon: "gearshape", title: "Settings")
                             }
                         }
+                        .opacity(appeared ? 1 : 0)
+                        .offset(y: appeared ? 0 : 15)
 
                         // Preview button
                         Button {
+                            HapticService.medium()
                             showAffirmationSequence = true
                         } label: {
                             HStack {
@@ -87,6 +97,7 @@ struct HomeView: View {
                                     .stroke(AppTheme.strokeLight, lineWidth: 1)
                             )
                         }
+                        .opacity(appeared ? 1 : 0)
                     }
                     .padding()
                     .padding(.top, 20)
@@ -100,6 +111,9 @@ struct HomeView: View {
         .onAppear {
             loadAffirmations()
             refreshCache()
+            withAnimation(.easeOut(duration: 0.6).delay(0.1)) {
+                appeared = true
+            }
         }
     }
 

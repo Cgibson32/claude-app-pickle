@@ -39,7 +39,7 @@ struct AlarmDetailView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                GradientBackground(style: .warmEvening)
+                GradientBackground(style: .energy)
 
                 ScrollView {
                     VStack(spacing: 24) {

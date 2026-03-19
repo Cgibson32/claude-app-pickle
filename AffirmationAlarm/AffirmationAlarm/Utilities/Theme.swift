@@ -4,42 +4,46 @@ import SwiftUI
 
 enum AppTheme {
 
-    // MARK: - Brand Colors
+    // MARK: - Brand Colors (Ember & Gold)
 
-    static let forestGreen = Color(hex: "2E7D32")
-    static let brown = Color(hex: "8D6E63")
-    static let gold = Color(hex: "C9A227")
-    static let cream = Color(hex: "FAF3E0")
+    static let charcoalBlue = Color(hex: "1A1A2E")
+    static let deepCharcoal = Color(hex: "0F0F1A")
+    static let amberGold = Color(hex: "F59E0B")
+    static let sunsetOrange = Color(hex: "F97316")
+    static let coralRose = Color(hex: "FB7185")
+    static let warmWhite = Color(hex: "FFF7ED")
 
-    // Darker variants for gradient backgrounds
-    static let deepGreen = Color(hex: "1B5E20")
-    static let darkBrown = Color(hex: "5D4037")
+    // Gradient accent colors
+    static let deepPlum = Color(hex: "44204A")
+    static let burntAmber = Color(hex: "7C2D12")
+    static let darkAmber = Color(hex: "422006")
+    static let deepRust = Color(hex: "9A3412")
 
     // MARK: - Semantic Colors (for use on dark gradient backgrounds)
 
-    static let textPrimary = cream
-    static let textSecondary = cream.opacity(0.7)
-    static let textTertiary = cream.opacity(0.5)
-    static let textDisabled = cream.opacity(0.35)
+    static let textPrimary = warmWhite
+    static let textSecondary = warmWhite.opacity(0.7)
+    static let textTertiary = warmWhite.opacity(0.5)
+    static let textDisabled = warmWhite.opacity(0.35)
 
-    static let accent = gold
-    static let accentText = Color(hex: "1B5E20")   // Dark green text on gold buttons
-    static let favorite = gold
+    static let accent = amberGold
+    static let accentText = charcoalBlue   // Dark text on gold buttons
+    static let favorite = coralRose
 
-    static let cardBackground = cream.opacity(0.10)
-    static let cardBackgroundHover = cream.opacity(0.15)
-    static let inputBackground = cream.opacity(0.15)
-    static let strokeLight = cream.opacity(0.20)
+    static let cardBackground = Color.white.opacity(0.07)
+    static let cardBackgroundHover = Color.white.opacity(0.12)
+    static let inputBackground = Color.white.opacity(0.12)
+    static let strokeLight = Color.white.opacity(0.15)
 
-    static let buttonBackground = gold
-    static let buttonDisabled = cream.opacity(0.30)
+    static let buttonBackground = amberGold
+    static let buttonDisabled = warmWhite.opacity(0.30)
     static let destructive = Color(red: 0.9, green: 0.3, blue: 0.3)
 
     // Selected / unselected chip states
-    static let chipSelected = gold
-    static let chipUnselected = cream.opacity(0.15)
-    static let chipTextSelected = Color(hex: "1B5E20")
-    static let chipTextUnselected = cream
+    static let chipSelected = amberGold
+    static let chipUnselected = Color.white.opacity(0.12)
+    static let chipTextSelected = charcoalBlue
+    static let chipTextUnselected = warmWhite
 
     // MARK: - Heading Fonts (Cormorant Garamond)
 

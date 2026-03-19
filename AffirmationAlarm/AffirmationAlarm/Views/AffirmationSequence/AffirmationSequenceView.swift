@@ -21,7 +21,7 @@ struct AffirmationSequenceView: View {
                     switch viewModel.phase {
                     case .loading:
                         ProgressView()
-                            .tint(AppTheme.cream)
+                            .tint(AppTheme.warmWhite)
                             .scaleEffect(1.5)
 
                     case .alarmSound:
@@ -142,6 +142,11 @@ struct AffirmationSequenceView: View {
         }
     }
 
+    private var shareText: String {
+        viewModel.affirmations.map { "\"\($0)\"" }.joined(separator: "\n\n")
+            + "\n\n— Affirmation Alarm"
+    }
+
     private var completeView: some View {
         VStack(spacing: 20) {
             Image(systemName: "checkmark.circle.fill")
@@ -152,17 +157,32 @@ struct AffirmationSequenceView: View {
                 .font(AppTheme.title2)
                 .foregroundColor(AppTheme.textPrimary)
                 .multilineTextAlignment(.center)
+
+            ShareLink(item: shareText) {
+                HStack(spacing: 6) {
+                    Image(systemName: "square.and.arrow.up")
+                    Text("Share Affirmations")
+                }
+                .font(AppTheme.subheadline)
+                .foregroundColor(AppTheme.textSecondary)
+                .padding(.vertical, 10)
+                .padding(.horizontal, 20)
+                .background(
+                    Capsule()
+                        .stroke(AppTheme.strokeLight, lineWidth: 1)
+                )
+            }
         }
     }
 
     private var backgroundStyle: GradientBackground.GradientStyle {
         switch viewModel.phase {
         case .loading, .alarmSound, .greeting:
-            return .calm
+            return .glow
         case .affirmation, .breathing:
             return .sunrise
         case .closing, .complete:
-            return .warmEvening
+            return .energy
         }
     }
 }

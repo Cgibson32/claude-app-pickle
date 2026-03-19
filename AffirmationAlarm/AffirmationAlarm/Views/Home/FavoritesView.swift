@@ -9,7 +9,7 @@ struct FavoritesView: View {
 
     var body: some View {
         ZStack {
-            GradientBackground(style: .warmEvening)
+            GradientBackground(style: .energy)
 
             if favorites.isEmpty {
                 VStack(spacing: 16) {
@@ -49,10 +49,17 @@ struct FavoritesView: View {
 
                                 Spacer()
 
+                                ShareLink(item: "\"\(affirmation.text)\"\n\n— Affirmation Alarm") {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(AppTheme.textTertiary)
+                                }
+
                                 Button {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                                         affirmation.isFavorited = false
                                     }
+                                    HapticService.light()
                                 } label: {
                                     Image(systemName: "heart.fill")
                                         .font(.system(size: 20))

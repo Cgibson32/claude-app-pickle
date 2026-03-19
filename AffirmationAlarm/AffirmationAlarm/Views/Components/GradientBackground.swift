@@ -5,31 +5,31 @@ struct GradientBackground: View {
 
     enum GradientStyle {
         case sunrise
-        case warmEvening
-        case calm
+        case energy
+        case glow
 
         var colors: [Color] {
             switch self {
             case .sunrise:
-                // Deep forest green → warm brown-green
+                // Charcoal blue → deep plum → burnt amber
                 return [
-                    AppTheme.deepGreen,
-                    Color(hex: "2E5D2A"),
-                    AppTheme.darkBrown
+                    AppTheme.charcoalBlue,
+                    AppTheme.deepPlum,
+                    AppTheme.burntAmber
                 ]
-            case .warmEvening:
-                // Rich brown → deep green
+            case .energy:
+                // Charcoal blue → dark amber → amber gold
                 return [
-                    AppTheme.darkBrown,
-                    Color(hex: "4E342E"),
-                    AppTheme.deepGreen
+                    AppTheme.charcoalBlue,
+                    AppTheme.darkAmber,
+                    AppTheme.amberGold
                 ]
-            case .calm:
-                // Muted green → dark brown with warm undertone
+            case .glow:
+                // Deep plum → deep rust → coral rose
                 return [
-                    Color(hex: "1B4332"),
-                    Color(hex: "3E5243"),
-                    Color(hex: "4E342E")
+                    AppTheme.deepPlum,
+                    AppTheme.deepRust,
+                    AppTheme.coralRose
                 ]
             }
         }

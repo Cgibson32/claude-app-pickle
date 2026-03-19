@@ -8,7 +8,7 @@ struct ProfileEditView: View {
 
     var body: some View {
         ZStack {
-            GradientBackground(style: .warmEvening)
+            GradientBackground(style: .energy)
 
             ScrollView {
                 VStack(spacing: 24) {
@@ -25,7 +25,7 @@ struct ProfileEditView: View {
                                     .fill(AppTheme.inputBackground)
                             )
                             .foregroundColor(AppTheme.textPrimary)
-                            .tint(AppTheme.cream)
+                            .tint(AppTheme.warmWhite)
                     }
 
                     // Goals
@@ -43,7 +43,7 @@ struct ProfileEditView: View {
                                     .fill(AppTheme.inputBackground)
                             )
                             .foregroundColor(AppTheme.textPrimary)
-                            .tint(AppTheme.cream)
+                            .tint(AppTheme.warmWhite)
                     }
 
                     // Categories

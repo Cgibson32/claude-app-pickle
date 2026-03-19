@@ -6,7 +6,7 @@ struct AlarmPreferencesView: View {
 
     var body: some View {
         ZStack {
-            GradientBackground(style: .calm)
+            GradientBackground(style: .glow)
 
             ScrollView {
                 VStack(spacing: 24) {

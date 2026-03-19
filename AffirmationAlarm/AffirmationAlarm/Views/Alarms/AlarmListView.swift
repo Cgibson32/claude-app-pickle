@@ -20,7 +20,7 @@ struct AlarmListView: View {
             .onDelete(perform: deleteAlarms)
         }
         .scrollContentBackground(.hidden)
-        .background(GradientBackground(style: .warmEvening))
+        .background(GradientBackground(style: .energy))
         .navigationTitle("Alarms")
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
