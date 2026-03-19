@@ -7,9 +7,7 @@ enum SequencePhase: Equatable {
     case greeting
     case affirmation(index: Int)
     case breathing
-    case gratitude
     case closing
-    case intention
     case complete
 }
 
@@ -21,8 +19,6 @@ class AffirmationSequenceViewModel {
     var closingMessage: String = "Have a wonderful day"
     var alarmSoundName: String = "alarm_gentle"
     var alarmSoundDuration: TimeInterval = 10
-    var gratitudeText: String = ""
-    var intentionText: String = ""
     var streakCount: Int = 0
 
     private let speechService = SpeechService.shared
@@ -117,22 +113,10 @@ class AffirmationSequenceViewModel {
             postDelay: AppConstants.breathingPostDelay
         ))
 
-        // Gratitude prompt
-        speechItems.append(SpeechItem(
-            text: "What are you grateful for today?",
-            postDelay: AppConstants.gratitudePostDelay
-        ))
-
         // Closing — dynamic, AI-generated send-off
         speechItems.append(SpeechItem(
             text: "\(closingMessage), \(userName)",
-            postDelay: 1.5
-        ))
-
-        // Intention prompt
-        speechItems.append(SpeechItem(
-            text: "What is your one intention for today?",
-            postDelay: AppConstants.intentionPostDelay
+            postDelay: 0
         ))
 
         phase = .greeting
@@ -157,31 +141,12 @@ class AffirmationSequenceViewModel {
         speechService.stop()
     }
 
-    func saveGratitude(modelContext: ModelContext) {
-        let trimmed = gratitudeText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        let entry = GratitudeEntry(text: trimmed)
-        modelContext.insert(entry)
-        try? modelContext.save()
-    }
-
-    func saveIntention(modelContext: ModelContext) {
-        let trimmed = intentionText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        let intention = DailyIntention(text: trimmed)
-        modelContext.insert(intention)
-        try? modelContext.save()
-    }
-
     // MARK: - Private
 
     private func onSequenceComplete() {
-        // Record streak completion
         if let modelContext {
             StreakService.shared.recordCompletion(modelContext: modelContext)
             streakCount = StreakService.shared.currentStreak(modelContext: modelContext)
-            saveGratitude(modelContext: modelContext)
-            saveIntention(modelContext: modelContext)
         }
 
         withAnimation(.easeInOut(duration: 0.5)) {
@@ -190,20 +155,15 @@ class AffirmationSequenceViewModel {
     }
 
     private func updatePhase(for speechIndex: Int) {
-        let n = affirmations.count
         withAnimation(.easeInOut(duration: 0.5)) {
             if speechIndex == 0 {
                 phase = .greeting
-            } else if speechIndex <= n {
+            } else if speechIndex <= affirmations.count {
                 phase = .affirmation(index: speechIndex - 1)
-            } else if speechIndex == n + 1 {
+            } else if speechIndex == affirmations.count + 1 {
                 phase = .breathing
-            } else if speechIndex == n + 2 {
-                phase = .gratitude
-            } else if speechIndex == n + 3 {
+            } else {
                 phase = .closing
-            } else if speechIndex == n + 4 {
-                phase = .intention
             }
         }
     }

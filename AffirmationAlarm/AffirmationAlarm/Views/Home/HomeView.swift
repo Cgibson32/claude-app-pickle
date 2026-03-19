@@ -9,7 +9,6 @@ struct HomeView: View {
     @State private var showAffirmationSequence = false
     @State private var appeared = false
     @State private var currentStreak: Int = 0
-    @State private var todayIntention: DailyIntention?
 
     private var profile: UserProfile? { profiles.first }
 
@@ -58,25 +57,6 @@ struct HomeView: View {
                                     .background(Capsule().fill(AppTheme.cardBackground))
                                 }
                             }
-                            .opacity(appeared ? 1 : 0)
-                            .offset(y: appeared ? 0 : 15)
-                        }
-
-                        // Today's intention
-                        if let intention = todayIntention {
-                            HStack(spacing: 10) {
-                                Image(systemName: "scope")
-                                    .foregroundColor(AppTheme.gold)
-                                Text(intention.text)
-                                    .font(AppTheme.subheadline)
-                                    .foregroundColor(AppTheme.textPrimary)
-                                Spacer()
-                            }
-                            .padding(16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .fill(AppTheme.cardBackground)
-                            )
                             .opacity(appeared ? 1 : 0)
                             .offset(y: appeared ? 0 : 15)
                         }
@@ -186,22 +166,6 @@ struct HomeView: View {
     private func loadData() {
         todayAffirmations = AffirmationCacheService.shared.getTodayAffirmations(modelContext: modelContext)
         currentStreak = StreakService.shared.currentStreak(modelContext: modelContext)
-        loadTodayIntention()
-    }
-
-    private func loadTodayIntention() {
-        let calendar = Calendar.current
-        let startOfDay = calendar.startOfDay(for: Date())
-        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) ?? Date()
-
-        let descriptor = FetchDescriptor<DailyIntention>(
-            predicate: #Predicate { intention in
-                intention.date >= startOfDay && intention.date < endOfDay
-            },
-            sortBy: [SortDescriptor(\DailyIntention.date, order: .reverse)]
-        )
-
-        todayIntention = (try? modelContext.fetch(descriptor))?.first
     }
 
     private func refreshCache() {

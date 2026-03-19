@@ -13,8 +13,6 @@ enum AppConstants {
     static let greetingPostDelay: TimeInterval = 1.5
     static let affirmationPostDelay: TimeInterval = 2.0
     static let breathingPostDelay: TimeInterval = 3.0
-    static let gratitudePostDelay: TimeInterval = 8.0
-    static let intentionPostDelay: TimeInterval = 8.0
 
     static let snoozeMinutes = 9
     static let scheduleDaysAhead = 7

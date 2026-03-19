@@ -43,14 +43,8 @@ struct AffirmationSequenceView: View {
                     case .breathing:
                         BreathingPromptView()
 
-                    case .gratitude:
-                        GratitudePromptView(text: $viewModel.gratitudeText)
-
                     case .closing:
                         closingView
-
-                    case .intention:
-                        IntentionPromptView(text: $viewModel.intentionText)
 
                     case .complete:
                         completeView
@@ -212,9 +206,9 @@ struct AffirmationSequenceView: View {
         switch viewModel.phase {
         case .loading, .alarmSound, .greeting:
             return .glow
-        case .affirmation, .breathing, .gratitude:
+        case .affirmation, .breathing:
             return .sunrise
-        case .closing, .intention, .complete:
+        case .closing, .complete:
             return .energy
         }
     }
