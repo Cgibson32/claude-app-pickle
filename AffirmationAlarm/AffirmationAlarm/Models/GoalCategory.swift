@@ -1,19 +1,17 @@
 import Foundation
 
-enum GoalCategory: String, CaseIterable, Codable, Identifiable {
-    case successCareer = "Success & Career"
-    case confidenceSelfWorth = "Confidence & Self-Worth"
-    case loveRelationships = "Love & Relationships"
-    case healthWellness = "Health & Wellness"
-
-    var id: String { rawValue }
+enum GoalCategory: String, CaseIterable, Codable {
+    case success = "Success & Career"
+    case confidence = "Confidence & Self-Worth"
+    case love = "Love & Relationships"
+    case health = "Health & Wellness"
 
     var icon: String {
         switch self {
-        case .successCareer: return "briefcase.fill"
-        case .confidenceSelfWorth: return "star.fill"
-        case .loveRelationships: return "heart.fill"
-        case .healthWellness: return "leaf.fill"
+        case .success: return "star.fill"
+        case .confidence: return "bolt.fill"
+        case .love: return "heart.fill"
+        case .health: return "leaf.fill"
         }
     }
 }

@@ -3,47 +3,32 @@ import SwiftData
 
 @Model
 final class UserProfile {
-    var name: String
-    var freeformGoals: String
-    var selectedCategories: [String]
-    var hasCompletedOnboarding: Bool
-    var speechRate: Float
-    var speechPitch: Float
-    var ttsEnabled: Bool
-    var alarmSoundDuration: Float
-    var affirmationCount: Int
-    var createdAt: Date
-    var eveningReflectionEnabled: Bool
-    var eveningReflectionHour: Int
-    var eveningReflectionMinute: Int
+    var name: String = ""
+    var freeformGoals: String = ""
+    var hasCompletedOnboarding: Bool = false
 
-    init(
-        name: String = "",
-        freeformGoals: String = "",
-        selectedCategories: [String] = [],
-        hasCompletedOnboarding: Bool = false,
-        speechRate: Float = 0.42,
-        speechPitch: Float = 0.85,
-        ttsEnabled: Bool = true,
-        alarmSoundDuration: Float = 10,
-        affirmationCount: Int = 3,
-        createdAt: Date = .now,
-        eveningReflectionEnabled: Bool = false,
-        eveningReflectionHour: Int = 20,
-        eveningReflectionMinute: Int = 0
-    ) {
-        self.name = name
-        self.freeformGoals = freeformGoals
-        self.selectedCategories = selectedCategories
-        self.hasCompletedOnboarding = hasCompletedOnboarding
-        self.speechRate = speechRate
-        self.speechPitch = speechPitch
-        self.ttsEnabled = ttsEnabled
-        self.alarmSoundDuration = alarmSoundDuration
-        self.affirmationCount = affirmationCount
-        self.createdAt = createdAt
-        self.eveningReflectionEnabled = eveningReflectionEnabled
-        self.eveningReflectionHour = eveningReflectionHour
-        self.eveningReflectionMinute = eveningReflectionMinute
+    // Stored as JSON to avoid iOS 17.0-17.2 SwiftData array bug
+    var selectedCategoriesData: String = "[]"
+
+    var selectedCategories: [String] {
+        get {
+            (try? JSONDecoder().decode([String].self, from: Data(selectedCategoriesData.utf8))) ?? []
+        }
+        set {
+            selectedCategoriesData = (try? String(data: JSONEncoder().encode(newValue), encoding: .utf8)) ?? "[]"
+        }
     }
+
+    var speechRate: Float = 0.42
+    var speechPitch: Float = 0.85
+    var ttsEnabled: Bool = true
+    var alarmSoundDuration: Float = 10
+    var affirmationCount: Int = 3
+    var createdAt: Date = Date.now
+
+    var eveningReflectionEnabled: Bool = false
+    var eveningReflectionHour: Int = 20
+    var eveningReflectionMinute: Int = 0
+
+    init() {}
 }

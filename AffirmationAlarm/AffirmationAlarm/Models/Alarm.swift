@@ -3,55 +3,64 @@ import SwiftData
 
 @Model
 final class Alarm {
-    @Attribute(.unique) var id: UUID
-    var hour: Int
-    var minute: Int
-    var repeatDays: [Int] // 1=Sunday, 2=Monday, ..., 7=Saturday (Calendar weekday)
-    var isEnabled: Bool
-    var soundName: String
-    var label: String
-    var notificationIdentifiers: [String]
+    var id: UUID = UUID()
+    var hour: Int = 6
+    var minute: Int = 30
+    var isEnabled: Bool = true
+    var soundName: String = "alarm_gentle"
+    var label: String = "Morning Affirmations"
+
+    // Stored as JSON to avoid iOS 17.0-17.2 SwiftData array bug
+    var repeatDaysData: String = "[2,3,4,5,6]"
+    var notificationIdentifiersData: String = "[]"
+
+    var repeatDays: [Int] {
+        get {
+            (try? JSONDecoder().decode([Int].self, from: Data(repeatDaysData.utf8))) ?? []
+        }
+        set {
+            repeatDaysData = (try? String(data: JSONEncoder().encode(newValue), encoding: .utf8)) ?? "[]"
+        }
+    }
+
+    var notificationIdentifiers: [String] {
+        get {
+            (try? JSONDecoder().decode([String].self, from: Data(notificationIdentifiersData.utf8))) ?? []
+        }
+        set {
+            notificationIdentifiersData = (try? String(data: JSONEncoder().encode(newValue), encoding: .utf8)) ?? "[]"
+        }
+    }
 
     init(
-        id: UUID = UUID(),
         hour: Int = 6,
         minute: Int = 30,
-        repeatDays: [Int] = [2, 3, 4, 5, 6], // Mon-Fri
+        repeatDays: [Int] = [2, 3, 4, 5, 6],
         isEnabled: Bool = true,
         soundName: String = "alarm_gentle",
-        label: String = "Morning Alarm",
-        notificationIdentifiers: [String] = []
+        label: String = "Morning Affirmations"
     ) {
-        self.id = id
         self.hour = hour
         self.minute = minute
-        self.repeatDays = repeatDays
         self.isEnabled = isEnabled
         self.soundName = soundName
         self.label = label
-        self.notificationIdentifiers = notificationIdentifiers
+        self.repeatDays = repeatDays
     }
 
     var timeString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        var components = DateComponents()
-        components.hour = hour
-        components.minute = minute
-        let date = Calendar.current.date(from: components) ?? .now
-        return formatter.string(from: date)
+        let h = hour % 12 == 0 ? 12 : hour % 12
+        let period = hour < 12 ? "AM" : "PM"
+        return String(format: "%d:%02d %@", h, minute, period)
     }
 
     var repeatDaysString: String {
-        if repeatDays.isEmpty { return "One time" }
-        if repeatDays.count == 7 { return "Every day" }
-
-        let weekdaySymbols = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-        let sorted = repeatDays.sorted()
-        if sorted == [2, 3, 4, 5, 6] { return "Weekdays" }
-        if sorted == [1, 7] { return "Weekends" }
-
-        return sorted.map { weekdaySymbols[$0 - 1] }.joined(separator: ", ")
+        let days = repeatDays.sorted()
+        if days == [1, 2, 3, 4, 5, 6, 7] { return "Every day" }
+        if days == [2, 3, 4, 5, 6] { return "Weekdays" }
+        if days == [1, 7] { return "Weekends" }
+        let names = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        return days.map { names[$0] }.joined(separator: ", ")
     }
 
     var nextFireDate: Date? {
@@ -60,40 +69,28 @@ final class Alarm {
         var components = DateComponents()
         components.hour = hour
         components.minute = minute
-        components.second = 0
 
-        if repeatDays.isEmpty {
-            // One-time alarm: find next occurrence of this time
+        let days = repeatDays.sorted()
+        if days.isEmpty {
             components.year = calendar.component(.year, from: now)
             components.month = calendar.component(.month, from: now)
             components.day = calendar.component(.day, from: now)
             if let date = calendar.date(from: components), date > now {
                 return date
             }
-            // If time has passed today, schedule for tomorrow
-            if let day = components.day {
-                components.day = day + 1
-            }
-            return calendar.date(from: components)
+            return calendar.date(byAdding: .day, value: 1, to: calendar.date(from: components) ?? now)
         }
 
-        // Find the nearest upcoming day
-        var bestDate: Date?
-        for dayOffset in 0..<7 {
-            guard let candidate = calendar.date(byAdding: .day, value: dayOffset, to: now) else { continue }
-            let weekday = calendar.component(.weekday, from: candidate)
-            guard repeatDays.contains(weekday) else { continue }
-
-            components.year = calendar.component(.year, from: candidate)
-            components.month = calendar.component(.month, from: candidate)
-            components.day = calendar.component(.day, from: candidate)
-
-            guard let fireDate = calendar.date(from: components) else { continue }
-            if fireDate > now {
-                bestDate = fireDate
-                break
+        let currentWeekday = calendar.component(.weekday, from: now)
+        for offset in 0..<7 {
+            let targetWeekday = ((currentWeekday - 1 + offset) % 7) + 1
+            if days.contains(targetWeekday) {
+                components.weekday = targetWeekday
+                if let date = calendar.nextDate(after: offset == 0 ? now : calendar.startOfDay(for: now), matching: components, matchingPolicy: .nextTime) {
+                    return date
+                }
             }
         }
-        return bestDate
+        return nil
     }
 }

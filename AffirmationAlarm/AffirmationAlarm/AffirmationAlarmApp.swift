@@ -3,24 +3,26 @@ import SwiftData
 
 @main
 struct AffirmationAlarmApp: App {
-    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-
     let modelContainer: ModelContainer
 
     init() {
         let schema = Schema([
-            UserProfile.self, Alarm.self, Affirmation.self, DailyClosingMessage.self,
-            GratitudeEntry.self, SequenceCompletion.self, DailyIntention.self, EveningReflection.self
+            UserProfile.self,
+            Alarm.self,
+            Affirmation.self,
+            DailyClosingMessage.self,
+            GratitudeEntry.self,
+            DailyIntention.self,
+            EveningReflection.self,
+            SequenceCompletion.self
         ])
         do {
             let config = ModelConfiguration(isStoredInMemoryOnly: false)
             modelContainer = try ModelContainer(for: schema, configurations: [config])
         } catch {
-            // Fall back to in-memory store if persistent store fails
-            // (handles SwiftData schema bugs on iOS 17.0-17.2)
-            let fallbackConfig = ModelConfiguration(isStoredInMemoryOnly: true)
             do {
-                modelContainer = try ModelContainer(for: schema, configurations: [fallbackConfig])
+                let fallback = ModelConfiguration(isStoredInMemoryOnly: true)
+                modelContainer = try ModelContainer(for: schema, configurations: [fallback])
             } catch {
                 fatalError("Failed to create ModelContainer: \(error)")
             }
@@ -29,64 +31,12 @@ struct AffirmationAlarmApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            Text("Hello")
+                .font(.largeTitle)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(red: 0.1, green: 0.1, blue: 0.18))
         }
         .modelContainer(modelContainer)
     }
-}
-
-struct RootView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query private var profiles: [UserProfile]
-    @State private var showAffirmationSequence = false
-    @State private var showEveningReflection = false
-
-    private var profile: UserProfile? {
-        profiles.first
-    }
-
-    var body: some View {
-        Group {
-            if let profile, profile.hasCompletedOnboarding {
-                HomeView()
-                    .fullScreenCover(isPresented: $showAffirmationSequence) {
-                        AffirmationSequenceView()
-                    }
-            } else {
-                OnboardingContainerView()
-            }
-        }
-        .onAppear {
-            ensureProfileExists()
-            observeNotificationLaunch()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .didTapAlarmNotification)) { _ in
-            showAffirmationSequence = true
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .didTapEveningReflection)) { _ in
-            showEveningReflection = true
-        }
-        .sheet(isPresented: $showEveningReflection) {
-            EveningReflectionView()
-        }
-    }
-
-    private func ensureProfileExists() {
-        if profiles.isEmpty {
-            let profile = UserProfile()
-            modelContext.insert(profile)
-        }
-    }
-
-    private func observeNotificationLaunch() {
-        if NotificationDelegate.shared.shouldShowAffirmationSequence {
-            NotificationDelegate.shared.shouldShowAffirmationSequence = false
-            showAffirmationSequence = true
-        }
-    }
-}
-
-extension Notification.Name {
-    static let didTapAlarmNotification = Notification.Name("didTapAlarmNotification")
-    static let didTapEveningReflection = Notification.Name("didTapEveningReflection")
 }

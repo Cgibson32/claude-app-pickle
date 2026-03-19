@@ -3,26 +3,16 @@ import SwiftData
 
 @Model
 final class Affirmation {
-    var id: UUID
-    var text: String
-    var generatedFor: Date
-    var goalContext: String
-    var wasSpoken: Bool
-    var isFavorited: Bool
+    var id: UUID = UUID()
+    var text: String = ""
+    var generatedFor: Date = Date.now
+    var goalContext: String = ""
+    var wasSpoken: Bool = false
+    var isFavorited: Bool = false
 
-    init(
-        id: UUID = UUID(),
-        text: String,
-        generatedFor: Date = .now,
-        goalContext: String = "",
-        wasSpoken: Bool = false,
-        isFavorited: Bool = false
-    ) {
-        self.id = id
+    init(text: String = "", generatedFor: Date = .now, goalContext: String = "") {
         self.text = text
         self.generatedFor = generatedFor
         self.goalContext = goalContext
-        self.wasSpoken = wasSpoken
-        self.isFavorited = isFavorited
     }
 }
