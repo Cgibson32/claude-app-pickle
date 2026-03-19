@@ -15,7 +15,9 @@ targets:
     sources:
       - path: AffirmationAlarm
         excludes:
-          - Resources/Config.plist
+          - Resources
+          - Assets.xcassets
+          - Preview Content
           - "**/*.example"
     resources:
       - path: AffirmationAlarm/Resources
