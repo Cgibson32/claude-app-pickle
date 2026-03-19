@@ -18,15 +18,15 @@
 	</array>
 	<key>UIAppFonts</key>
 	<array>
-		<string>Fonts/CormorantGaramond-Regular.ttf</string>
-		<string>Fonts/CormorantGaramond-Medium.ttf</string>
-		<string>Fonts/CormorantGaramond-SemiBold.ttf</string>
-		<string>Fonts/CormorantGaramond-Bold.ttf</string>
-		<string>Fonts/Inter-Light.ttf</string>
-		<string>Fonts/Inter-Regular.ttf</string>
-		<string>Fonts/Inter-Medium.ttf</string>
-		<string>Fonts/Inter-SemiBold.ttf</string>
-		<string>Fonts/Inter-Bold.ttf</string>
+		<string>Fonts/Sora-Regular.ttf</string>
+		<string>Fonts/Sora-Medium.ttf</string>
+		<string>Fonts/Sora-SemiBold.ttf</string>
+		<string>Fonts/Sora-Bold.ttf</string>
+		<string>Fonts/DMSans-Light.ttf</string>
+		<string>Fonts/DMSans-Regular.ttf</string>
+		<string>Fonts/DMSans-Medium.ttf</string>
+		<string>Fonts/DMSans-SemiBold.ttf</string>
+		<string>Fonts/DMSans-Bold.ttf</string>
 	</array>
 </dict>
 </plist>
