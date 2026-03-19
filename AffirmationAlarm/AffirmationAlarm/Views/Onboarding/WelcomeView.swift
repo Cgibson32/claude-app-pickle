@@ -10,18 +10,43 @@ struct WelcomeView: View {
         VStack(spacing: AppTheme.spacing3xl) {
             Spacer()
 
-            // Sunrise glow
+            // Sunset with banded stripes
             ZStack {
-                Ellipse()
-                    .fill(AppTheme.sunsetOrange.opacity(0.25))
-                    .frame(width: 300, height: 160)
-                    .blur(radius: 60)
+                // Background circle
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                AppTheme.gold,
+                                AppTheme.sunsetOrange,
+                                AppTheme.sunsetRed,
+                                AppTheme.sunsetDeepRed
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(width: 160, height: 160)
 
-                Ellipse()
-                    .fill(AppTheme.gold.opacity(0.3))
-                    .frame(width: 160, height: 80)
-                    .blur(radius: 40)
+                // Horizontal stripe bands for retro sunset look
+                VStack(spacing: 4) {
+                    Spacer()
+                    ForEach(0..<5, id: \.self) { i in
+                        Rectangle()
+                            .fill(AppTheme.charcoalBlue)
+                            .frame(height: CGFloat(2 + i))
+                    }
+                }
+                .frame(width: 160, height: 160)
+                .clipShape(Circle())
+
+                // Horizon line
+                Rectangle()
+                    .fill(AppTheme.sunsetDeepRed.opacity(0.6))
+                    .frame(width: 220, height: 2)
+                    .offset(y: 40)
             }
+            .frame(width: 160, height: 160)
             .offset(y: glowOffset)
             .scaleEffect(sunriseScale)
 

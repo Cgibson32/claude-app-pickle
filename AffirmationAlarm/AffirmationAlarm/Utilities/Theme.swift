@@ -6,6 +6,8 @@ struct AppTheme {
     static let sunsetOrange = Color(hex: "FF8C42")
     static let gold = Color(hex: "FFD166")
     static let warmAmber = Color(hex: "F4A261")
+    static let sunsetRed = Color(hex: "E63946")
+    static let sunsetDeepRed = Color(hex: "6B1D2A")
     static let warmWhite = Color(hex: "FFF5EB")
 
     // MARK: - Dark Gradient Colors
