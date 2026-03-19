@@ -16,13 +16,14 @@ targets:
           - Assets.xcassets
           - Preview Content
           - "**/*.example"
-          - Info.plist
+          - "**/*.plist"
     resources:
       - path: AffirmationAlarm/Resources
         excludes:
           - "*.example"
       - path: AffirmationAlarm/Assets.xcassets
     info:
+      path: AffirmationAlarm/Info.generated.plist
       properties:
         UIAppFonts:
           - Fonts/Sora-Regular.ttf
@@ -34,11 +35,11 @@ targets:
           - Fonts/DMSans-Medium.ttf
           - Fonts/DMSans-SemiBold.ttf
           - Fonts/DMSans-Bold.ttf
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
     settings:
-      GENERATE_INFOPLIST_FILE: true
       PRODUCT_BUNDLE_IDENTIFIER: com.affirmationalarm.app
       MARKETING_VERSION: "1.0.0"
       CURRENT_PROJECT_VERSION: "1"
       CODE_SIGN_STYLE: Automatic
-      INFOPLIST_KEY_UILaunchScreen_Generation: true
-      INFOPLIST_KEY_UIApplicationSceneManifest_Generation: true
