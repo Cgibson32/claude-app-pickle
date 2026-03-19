@@ -17,7 +17,7 @@ struct WelcomeView: View {
                 Image(systemName: "sunrise.fill")
                     .font(.system(size: 80))
                     .foregroundStyle(AppTheme.textPrimary)
-                    .symbolEffect(.breathe)
+                    .symbolEffect(.pulse)
                     .opacity(showIcon ? 1 : 0)
                     .scaleEffect(showIcon ? 1 : 0.5)
                     .offset(y: iconFloat ? -6 : 6)

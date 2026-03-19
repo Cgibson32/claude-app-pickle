@@ -113,7 +113,7 @@ struct AffirmationSequenceView: View {
             Image(systemName: "sunrise.fill")
                 .font(.system(size: 50))
                 .foregroundColor(AppTheme.textSecondary)
-                .symbolEffect(.breathe)
+                .symbolEffect(.pulse)
 
             Text("Good Morning")
                 .font(AppTheme.heading(28, weight: .light))
