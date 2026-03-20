@@ -25,6 +25,7 @@ targets:
     info:
       path: AffirmationAlarm/Info.generated.plist
       properties:
+        ITSAppUsesNonExemptEncryption: false
         UIAppFonts:
           - Fonts/Sora-Regular.ttf
           - Fonts/Sora-Medium.ttf
