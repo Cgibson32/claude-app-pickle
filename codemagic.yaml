@@ -121,7 +121,7 @@ workflows:
       - name: Increment build number
         script: |
           cd AffirmationAlarm
-          agvtool new-version -all $(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_CONNECT_KEY_IDENTIFIER" || echo 0) + 1))
+          agvtool new-version -all $(($(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" || echo 0) + 1))
       - name: Build archive
         script: |
           set -o pipefail
@@ -149,5 +149,3 @@ workflows:
       app_store_connect:
         auth: integration
         submit_to_testflight: true
-        beta_groups:
-          - Internal Testers
