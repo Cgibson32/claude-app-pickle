@@ -1,0 +1,64 @@
+{
+  "identifier" : "8A5C7E2F-4B3D-4A1E-9F8C-1D2E3F4A5B6C",
+  "type" : "com.apple.product-type.storekit",
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  },
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "0",
+    "_developerTeamID" : ""
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "B1C2D3E4-F5A6-7890-ABCD-EF1234567890",
+      "localizations" : [
+        {
+          "description" : "Access all features of Affirmation Alarm",
+          "displayName" : "Affirmation Alarm Premium",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "Affirmation Alarm Premium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "A1B2C3D4-E5F6-7890-ABCD-EF1234567891",
+          "introductoryOffer" : {
+            "displayPrice" : "0",
+            "internalID" : "C1D2E3F4-A5B6-7890-ABCD-EF1234567892",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
+          "localizations" : [
+            {
+              "description" : "Full access with 7-day free trial",
+              "displayName" : "Monthly Premium",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.cgibson.affirmationalarm.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Monthly Premium",
+          "subscriptionGroupID" : "B1C2D3E4-F5A6-7890-ABCD-EF1234567890",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ]
+}

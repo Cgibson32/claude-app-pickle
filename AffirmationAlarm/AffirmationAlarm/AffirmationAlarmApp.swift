@@ -33,6 +33,7 @@ struct AffirmationAlarmApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .environment(SubscriptionManager.shared)
         }
         .modelContainer(modelContainer)
     }
@@ -40,6 +41,7 @@ struct AffirmationAlarmApp: App {
 
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(SubscriptionManager.self) private var subscriptionManager
     @Query private var profiles: [UserProfile]
     @State private var showSequence = false
     @State private var showEveningReflection = false
@@ -47,7 +49,11 @@ struct RootView: View {
     var body: some View {
         Group {
             if let profile = profiles.first, profile.hasCompletedOnboarding {
-                HomeView()
+                if subscriptionManager.isSubscribed {
+                    HomeView()
+                } else {
+                    PaywallView()
+                }
             } else {
                 OnboardingContainerView()
             }

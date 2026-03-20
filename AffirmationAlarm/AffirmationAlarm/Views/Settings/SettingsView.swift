@@ -3,6 +3,7 @@ import SwiftData
 
 struct SettingsView: View {
     @Query private var profiles: [UserProfile]
+    @State private var showManageSubscription = false
     private var profile: UserProfile? { profiles.first }
 
     var body: some View {
@@ -11,6 +12,14 @@ struct SettingsView: View {
 
             ScrollView {
                 VStack(spacing: AppTheme.spacingMd) {
+                    // Subscription
+                    Button {
+                        showManageSubscription = true
+                    } label: {
+                        SettingsRow(icon: "crown.fill", title: "Manage Subscription", color: AppTheme.gold)
+                    }
+                    .manageSubscriptionsSheet(isPresented: $showManageSubscription)
+
                     // Profile
                     NavigationLink {
                         ProfileEditView()
@@ -37,6 +46,13 @@ struct SettingsView: View {
                         EveningReflectionSettingsView()
                     } label: {
                         SettingsRow(icon: "moon.stars.fill", title: "Evening Reflection", color: AppTheme.deepPlum)
+                    }
+
+                    // Restore purchases
+                    Button {
+                        Task { await SubscriptionManager.shared.restorePurchases() }
+                    } label: {
+                        SettingsRow(icon: "arrow.clockwise", title: "Restore Purchases", color: AppTheme.warmAmber)
                     }
 
                     // About
