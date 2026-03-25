@@ -10,13 +10,32 @@ struct AlarmListView: View {
         ZStack {
             GradientBackground(style: .sunrise, withBlobs: false)
 
-            ScrollView {
-                LazyVStack(spacing: AppTheme.spacingMd) {
-                    ForEach(alarms) { alarm in
-                        AlarmRow(alarm: alarm)
+            if alarms.isEmpty {
+                VStack(spacing: AppTheme.spacingLg) {
+                    Image(systemName: "alarm")
+                        .font(.system(size: 48))
+                        .foregroundStyle(AppTheme.textTertiary)
+                    Text("No alarms yet")
+                        .font(AppTheme.title3)
+                        .foregroundStyle(AppTheme.textSecondary)
+                    Text("Tap + to add your first alarm")
+                        .font(AppTheme.bodyFont)
+                        .foregroundStyle(AppTheme.textTertiary)
+                    Button("Add Alarm") {
+                        showingNewAlarm = true
                     }
+                    .buttonStyle(PillButtonStyle())
                 }
-                .padding(AppTheme.spacingXl)
+                .padding(AppTheme.spacingXxl)
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: AppTheme.spacingMd) {
+                        ForEach(alarms) { alarm in
+                            AlarmRow(alarm: alarm)
+                        }
+                    }
+                    .padding(AppTheme.spacingXl)
+                }
             }
         }
         .navigationTitle("Alarms")

@@ -36,6 +36,7 @@ struct OnboardingContainerView: View {
                     .tag(4)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
+                .scrollDisabled(true)
                 .animation(AppTheme.bouncy, value: viewModel.currentStep)
             }
         }

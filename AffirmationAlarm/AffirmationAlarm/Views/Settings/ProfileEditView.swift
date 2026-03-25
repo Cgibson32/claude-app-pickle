@@ -71,13 +71,14 @@ struct ProfileEditView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Save") {
                     if let profile {
-                        profile.name = name
+                        profile.name = name.trimmingCharacters(in: .whitespaces)
                         profile.freeformGoals = goals
                         profile.selectedCategories = selectedCategories.map(\.rawValue)
                     }
                     dismiss()
                 }
-                .foregroundStyle(AppTheme.gold)
+                .foregroundStyle(name.trimmingCharacters(in: .whitespaces).isEmpty ? AppTheme.textTertiary : AppTheme.gold)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
         .onAppear {

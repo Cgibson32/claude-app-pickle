@@ -70,6 +70,17 @@ struct AffirmationSequenceView: View {
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
 
+                if viewModel.error != nil {
+                    Text("Using offline affirmations")
+                        .font(AppTheme.caption)
+                        .foregroundStyle(AppTheme.textTertiary)
+                        .padding(.horizontal, AppTheme.spacingLg)
+                        .padding(.vertical, AppTheme.spacingSm)
+                        .background(AppTheme.cardBackground)
+                        .clipShape(Capsule())
+                        .padding(.top, AppTheme.spacingSm)
+                }
+
                 Spacer()
             }
         }
