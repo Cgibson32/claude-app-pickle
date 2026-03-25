@@ -49,11 +49,13 @@ struct RootView: View {
     var body: some View {
         Group {
             if let profile = profiles.first, profile.hasCompletedOnboarding {
-                if subscriptionManager.isSubscribed {
-                    HomeView()
-                } else {
-                    PaywallView()
-                }
+                // TODO: Re-enable paywall when subscription is configured in App Store Connect
+                // if subscriptionManager.isSubscribed {
+                //     HomeView()
+                // } else {
+                //     PaywallView()
+                // }
+                HomeView()
             } else {
                 OnboardingContainerView()
             }
