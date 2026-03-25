@@ -27,11 +27,17 @@ class SubscriptionManager {
     // MARK: - Product Loading
 
     func loadProduct() async {
-        do {
-            let products = try await Product.products(for: [AppConstants.subscriptionProductID])
-            product = products.first
-        } catch {
-            print("Failed to load products: \(error)")
+        for attempt in 1...3 {
+            do {
+                let products = try await Product.products(for: [AppConstants.subscriptionProductID])
+                product = products.first
+                if product != nil { return }
+            } catch {
+                print("Failed to load products (attempt \(attempt)): \(error)")
+            }
+            if attempt < 3 {
+                try? await Task.sleep(for: .seconds(2))
+            }
         }
     }
 

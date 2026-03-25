@@ -84,7 +84,10 @@ struct AlarmRow: View {
 
                 Toggle("", isOn: Binding(
                     get: { alarm.isEnabled },
-                    set: { alarm.isEnabled = $0 }
+                    set: { newValue in
+                        alarm.isEnabled = newValue
+                        AlarmSchedulingService.shared.scheduleAlarm(alarm)
+                    }
                 ))
                 .tint(AppTheme.sunsetOrange)
                 .labelsHidden()

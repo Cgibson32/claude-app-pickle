@@ -3,6 +3,7 @@ import SwiftUI
 struct BreathingPromptView: View {
     @State private var isExpanded = false
     @State private var breathText = "Breathe in..."
+    @State private var breathingTask: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: AppTheme.spacing3xl) {
@@ -42,25 +43,29 @@ struct BreathingPromptView: View {
             .animation(.easeInOut(duration: 4), value: isExpanded)
         }
         .onAppear { startBreathingCycle() }
+        .onDisappear { breathingTask?.cancel() }
     }
 
     private func startBreathingCycle() {
-        // Breathe in (4s)
-        breathText = "Breathe in..."
-        isExpanded = true
+        breathingTask = Task { @MainActor in
+            // Breathe in (4s)
+            breathText = "Breathe in..."
+            isExpanded = true
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled else { return }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            // Hold (2s)
             breathText = "Hold..."
-        }
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
 
-        // Hold (2s), then breathe out
-        DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+            // Breathe out (4s)
             breathText = "Breathe out..."
             isExpanded = false
-        }
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled else { return }
 
-        // Second cycle
-        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            // Second cycle
             breathText = "Breathe in..."
             isExpanded = true
         }

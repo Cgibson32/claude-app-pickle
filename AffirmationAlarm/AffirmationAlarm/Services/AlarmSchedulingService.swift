@@ -18,6 +18,15 @@ class AlarmSchedulingService {
         cancelAlarm(alarm)
         guard alarm.isEnabled else { return }
 
+        // Skip scheduling if notifications aren't authorized
+        UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
+            guard settings.authorizationStatus == .authorized else { return }
+            self?.scheduleNotifications(for: alarm)
+        }
+    }
+
+    private func scheduleNotifications(for alarm: Alarm) {
+
         let days = alarm.repeatDays.sorted()
         var identifiers: [String] = []
 
