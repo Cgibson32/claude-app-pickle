@@ -10,7 +10,7 @@ final class UserProfile {
     var speechRate: Float = 0.42
     var speechPitch: Float = 0.85
     var ttsEnabled: Bool = true
-    var alarmSoundDuration: Float = 10
+    var alarmSoundDuration: Float = 5
     var affirmationCount: Int = 3
     var createdAt: Date = Date.now
     var eveningReflectionEnabled: Bool = false
