@@ -10,13 +10,9 @@ struct EveningReflectionView: View {
     @State private var gratitude = ""
     @State private var emojiAnimated = false
 
-    private let moods: [(emoji: String, label: String)] = [
-        ("\u{1F614}", "Tough"),
-        ("\u{1F610}", "Meh"),
-        ("\u{1F642}", "Okay"),
-        ("\u{1F60A}", "Good"),
-        ("\u{1F929}", "Amazing")
-    ]
+    private var moods: [(emoji: String, label: String)] {
+        zip(AppConstants.moodEmojis, AppConstants.moodLabels).map { ($0, $1) }
+    }
 
     var body: some View {
         NavigationStack {
@@ -133,11 +129,6 @@ struct EveningReflectionView: View {
             gratitude: gratitude.trimmingCharacters(in: .whitespaces)
         )
         modelContext.insert(reflection)
-
-        if !gratitude.trimmingCharacters(in: .whitespaces).isEmpty {
-            let entry = GratitudeEntry(text: gratitude.trimmingCharacters(in: .whitespaces))
-            modelContext.insert(entry)
-        }
 
         HapticService.success()
         dismiss()

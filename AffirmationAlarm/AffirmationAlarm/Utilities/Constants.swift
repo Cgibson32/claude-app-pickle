@@ -12,6 +12,9 @@ enum AppConstants {
     static let defaultSpeechPitch: Float = 0.85
     static let snoozeDurationMinutes = 9
 
+    static let moodEmojis = ["\u{1F614}", "\u{1F610}", "\u{1F642}", "\u{1F60A}", "\u{1F929}"]
+    static let moodLabels = ["Tough", "Meh", "Okay", "Good", "Amazing"]
+
     enum AlarmSound: String, CaseIterable {
         case gentle = "alarm_gentle"
         case sunrise = "alarm_sunrise"

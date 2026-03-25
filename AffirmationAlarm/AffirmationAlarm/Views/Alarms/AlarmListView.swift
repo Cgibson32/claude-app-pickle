@@ -60,6 +60,7 @@ struct AlarmRow: View {
     let alarm: Alarm
     @Environment(\.modelContext) private var modelContext
     @State private var showingEdit = false
+    @State private var showDeleteConfirmation = false
 
     var body: some View {
         Button {
@@ -97,6 +98,19 @@ struct AlarmRow: View {
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
         }
         .buttonStyle(.bounce)
+        .contextMenu {
+            Button(role: .destructive) {
+                showDeleteConfirmation = true
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .confirmationDialog("Delete this alarm?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                AlarmSchedulingService.shared.cancelAlarm(alarm)
+                modelContext.delete(alarm)
+            }
+        }
         .sheet(isPresented: $showingEdit) {
             AlarmDetailView(alarm: alarm)
         }

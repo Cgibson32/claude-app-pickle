@@ -2,7 +2,6 @@ import SwiftUI
 
 struct JournalDayCard: View {
     let day: JournalDay
-    private let moodEmojis = ["\u{1F614}", "\u{1F610}", "\u{1F642}", "\u{1F60A}", "\u{1F929}"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppTheme.spacingMd) {
@@ -54,7 +53,7 @@ struct JournalDayCard: View {
             if let reflection = day.reflection {
                 JournalSection(icon: "moon.stars.fill", color: AppTheme.warmAmber) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Mood: \(moodEmojis[min(reflection.mood, 4)])")
+                        Text("Mood: \(AppConstants.moodEmojis[min(reflection.mood, 4)])")
                             .font(AppTheme.subheadline)
                         if !reflection.goodThing.isEmpty {
                             Text(reflection.goodThing)
