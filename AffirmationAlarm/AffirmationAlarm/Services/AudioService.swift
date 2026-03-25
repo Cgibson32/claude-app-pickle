@@ -4,6 +4,7 @@ import AVFoundation
 class AudioService {
     static let shared = AudioService()
     private var player: AVAudioPlayer?
+    private var stopWorkItem: DispatchWorkItem?
     private var sessionConfigured = false
 
     private init() {}
@@ -17,15 +18,20 @@ class AudioService {
             player?.numberOfLoops = -1
             player?.play()
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
+            stopWorkItem?.cancel()
+            let workItem = DispatchWorkItem { [weak self] in
                 self?.stop()
             }
+            stopWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: workItem)
         } catch {
-            // Silently fail — sound is nice-to-have, not critical
+            // Audio playback is best-effort
         }
     }
 
     func stop() {
+        stopWorkItem?.cancel()
+        stopWorkItem = nil
         player?.stop()
         player = nil
     }

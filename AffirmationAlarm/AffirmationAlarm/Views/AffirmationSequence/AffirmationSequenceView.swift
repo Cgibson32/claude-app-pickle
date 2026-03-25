@@ -29,6 +29,7 @@ struct AffirmationSequenceView: View {
                                 .background(AppTheme.cardBackground)
                                 .clipShape(Capsule())
                         }
+                        .accessibilityLabel("Skip affirmation sequence")
                     }
                 }
                 .padding(AppTheme.spacingXl)

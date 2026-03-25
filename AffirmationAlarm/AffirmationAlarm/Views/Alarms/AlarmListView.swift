@@ -48,6 +48,7 @@ struct AlarmListView: View {
                     Image(systemName: "plus.circle.fill")
                         .foregroundStyle(AppTheme.gold)
                 }
+                .accessibilityLabel("Add alarm")
             }
         }
         .sheet(isPresented: $showingNewAlarm) {

@@ -59,6 +59,7 @@ struct EveningReflectionView: View {
                                         }
                                     }
                                     .buttonStyle(.bounce)
+                                    .accessibilityLabel("\(moods[index].label) mood")
                                 }
                             }
                         }

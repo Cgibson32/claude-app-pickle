@@ -63,6 +63,7 @@ struct HomeView: View {
                         .shadow(color: AppTheme.gold.opacity(0.4), radius: 16, y: 8)
                     }
                     .buttonStyle(.bounce)
+                    .accessibilityLabel("Preview affirmation sequence")
                     .padding(.bottom, AppTheme.spacingXl)
                 }
             }
@@ -161,6 +162,8 @@ struct QuickActionCard: View {
         .padding(.vertical, AppTheme.spacingXl)
         .background(AppTheme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(title)
     }
 }
 

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct PaywallView: View {
-    var subscriptionManager = SubscriptionManager.shared
+    @Environment(SubscriptionManager.self) private var subscriptionManager
     @State private var appeared = false
 
     var body: some View {
