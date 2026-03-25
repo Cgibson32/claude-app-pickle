@@ -21,10 +21,16 @@ class AffirmationSequenceViewModel {
 
     private let cacheService = AffirmationCacheService()
     private let speechService = SpeechService()
+    private var alarmSoundName = "alarm_gentle"
 
     @MainActor
     func start(profile: UserProfile, modelContext: ModelContext) async {
         phase = .loading
+
+        // Use the user's selected alarm sound
+        if let alarm = (try? modelContext.fetch(FetchDescriptor<Alarm>()))?.first {
+            alarmSoundName = alarm.soundName
+        }
 
         do {
             let (affs, closing) = try await cacheService.fetchOrGenerate(for: profile, modelContext: modelContext)
@@ -90,7 +96,7 @@ class AffirmationSequenceViewModel {
         withAnimation(AppTheme.bouncy) { phase = newPhase }
 
         if newPhase == .alarmSound {
-            AudioService.shared.playSound(named: "alarm_gentle", duration: duration)
+            AudioService.shared.playSound(named: alarmSoundName, duration: duration)
         }
 
         try? await Task.sleep(for: .seconds(duration))

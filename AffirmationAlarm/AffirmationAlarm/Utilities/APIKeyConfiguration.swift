@@ -5,15 +5,7 @@ enum APIKeyConfiguration {
     private static let keychainKey = "com.affirmationalarm.anthropic-api-key"
 
     static func getAPIKey() -> String? {
-        // Try Keychain first
-        if let keychainValue = getFromKeychain() {
-            return keychainValue
-        }
-        // Fall back to Config.plist
-        if let plistValue = getFromPlist() {
-            return plistValue
-        }
-        return nil
+        return getFromKeychain()
     }
 
     static func setAPIKey(_ key: String) {
@@ -44,19 +36,5 @@ enum APIKeyConfiguration {
         ]
         SecItemDelete(query as CFDictionary)
         SecItemAdd(query as CFDictionary, nil)
-    }
-
-    // MARK: - Config.plist
-
-    private static func getFromPlist() -> String? {
-        guard let url = Bundle.main.url(forResource: "Config", withExtension: "plist"),
-              let data = try? Data(contentsOf: url),
-              let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-              let key = dict["ANTHROPIC_API_KEY"] as? String,
-              !key.isEmpty,
-              key != "YOUR_API_KEY_HERE" else {
-            return nil
-        }
-        return key
     }
 }

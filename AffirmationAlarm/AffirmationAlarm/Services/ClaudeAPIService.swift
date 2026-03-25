@@ -75,7 +75,11 @@ actor ClaudeAPIService {
             ]
         ]
 
-        var request = URLRequest(url: URL(string: AppConstants.apiURL)!)
+        guard let url = URL(string: AppConstants.apiURL) else {
+            throw APIError.invalidResponse
+        }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 30
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")

@@ -6,6 +6,7 @@ struct HomeView: View {
     @Query private var profiles: [UserProfile]
     @Query(sort: \Alarm.hour) private var alarms: [Alarm]
     @Query private var completions: [SequenceCompletion]
+    @State private var showPreview = false
 
     private var profile: UserProfile? { profiles.first }
     private var todayCompleted: Bool {
@@ -47,7 +48,7 @@ struct HomeView: View {
                     Spacer()
                     Button {
                         HapticService.medium()
-                        // TODO: Phase 6 — launch affirmation sequence
+                        showPreview = true
                     } label: {
                         HStack(spacing: AppTheme.spacingSm) {
                             Image(systemName: "play.fill")
@@ -66,6 +67,9 @@ struct HomeView: View {
                 }
             }
             .preferredColorScheme(.dark)
+            .fullScreenCover(isPresented: $showPreview) {
+                AffirmationSequenceView()
+            }
         }
     }
 
