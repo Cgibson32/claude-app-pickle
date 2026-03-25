@@ -83,16 +83,10 @@ workflows:
       app_store_connect: Codemagic CI
     environment:
       xcode: 16.4
-      groups:
-        - appstore_credentials
       vars:
         BUNDLE_ID: "com.cgibson.affirmationalarm"
         XCODE_SCHEME: "AffirmationAlarm"
         XCODE_PROJECT: "AffirmationAlarm.xcodeproj"
-        APP_STORE_CONNECT_ISSUER_ID: $APP_STORE_CONNECT_ISSUER_ID
-        APP_STORE_CONNECT_KEY_IDENTIFIER: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        APP_STORE_CONNECT_PRIVATE_KEY: $APP_STORE_CONNECT_PRIVATE_KEY
-        CERTIFICATE_PRIVATE_KEY: $CERTIFICATE_PRIVATE_KEY
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.cgibson.affirmationalarm
