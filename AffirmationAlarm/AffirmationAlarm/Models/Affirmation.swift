@@ -9,6 +9,11 @@ final class Affirmation {
     var goalContext: String = ""
     var wasSpoken: Bool = false
     var isFavorited: Bool = false
+    var favoriteType: Int = 0
+    var isCustom: Bool = false
+
+    var isPriority: Bool { favoriteType == 1 }
+    var isRotation: Bool { favoriteType == 2 }
 
     init(text: String = "", generatedFor: Date = .now, goalContext: String = "") {
         self.text = text

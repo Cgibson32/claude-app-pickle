@@ -7,6 +7,7 @@ struct HomeView: View {
     @Query(sort: \Alarm.hour) private var alarms: [Alarm]
     @Query private var completions: [SequenceCompletion]
     @State private var showPreview = false
+    @State private var customAffirmationText = ""
 
     private var profile: UserProfile? { profiles.first }
     private var todayCompleted: Bool {
@@ -25,6 +26,12 @@ struct HomeView: View {
 
                         // Next alarm card
                         NextAlarmCard(alarms: alarms)
+
+                        // Custom affirmation input
+                        customAffirmationInput
+
+                        // Today's affirmations
+                        TodayAffirmationsCard()
 
                         // Today's progress
                         if let profile {
@@ -110,6 +117,35 @@ struct HomeView: View {
         case 17..<21: return "\u{1F305}"
         default: return "\u{1F319}"
         }
+    }
+
+    private var customAffirmationInput: some View {
+        HStack(spacing: AppTheme.spacingMd) {
+            TextField("Write your own affirmation...", text: $customAffirmationText, axis: .vertical)
+                .font(AppTheme.bodyFont)
+                .foregroundStyle(AppTheme.textPrimary)
+                .lineLimit(1...3)
+
+            Button {
+                let trimmed = customAffirmationText.trimmingCharacters(in: .whitespaces)
+                guard !trimmed.isEmpty else { return }
+                let affirmation = Affirmation(text: trimmed, generatedFor: Date())
+                affirmation.favoriteType = 1
+                affirmation.isFavorited = true
+                affirmation.isCustom = true
+                modelContext.insert(affirmation)
+                customAffirmationText = ""
+                HapticService.success()
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 24))
+                    .foregroundStyle(customAffirmationText.trimmingCharacters(in: .whitespaces).isEmpty ? AppTheme.textTertiary : AppTheme.gold)
+            }
+            .disabled(customAffirmationText.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+        .padding(AppTheme.spacingLg)
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
     }
 
     private var quickActionsGrid: some View {

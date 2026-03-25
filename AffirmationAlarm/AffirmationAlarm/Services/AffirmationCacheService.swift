@@ -30,11 +30,17 @@ actor AffirmationCacheService {
         let recentIntentions = fetchRecent(DailyIntention.self, keyPath: \DailyIntention.date, modelContext: modelContext)
             .map(\.text)
 
-        // Include favorites for variety
-        let favDescriptor = FetchDescriptor<Affirmation>(
-            predicate: #Predicate { $0.isFavorited }
+        // Fetch priority favorites (always included)
+        let priorityDescriptor = FetchDescriptor<Affirmation>(
+            predicate: #Predicate { $0.favoriteType == 1 }
         )
-        let favorites = (try? modelContext.fetch(favDescriptor)) ?? []
+        let priorityFavorites = (try? modelContext.fetch(priorityDescriptor)) ?? []
+
+        // Fetch rotation favorites (one random pick)
+        let rotationDescriptor = FetchDescriptor<Affirmation>(
+            predicate: #Predicate { $0.favoriteType == 2 }
+        )
+        let rotationFavorites = (try? modelContext.fetch(rotationDescriptor)) ?? []
 
         // Generate new affirmations
         let content = try await apiService.generateAffirmations(
@@ -46,7 +52,7 @@ actor AffirmationCacheService {
             count: profile.affirmationCount
         )
 
-        // Store affirmations
+        // Store generated affirmations
         var affirmations: [Affirmation] = []
         let goalContext = ([profile.freeformGoals] + profile.selectedCategories).joined(separator: "; ")
         for text in content.affirmations {
@@ -55,9 +61,15 @@ actor AffirmationCacheService {
             affirmations.append(a)
         }
 
-        // Add a random favorite if we have any
-        if let randomFav = favorites.randomElement(), !affirmations.contains(where: { $0.text == randomFav.text }) {
-            affirmations.append(randomFav)
+        // Add all priority favorites
+        for fav in priorityFavorites where !affirmations.contains(where: { $0.text == fav.text }) {
+            affirmations.insert(fav, at: 0)
+        }
+
+        // Add one random rotation favorite
+        if let randomRotation = rotationFavorites.randomElement(),
+           !affirmations.contains(where: { $0.text == randomRotation.text }) {
+            affirmations.append(randomRotation)
         }
 
         // Store closing message
@@ -84,7 +96,7 @@ actor AffirmationCacheService {
     private func cleanOldEntries(modelContext: ModelContext) {
         let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
         let descriptor = FetchDescriptor<Affirmation>(
-            predicate: #Predicate { $0.generatedFor < cutoff && !$0.isFavorited }
+            predicate: #Predicate { $0.generatedFor < cutoff && $0.favoriteType == 0 }
         )
         if let old = try? modelContext.fetch(descriptor) {
             for entry in old {

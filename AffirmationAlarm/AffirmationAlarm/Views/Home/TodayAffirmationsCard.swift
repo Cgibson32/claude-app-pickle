@@ -35,12 +35,25 @@ struct TodayAffirmationsCard: View {
                         Spacer(minLength: 8)
 
                         VStack(spacing: AppTheme.spacingSm) {
+                            // Priority (heart) button
                             Button {
                                 HapticService.light()
-                                affirmation.isFavorited.toggle()
+                                affirmation.favoriteType = affirmation.isPriority ? 0 : 1
+                                affirmation.isFavorited = affirmation.favoriteType != 0
                             } label: {
-                                Image(systemName: affirmation.isFavorited ? "heart.fill" : "heart")
-                                    .foregroundStyle(affirmation.isFavorited ? Color(hex: "E85D75") : AppTheme.textTertiary)
+                                Image(systemName: affirmation.isPriority ? "heart.fill" : "heart")
+                                    .foregroundStyle(affirmation.isPriority ? Color(hex: "E85D75") : AppTheme.textTertiary)
+                                    .font(.system(size: 16))
+                            }
+
+                            // Rotation (checkmark) button
+                            Button {
+                                HapticService.light()
+                                affirmation.favoriteType = affirmation.isRotation ? 0 : 2
+                                affirmation.isFavorited = affirmation.favoriteType != 0
+                            } label: {
+                                Image(systemName: affirmation.isRotation ? "checkmark.circle.fill" : "checkmark.circle")
+                                    .foregroundStyle(affirmation.isRotation ? AppTheme.gold : AppTheme.textTertiary)
                                     .font(.system(size: 16))
                             }
 
