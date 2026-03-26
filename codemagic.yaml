@@ -104,14 +104,6 @@ workflows:
         script: |
           cd AffirmationAlarm
           xcodegen generate
-      - name: Set up code signing
-        script: |
-          keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --create
-          keychain add-certificates
-          xcode-project use-profiles --project "AffirmationAlarm/$XCODE_PROJECT"
       - name: Increment build number
         script: |
           cd AffirmationAlarm
