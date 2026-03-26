@@ -115,19 +115,16 @@ workflows:
           agvtool new-version -all $(($(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" || echo 0) + 1))
       - name: Build archive
         script: |
-          set -o pipefail
           cd AffirmationAlarm
           xcodebuild archive \
             -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
-            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
             -configuration Release \
             -archivePath build/AffirmationAlarm.xcarchive \
-            COMPILER_INDEX_STORE_ENABLE=NO \
-            | xcpretty
+            COMPILER_INDEX_STORE_ENABLE=NO
       - name: Export IPA
         script: |
-          set -o pipefail
           cd AffirmationAlarm
           xcode-project build-ipa \
             --archive-path build/AffirmationAlarm.xcarchive \
