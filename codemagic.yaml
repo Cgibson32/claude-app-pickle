@@ -110,7 +110,7 @@ workflows:
       - name: Build archive
         script: |
           cd AffirmationAlarm
-          printf '%s\n' "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/AuthKey.p8
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" | perl -pe 's/\\n/\n/g' > /tmp/AuthKey.p8
           xcodebuild archive \
             -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
