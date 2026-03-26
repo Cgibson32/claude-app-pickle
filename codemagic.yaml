@@ -122,6 +122,7 @@ workflows:
             -destination "generic/platform=iOS" \
             -configuration Release \
             -archivePath build/AffirmationAlarm.xcarchive \
+            -allowProvisioningUpdates \
             COMPILER_INDEX_STORE_ENABLE=NO
       - name: Export IPA
         script: |
