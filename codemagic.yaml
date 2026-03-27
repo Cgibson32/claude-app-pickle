@@ -132,8 +132,8 @@ workflows:
         script: |
           cd AffirmationAlarm
           xcode-project build-ipa \
-            --archive-path build/AffirmationAlarm.xcarchive \
-            --ipa-path build/AffirmationAlarm.ipa
+            --archive build/AffirmationAlarm.xcarchive \
+            --ipa build/AffirmationAlarm.ipa
     artifacts:
       - AffirmationAlarm/build/AffirmationAlarm.ipa
       - AffirmationAlarm/build/AffirmationAlarm.xcarchive
