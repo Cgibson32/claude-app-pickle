@@ -131,9 +131,24 @@ workflows:
       - name: Export IPA
         script: |
           cd AffirmationAlarm
-          xcode-project build-ipa \
-            --archive build/AffirmationAlarm.xcarchive \
-            --ipa build/AffirmationAlarm.ipa
+          cat > /tmp/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>JLYXS97L8A</string>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath build/AffirmationAlarm.xcarchive \
+            -exportPath build \
+            -exportOptionsPlist /tmp/ExportOptions.plist
     artifacts:
       - AffirmationAlarm/build/AffirmationAlarm.ipa
       - AffirmationAlarm/build/AffirmationAlarm.xcarchive
