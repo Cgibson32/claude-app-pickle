@@ -103,25 +103,20 @@ workflows:
         script: |
           cd AffirmationAlarm
           xcodegen generate
-      - name: Set up code signing
+      - name: Set up API key for signing
         script: |
-          keychain initialize
-          openssl genrsa 2048 2>/dev/null > /tmp/cert_key.pem
-          export CERTIFICATE_PRIVATE_KEY="$(cat /tmp/cert_key.pem)"
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --create
-          keychain add-certificates
-          # Find installed profile UUID (skip use-profiles which fails with XcodeGen)
-          PROFILE_PATH=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision 2>/dev/null | head -1)
-          if [ -z "$PROFILE_PATH" ]; then
-            echo "ERROR: No provisioning profiles found after fetch-signing-files"
-            ls -la ~/Library/MobileDevice/Provisioning\ Profiles/ || true
-            exit 1
+          # Write the App Store Connect API key for xcodebuild auto-signing
+          # The integration sets APP_STORE_CONNECT_PRIVATE_KEY (may be @file: ref or raw)
+          if echo "$APP_STORE_CONNECT_PRIVATE_KEY" | grep -q '@file:'; then
+            KEY_PATH=$(echo "$APP_STORE_CONNECT_PRIVATE_KEY" | sed 's/@file://')
+            cp "$KEY_PATH" /tmp/AuthKey.p8
+          else
+            echo "$APP_STORE_CONNECT_PRIVATE_KEY" | perl -pe 's/\\n/\n/g' > /tmp/AuthKey.p8
           fi
-          PROFILE_UUID=$(basename "$PROFILE_PATH" .mobileprovision)
-          echo "Using profile: $PROFILE_UUID"
-          echo "PROFILE_UUID=$PROFILE_UUID" >> $CM_ENV
+          chmod 600 /tmp/AuthKey.p8
+          echo "API key written ($(wc -l < /tmp/AuthKey.p8) lines)"
+          head -1 /tmp/AuthKey.p8
+          tail -1 /tmp/AuthKey.p8
       - name: Increment build number
         script: |
           cd AffirmationAlarm
@@ -135,15 +130,16 @@ workflows:
             -destination "generic/platform=iOS" \
             -configuration Release \
             -archivePath build/AffirmationAlarm.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath /tmp/AuthKey.p8 \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE="$PROFILE_UUID" \
             DEVELOPMENT_TEAM=JLYXS97L8A
       - name: Export IPA
         script: |
           cd AffirmationAlarm
-          cat > /tmp/ExportOptions.plist <<PLIST
+          cat > /tmp/ExportOptions.plist <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
             "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -155,20 +151,17 @@ workflows:
             <string>JLYXS97L8A</string>
             <key>uploadSymbols</key>
             <true/>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>com.cgibson.affirmationalarm</key>
-              <string>${PROFILE_UUID}</string>
-            </dict>
           </dict>
           </plist>
-          PLIST
+          EOF
           xcodebuild -exportArchive \
             -archivePath build/AffirmationAlarm.xcarchive \
             -exportPath build \
-            -exportOptionsPlist /tmp/ExportOptions.plist
+            -exportOptionsPlist /tmp/ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath /tmp/AuthKey.p8 \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
     artifacts:
       - AffirmationAlarm/build/AffirmationAlarm.ipa
       - /tmp/xcodebuild_logs/*.log
