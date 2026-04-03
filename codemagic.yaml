@@ -171,14 +171,19 @@ workflows:
             --type IOS_APP_STORE \
             --create
           keychain add-certificates
-          # Find the installed provisioning profile
-          PROFILE_PATH=$(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision 2>/dev/null | head -1)
+          # Find the provisioning profile (Codemagic CLI saves to Xcode UserData)
+          PROFILE_PATH=$(ls ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/*.mobileprovision 2>/dev/null | head -1)
           if [ -z "$PROFILE_PATH" ]; then
             echo "ERROR: No provisioning profiles found"
-            ls -la ~/Library/MobileDevice/Provisioning\ Profiles/ || true
+            ls -laR ~/Library/Developer/Xcode/UserData/ || true
+            ls -laR ~/Library/MobileDevice/ || true
             exit 1
           fi
-          PROFILE_UUID=$(basename "$PROFILE_PATH" .mobileprovision)
+          # Copy to where xcodebuild expects it for manual signing
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin \
+            <<< "$(/usr/bin/security cms -D -i "$PROFILE_PATH")")
           # Extract profile name for export step
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin \
             <<< "$(/usr/bin/security cms -D -i "$PROFILE_PATH")")
