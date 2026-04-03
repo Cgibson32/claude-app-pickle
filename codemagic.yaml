@@ -133,16 +133,13 @@ workflows:
         script: |
           cd AffirmationAlarm
           xcodegen generate
-          # Verify and fix Info.plist — ensure CFBundleIconName is present
-          PLIST="AffirmationAlarm/Info.generated.plist"
-          echo "=== Generated Info.plist ==="
-          cat "$PLIST"
-          /usr/libexec/PlistBuddy -c "Print :CFBundleIconName" "$PLIST" 2>/dev/null || {
-            echo "CFBundleIconName missing — injecting it"
-            /usr/libexec/PlistBuddy -c "Add :CFBundleIconName string AppIcon" "$PLIST"
-          }
+          # Verify resources are in the project
+          echo "=== Checking project for Assets.xcassets ==="
+          grep -c "Assets.xcassets" AffirmationAlarm.xcodeproj/project.pbxproj || echo "WARNING: Assets.xcassets NOT in project!"
+          echo "=== Checking project for Resources ==="
+          grep -c "Resources" AffirmationAlarm.xcodeproj/project.pbxproj || echo "WARNING: Resources NOT in project!"
           echo "=== Icon files in appiconset ==="
-          ls -la AffirmationAlarm/Assets.xcassets/AppIcon.appiconset/
+          ls -la AffirmationAlarm/Assets.xcassets/AppIcon.appiconset/ | head -10
       - name: Set up API key
         script: |
           # Write the App Store Connect API key to a file

@@ -12,16 +12,9 @@ targets:
     sources:
       - path: AffirmationAlarm
         excludes:
-          - Resources
-          - Assets.xcassets
           - Preview Content
           - "**/*.example"
-          - "**/*.plist"
-    resources:
-      - path: AffirmationAlarm/Resources
-        excludes:
-          - "*.example"
-      - path: AffirmationAlarm/Assets.xcassets
+          - Info.generated.plist
     info:
       path: AffirmationAlarm/Info.generated.plist
       properties:
