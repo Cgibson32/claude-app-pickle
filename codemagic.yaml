@@ -139,29 +139,37 @@ workflows:
       - name: Export IPA
         script: |
           cd AffirmationAlarm
-          cat > /tmp/ExportOptions.plist <<'EOF'
+          # Extract the provisioning profile name from the signed archive
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin \
+            <<< "$(/usr/bin/security cms -D -i \
+            build/AffirmationAlarm.xcarchive/Products/Applications/AffirmationAlarm.app/embedded.mobileprovision)")
+          echo "Archive was signed with profile: $PROFILE_NAME"
+          cat > /tmp/ExportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
             "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
             <key>method</key>
-            <string>app-store</string>
+            <string>app-store-connect</string>
             <key>teamID</key>
             <string>JLYXS97L8A</string>
             <key>uploadSymbols</key>
             <true/>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.cgibson.affirmationalarm</key>
+              <string>${PROFILE_NAME}</string>
+            </dict>
           </dict>
           </plist>
-          EOF
+          PLIST
           xcodebuild -exportArchive \
             -archivePath build/AffirmationAlarm.xcarchive \
             -exportPath build \
-            -exportOptionsPlist /tmp/ExportOptions.plist \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath /tmp/AuthKey.p8 \
-            -authenticationKeyID "$APP_STORE_CONNECT_KEY_IDENTIFIER" \
-            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+            -exportOptionsPlist /tmp/ExportOptions.plist
     artifacts:
       - AffirmationAlarm/build/AffirmationAlarm.ipa
       - /tmp/xcodebuild_logs/*.log
