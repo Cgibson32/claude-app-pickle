@@ -25,7 +25,15 @@ targets:
     info:
       path: AffirmationAlarm/Info.generated.plist
       properties:
+        CFBundleIconName: AppIcon
         ITSAppUsesNonExemptEncryption: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         UIAppFonts:
           - Fonts/Sora-Regular.ttf
           - Fonts/Sora-Medium.ttf
