@@ -18,7 +18,7 @@ A native iOS app that wakes you up with AI-generated personalized affirmations. 
 ## Setup Instructions
 
 ### Prerequisites
-- Mac with Xcode 15+ installed
+- Mac with Xcode 26+ installed
 - iPhone or iOS Simulator running iOS 17+
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) (recommended): `brew install xcodegen`
 - An Anthropic API key from [console.anthropic.com](https://console.anthropic.com)
