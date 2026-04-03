@@ -99,6 +99,36 @@ workflows:
       - name: Install XcodeGen
         script: |
           brew install xcodegen
+      - name: Generate app icons
+        script: |
+          cd AffirmationAlarm/AffirmationAlarm/Assets.xcassets/AppIcon.appiconset
+          SOURCE="AppIcon.png"
+          # Generate all required icon sizes from 1024x1024 source
+          for SIZE in 20 29 40 58 60 76 80 87 120 152 167 180; do
+            sips -z $SIZE $SIZE "$SOURCE" --out "icon_${SIZE}.png" >/dev/null
+          done
+          cp "$SOURCE" Icon-1024.png
+          # Map to filenames expected by Contents.json
+          cp icon_40.png  Icon-20@2x.png
+          cp icon_60.png  Icon-20@3x.png
+          cp icon_58.png  Icon-29@2x.png
+          cp icon_87.png  Icon-29@3x.png
+          cp icon_80.png  Icon-40@2x.png
+          cp icon_120.png Icon-40@3x.png
+          cp icon_120.png Icon-60@2x.png
+          cp icon_180.png Icon-60@3x.png
+          cp icon_20.png  Icon-20-ipad.png
+          cp icon_40.png  Icon-20@2x-ipad.png
+          cp icon_29.png  Icon-29-ipad.png
+          cp icon_58.png  Icon-29@2x-ipad.png
+          cp icon_40.png  Icon-40-ipad.png
+          cp icon_80.png  Icon-40@2x-ipad.png
+          cp icon_76.png  Icon-76.png
+          cp icon_152.png Icon-76@2x.png
+          cp icon_167.png Icon-83.5@2x.png
+          # Clean up temp files
+          rm -f icon_*.png
+          echo "Generated $(ls Icon-*.png | wc -l) icon files"
       - name: Generate Xcode project
         script: |
           cd AffirmationAlarm
