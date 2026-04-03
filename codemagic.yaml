@@ -247,7 +247,9 @@ workflows:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE="$PROFILE_UUID" \
-            DEVELOPMENT_TEAM=JLYXS97L8A
+            DEVELOPMENT_TEAM=JLYXS97L8A \
+            GENERATE_INFOPLIST_FILE=YES \
+            INFOPLIST_KEY_CFBundleIconName=AppIcon
       - name: Export IPA
         script: |
           cd AffirmationAlarm
