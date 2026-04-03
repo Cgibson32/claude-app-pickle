@@ -277,6 +277,23 @@ workflows:
             -archivePath build/AffirmationAlarm.xcarchive \
             -exportPath build \
             -exportOptionsPlist /tmp/ExportOptions.plist
+      - name: Inspect IPA contents
+        script: |
+          cd AffirmationAlarm
+          mkdir -p /tmp/ipa_check
+          cp build/AffirmationAlarm.ipa /tmp/ipa_check/
+          cd /tmp/ipa_check
+          unzip -q AffirmationAlarm.ipa
+          APP=$(find Payload -name "*.app" -maxdepth 2 | head -1)
+          echo "=== Info.plist from built app ==="
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIconName" "$APP/Info.plist" 2>&1 || echo "CFBundleIconName NOT FOUND"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIcons" "$APP/Info.plist" 2>&1 || echo "CFBundleIcons NOT FOUND"
+          echo "=== All Info.plist keys ==="
+          /usr/libexec/PlistBuddy -c "Print" "$APP/Info.plist" 2>&1 | head -50
+          echo "=== Icon-related files in app bundle ==="
+          find "$APP" -name "*con*" -o -name "Assets.car" | head -20
+          echo "=== Full app bundle file list ==="
+          ls -la "$APP/"
     artifacts:
       - AffirmationAlarm/build/AffirmationAlarm.ipa
       - /tmp/xcodebuild_logs/*.log

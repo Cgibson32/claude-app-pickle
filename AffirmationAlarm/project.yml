@@ -54,3 +54,8 @@ targets:
       CURRENT_PROJECT_VERSION: "1"
       CODE_SIGN_STYLE: Automatic
       DEVELOPMENT_TEAM: JLYXS97L8A
+      GENERATE_INFOPLIST_FILE: YES
+      INFOPLIST_KEY_CFBundleIconName: AppIcon
+      INFOPLIST_KEY_UILaunchScreen_Generation: YES
+      INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+      INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
