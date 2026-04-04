@@ -129,15 +129,26 @@ workflows:
           # Clean up temp files
           rm -f icon_*.png
           echo "Generated $(ls Icon-*.png | wc -l) icon files"
+      - name: Increment build number
+        script: |
+          LATEST=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || echo "1")
+          BUILD_NUMBER=$(($LATEST + 1))
+          if [ "$BUILD_NUMBER" -le 1 ]; then
+            BUILD_NUMBER=$(date +%s)
+          fi
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $CM_ENV
+          echo "Latest: $LATEST, New build number: $BUILD_NUMBER"
+          # Update project.yml with the new build number before xcodegen
+          cd AffirmationAlarm
+          sed -i.bak "s/CURRENT_PROJECT_VERSION: .*/CURRENT_PROJECT_VERSION: \"$BUILD_NUMBER\"/" project.yml
+          echo "Updated project.yml CURRENT_PROJECT_VERSION to $BUILD_NUMBER"
       - name: Generate Xcode project
         script: |
           cd AffirmationAlarm
           xcodegen generate
-          # Verify resources are in the project
-          echo "=== Checking project for Assets.xcassets ==="
-          grep -c "Assets.xcassets" AffirmationAlarm.xcodeproj/project.pbxproj || echo "WARNING: Assets.xcassets NOT in project!"
-          echo "=== Checking project for Resources ==="
-          grep -c "Resources" AffirmationAlarm.xcodeproj/project.pbxproj || echo "WARNING: Resources NOT in project!"
+          # Verify build number in generated plist
+          echo "=== CFBundleVersion in generated plist ==="
+          /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" AffirmationAlarm/Info.generated.plist 2>&1 || echo "Not found"
           echo "=== Icon files in appiconset ==="
           ls -la AffirmationAlarm/Assets.xcassets/AppIcon.appiconset/ | head -10
       - name: Set up API key
@@ -227,16 +238,6 @@ workflows:
           echo "PROFILE_UUID=$PROFILE_UUID" >> $CM_ENV
           echo "PROFILE_NAME=$PROFILE_NAME" >> $CM_ENV
           echo "Using profile: $PROFILE_NAME ($PROFILE_UUID)"
-      - name: Increment build number
-        script: |
-          LATEST=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || echo "1")
-          BUILD_NUMBER=$(($LATEST + 1))
-          # Fallback: if still 1, use timestamp to guarantee uniqueness
-          if [ "$BUILD_NUMBER" -le 1 ]; then
-            BUILD_NUMBER=$(date +%s)
-          fi
-          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $CM_ENV
-          echo "Latest: $LATEST, New build number: $BUILD_NUMBER"
       - name: Build archive
         script: |
           cd AffirmationAlarm
@@ -283,23 +284,6 @@ workflows:
             -archivePath build/AffirmationAlarm.xcarchive \
             -exportPath build \
             -exportOptionsPlist /tmp/ExportOptions.plist
-      - name: Inspect IPA contents
-        script: |
-          cd AffirmationAlarm
-          mkdir -p /tmp/ipa_check
-          cp build/AffirmationAlarm.ipa /tmp/ipa_check/
-          cd /tmp/ipa_check
-          unzip -q AffirmationAlarm.ipa
-          APP=$(find Payload -name "*.app" -maxdepth 2 | head -1)
-          echo "=== Info.plist from built app ==="
-          /usr/libexec/PlistBuddy -c "Print :CFBundleIconName" "$APP/Info.plist" 2>&1 || echo "CFBundleIconName NOT FOUND"
-          /usr/libexec/PlistBuddy -c "Print :CFBundleIcons" "$APP/Info.plist" 2>&1 || echo "CFBundleIcons NOT FOUND"
-          echo "=== All Info.plist keys ==="
-          /usr/libexec/PlistBuddy -c "Print" "$APP/Info.plist" 2>&1 | head -50
-          echo "=== Icon-related files in app bundle ==="
-          find "$APP" -name "*con*" -o -name "Assets.car" | head -20
-          echo "=== Full app bundle file list ==="
-          ls -la "$APP/"
     artifacts:
       - AffirmationAlarm/build/AffirmationAlarm.ipa
       - /tmp/xcodebuild_logs/*.log
