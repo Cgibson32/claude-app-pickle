@@ -20,10 +20,6 @@ class SubscriptionManager {
         }
     }
 
-    deinit {
-        let listener = transactionListener
-        listener?.cancel()
-    }
 
     // MARK: - Product Loading
 
