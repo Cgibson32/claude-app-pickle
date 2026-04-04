@@ -19,9 +19,10 @@ class AlarmSchedulingService {
         guard alarm.isEnabled else { return }
 
         // Skip scheduling if notifications aren't authorized
-        UNUserNotificationCenter.current().getNotificationSettings { [weak self] settings in
+        Task {
+            let settings = await UNUserNotificationCenter.current().notificationSettings()
             guard settings.authorizationStatus == .authorized else { return }
-            self?.scheduleNotifications(for: alarm)
+            self.scheduleNotifications(for: alarm)
         }
     }
 

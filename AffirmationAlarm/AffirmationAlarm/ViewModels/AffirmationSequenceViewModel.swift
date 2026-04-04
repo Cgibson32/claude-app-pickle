@@ -11,7 +11,7 @@ enum SequencePhase: Equatable {
     case complete
 }
 
-@Observable
+@MainActor @Observable
 class AffirmationSequenceViewModel {
     var phase: SequencePhase = .loading
     var affirmations: [Affirmation] = []

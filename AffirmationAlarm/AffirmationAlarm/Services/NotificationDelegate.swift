@@ -7,7 +7,7 @@ extension Notification.Name {
 }
 
 @MainActor
-class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+class NotificationDelegate: NSObject, @preconcurrency UNUserNotificationCenterDelegate {
     static let shared = NotificationDelegate()
 
     func userNotificationCenter(
