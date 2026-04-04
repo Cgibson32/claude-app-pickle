@@ -229,8 +229,9 @@ workflows:
           echo "Using profile: $PROFILE_NAME ($PROFILE_UUID)"
       - name: Increment build number
         script: |
-          cd AffirmationAlarm
-          agvtool new-version -all $(($(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" || echo 0) + 1))
+          BUILD_NUMBER=$(($(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" || echo 0) + 1))
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $CM_ENV
+          echo "Build number: $BUILD_NUMBER"
       - name: Build archive
         script: |
           cd AffirmationAlarm
@@ -246,7 +247,8 @@ workflows:
             PROVISIONING_PROFILE="$PROFILE_UUID" \
             DEVELOPMENT_TEAM=JLYXS97L8A \
             GENERATE_INFOPLIST_FILE=YES \
-            INFOPLIST_KEY_CFBundleIconName=AppIcon
+            INFOPLIST_KEY_CFBundleIconName=AppIcon \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
       - name: Export IPA
         script: |
           cd AffirmationAlarm
