@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 enum HapticService {
     static func light() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()

@@ -10,8 +10,8 @@ struct SpeechItem {
     }
 }
 
-@Observable
-class SpeechService: NSObject, AVSpeechSynthesizerDelegate {
+@MainActor @Observable
+class SpeechService: NSObject, AVSpeechSynthesizerDelegate, @unchecked Sendable {
     private let synthesizer = AVSpeechSynthesizer()
     private var items: [SpeechItem] = []
     private var currentIndex = 0

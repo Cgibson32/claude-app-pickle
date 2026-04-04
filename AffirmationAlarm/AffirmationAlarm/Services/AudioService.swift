@@ -1,6 +1,6 @@
 import AVFoundation
 
-@Observable
+@MainActor @Observable
 class AudioService {
     static let shared = AudioService()
     private var player: AVAudioPlayer?

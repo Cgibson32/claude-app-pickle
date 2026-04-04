@@ -6,6 +6,7 @@ extension Notification.Name {
     static let didRequestSnooze = Notification.Name("didRequestSnooze")
 }
 
+@MainActor
 class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationDelegate()
 

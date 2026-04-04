@@ -1,6 +1,6 @@
 import StoreKit
 
-@Observable
+@MainActor @Observable
 class SubscriptionManager {
     static let shared = SubscriptionManager()
 

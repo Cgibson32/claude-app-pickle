@@ -1,6 +1,6 @@
 import UserNotifications
 
-@Observable
+@MainActor @Observable
 class AlarmSchedulingService {
     static let shared = AlarmSchedulingService()
 
