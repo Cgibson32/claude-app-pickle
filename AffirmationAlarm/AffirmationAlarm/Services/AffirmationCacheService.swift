@@ -1,7 +1,8 @@
 import Foundation
 import SwiftData
 
-actor AffirmationCacheService {
+@MainActor
+class AffirmationCacheService {
     private let apiService = ClaudeAPIService()
 
     func fetchOrGenerate(
