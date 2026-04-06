@@ -6,7 +6,6 @@ struct HomeView: View {
     @Query private var profiles: [UserProfile]
     @Query(sort: \Alarm.hour) private var alarms: [Alarm]
     @Query private var completions: [SequenceCompletion]
-    @State private var showPreview = false
     @State private var customAffirmationText = ""
 
     private var profile: UserProfile? { profiles.first }
@@ -44,40 +43,14 @@ struct HomeView: View {
                         // Quick actions
                         quickActionsGrid
 
-                        Spacer().frame(height: 80)
+                        Spacer().frame(height: AppTheme.spacingXl)
                     }
                     .padding(.horizontal, AppTheme.spacingXl)
                     .padding(.top, AppTheme.spacingLg)
                 }
 
-                // Floating action button
-                VStack {
-                    Spacer()
-                    Button {
-                        HapticService.medium()
-                        showPreview = true
-                    } label: {
-                        HStack(spacing: AppTheme.spacingSm) {
-                            Image(systemName: "play.fill")
-                            Text("Preview")
-                                .font(AppTheme.headline)
-                        }
-                        .foregroundStyle(AppTheme.charcoalBlue)
-                        .padding(.horizontal, AppTheme.spacingXxl)
-                        .padding(.vertical, AppTheme.spacingLg)
-                        .background(AppTheme.gold)
-                        .clipShape(Capsule())
-                        .shadow(color: AppTheme.gold.opacity(0.4), radius: 16, y: 8)
-                    }
-                    .buttonStyle(.bounce)
-                    .accessibilityLabel("Preview affirmation sequence")
-                    .padding(.bottom, AppTheme.spacingXl)
-                }
             }
             .preferredColorScheme(.dark)
-            .fullScreenCover(isPresented: $showPreview) {
-                AffirmationSequenceView()
-            }
         }
     }
 
@@ -230,7 +203,7 @@ struct TodayProgressCard: View {
                 Text(completed ? "Complete!" : "Today's Affirmations")
                     .font(AppTheme.headline)
                     .foregroundStyle(AppTheme.textPrimary)
-                Text(completed ? "\(affirmationCount) affirmations spoken" : "Tap Preview to begin")
+                Text(completed ? "\(affirmationCount) affirmations spoken" : "Your alarm will begin the sequence")
                     .font(AppTheme.caption)
                     .foregroundStyle(AppTheme.textSecondary)
             }
