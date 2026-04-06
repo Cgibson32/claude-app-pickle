@@ -46,32 +46,65 @@ class AffirmationSequenceViewModel {
             self.error = error.localizedDescription
         }
 
+        // Build the full set of spoken lines and pre-fetch audio while the
+        // alarm sound is playing, so each phase transition feels instant.
+        let greetingText = "Good morning, \(profile.name). Let's start your day with intention."
+        let breathingText = "Let's take a deep breath together. Breathe in slowly... and release."
+        let allSpokenTexts: [String] = {
+            var texts = [greetingText]
+            texts.append(contentsOf: affirmations.map(\.text))
+            texts.append(breathingText)
+            texts.append(closingMessage)
+            return texts
+        }()
+
+        // Kick off prefetch in parallel with the alarm sound.
+        let prefetchTask = Task { [speechService] in
+            if profile.ttsEnabled {
+                await speechService.prefetch(texts: allSpokenTexts)
+            }
+        }
+
         // Sequence flow
         await playPhase(.alarmSound, duration: TimeInterval(profile.alarmSoundDuration))
         AudioService.shared.stop()
 
-        await playPhase(.greeting, duration: 3.0)
+        // Wait for prefetch (should already be done by now in most cases).
+        await prefetchTask.value
+
+        withAnimation(AppTheme.bouncy) { phase = .greeting }
+        if profile.ttsEnabled {
+            await speechService.speakAndWait(text: greetingText)
+        } else {
+            try? await Task.sleep(for: .seconds(2.5))
+        }
 
         for i in 0..<affirmations.count {
             withAnimation(AppTheme.bouncy) { phase = .affirmation(i) }
 
             if profile.ttsEnabled {
-                await speakAndWait(
-                    text: affirmations[i].text,
-                    rate: profile.speechRate,
-                    pitch: profile.speechPitch
-                )
+                await speechService.speakAndWait(text: affirmations[i].text)
+                try? await Task.sleep(for: .milliseconds(800))
             } else {
                 try? await Task.sleep(for: .seconds(4))
             }
             affirmations[i].wasSpoken = true
         }
 
-        await playPhase(.breathing, duration: 12.0)
+        // Breathing phase: speak the guide once at the start, then let the
+        // animation continue for the remainder of the 12-second window.
+        withAnimation(AppTheme.bouncy) { phase = .breathing }
+        let breathingStart = Date()
+        if profile.ttsEnabled {
+            await speechService.speakAndWait(text: breathingText)
+        }
+        let elapsed = Date().timeIntervalSince(breathingStart)
+        let remaining = max(0, 12.0 - elapsed)
+        try? await Task.sleep(for: .seconds(remaining))
 
         withAnimation(AppTheme.bouncy) { phase = .closing }
         if profile.ttsEnabled {
-            await speakAndWait(text: closingMessage, rate: profile.speechRate, pitch: profile.speechPitch)
+            await speechService.speakAndWait(text: closingMessage)
         }
         try? await Task.sleep(for: .seconds(2))
 
@@ -100,17 +133,5 @@ class AffirmationSequenceViewModel {
         }
 
         try? await Task.sleep(for: .seconds(duration))
-    }
-
-    private func speakAndWait(text: String, rate: Float, pitch: Float) async {
-        await withCheckedContinuation { continuation in
-            speechService.speak(
-                items: [SpeechItem(text)],
-                rate: rate,
-                pitch: pitch
-            ) {
-                continuation.resume()
-            }
-        }
     }
 }

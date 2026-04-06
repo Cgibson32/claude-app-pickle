@@ -30,6 +30,8 @@ class AffirmationCacheService {
             .map(\.text)
         let recentIntentions = fetchRecent(DailyIntention.self, keyPath: \DailyIntention.date, modelContext: modelContext)
             .map(\.text)
+        let recentReflections = fetchRecent(EveningReflection.self, keyPath: \EveningReflection.date, modelContext: modelContext)
+            .map { ClaudeAPIService.RecentReflection(mood: $0.mood, goodThing: $0.goodThing, gratitude: $0.gratitude) }
 
         // Fetch priority favorites (always included)
         let priorityDescriptor = FetchDescriptor<Affirmation>(
@@ -50,6 +52,7 @@ class AffirmationCacheService {
             categories: profile.selectedCategories,
             recentGratitude: recentGratitude,
             recentIntentions: recentIntentions,
+            recentReflections: recentReflections,
             count: profile.affirmationCount
         )
 

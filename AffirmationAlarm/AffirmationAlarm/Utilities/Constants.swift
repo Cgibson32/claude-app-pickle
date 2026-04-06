@@ -4,9 +4,12 @@ enum AppConstants {
     static let subscriptionProductID = "com.cgibson.affirmationalarm.monthly"
 
     static let apiURL = "https://api.anthropic.com/v1/messages"
-    static let apiModel = "claude-sonnet-4-20250514"
+    static let apiModel = "claude-opus-4-6"
     static let apiVersion = "2023-06-01"
-    static let maxTokens = 600
+    static let maxTokens = 1000
+
+    // OpenAI TTS — used for the nurturing cloud voice in the morning sequence.
+    static let openAITTSURL = "https://api.openai.com/v1/audio/speech"
 
     static let defaultSpeechRate: Float = 0.42
     static let defaultSpeechPitch: Float = 0.85
