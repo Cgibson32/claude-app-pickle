@@ -38,14 +38,29 @@ struct AlarmListView: View {
                     .padding(AppTheme.spacingXxl)
                     .frame(maxHeight: .infinity)
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: AppTheme.spacingMd) {
-                            ForEach(alarms) { alarm in
-                                AlarmRow(alarm: alarm)
-                            }
+                    List {
+                        ForEach(alarms) { alarm in
+                            AlarmRow(alarm: alarm)
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(
+                                    top: AppTheme.spacingSm,
+                                    leading: AppTheme.spacingXl,
+                                    bottom: AppTheme.spacingSm,
+                                    trailing: AppTheme.spacingXl
+                                ))
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        AlarmSchedulingService.shared.cancelAlarm(alarm)
+                                        modelContext.delete(alarm)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                         }
-                        .padding(AppTheme.spacingXl)
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
             }
         }
