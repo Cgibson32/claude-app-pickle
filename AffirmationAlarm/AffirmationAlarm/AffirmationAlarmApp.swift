@@ -60,7 +60,10 @@ struct RootView: View {
                 OnboardingContainerView()
             }
         }
-        .onAppear { ensureProfileExists() }
+        .onAppear {
+            ensureProfileExists()
+            rehydrateAlarms()
+        }
         .fullScreenCover(isPresented: $showSequence) {
             AffirmationSequenceView()
         }
@@ -79,5 +82,14 @@ struct RootView: View {
         if profiles.isEmpty {
             modelContext.insert(UserProfile())
         }
+    }
+
+    /// Re-arm every enabled alarm on launch so one-shot alarms stay queued
+    /// across relaunches and any drift between SwiftData and
+    /// UNUserNotificationCenter is self-healed. `scheduleAlarm` is idempotent
+    /// (it cancels before rescheduling), so this is safe to call every launch.
+    private func rehydrateAlarms() {
+        let alarms = (try? modelContext.fetch(FetchDescriptor<Alarm>())) ?? []
+        AlarmSchedulingService.shared.rescheduleAll(alarms)
     }
 }

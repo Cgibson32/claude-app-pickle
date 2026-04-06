@@ -45,6 +45,7 @@ class OnboardingViewModel {
         }
     }
 
+    @MainActor
     func completeOnboarding(modelContext: ModelContext) {
         let profiles = (try? modelContext.fetch(FetchDescriptor<UserProfile>())) ?? []
         let profile = profiles.first ?? UserProfile()
@@ -67,7 +68,16 @@ class OnboardingViewModel {
             soundName: alarmSound.rawValue
         )
         modelContext.insert(alarm)
+        try? modelContext.save()
 
         profile.hasCompletedOnboarding = true
+
+        // Ask for notification permission and schedule the first alarm so it
+        // actually fires. Without this, the alarm would sit in SwiftData with
+        // nothing ever queued in UNUserNotificationCenter.
+        Task { @MainActor in
+            _ = await AlarmSchedulingService.shared.requestPermission()
+            AlarmSchedulingService.shared.scheduleAlarm(alarm)
+        }
     }
 }

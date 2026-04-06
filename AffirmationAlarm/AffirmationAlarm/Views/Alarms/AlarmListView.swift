@@ -1,40 +1,51 @@
 import SwiftUI
 import SwiftData
+import UIKit
+import UserNotifications
 
 struct AlarmListView: View {
     @Query(sort: \Alarm.hour) private var alarms: [Alarm]
     @Environment(\.modelContext) private var modelContext
     @State private var showingNewAlarm = false
+    @State private var scheduler = AlarmSchedulingService.shared
 
     var body: some View {
         ZStack {
             GradientBackground(style: .sunrise, withBlobs: false)
 
-            if alarms.isEmpty {
-                VStack(spacing: AppTheme.spacingLg) {
-                    Image(systemName: "alarm")
-                        .font(.system(size: 48))
-                        .foregroundStyle(AppTheme.textTertiary)
-                    Text("No alarms yet")
-                        .font(AppTheme.title3)
-                        .foregroundStyle(AppTheme.textSecondary)
-                    Text("Tap + to add your first alarm")
-                        .font(AppTheme.bodyFont)
-                        .foregroundStyle(AppTheme.textTertiary)
-                    Button("Add Alarm") {
-                        showingNewAlarm = true
-                    }
-                    .buttonStyle(PillButtonStyle())
+            VStack(spacing: 0) {
+                if scheduler.permissionDenied {
+                    permissionBanner
+                        .padding(AppTheme.spacingLg)
                 }
-                .padding(AppTheme.spacingXxl)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: AppTheme.spacingMd) {
-                        ForEach(alarms) { alarm in
-                            AlarmRow(alarm: alarm)
+
+                if alarms.isEmpty {
+                    VStack(spacing: AppTheme.spacingLg) {
+                        Image(systemName: "alarm")
+                            .font(.system(size: 48))
+                            .foregroundStyle(AppTheme.textTertiary)
+                        Text("No alarms yet")
+                            .font(AppTheme.title3)
+                            .foregroundStyle(AppTheme.textSecondary)
+                        Text("Tap + to add your first alarm")
+                            .font(AppTheme.bodyFont)
+                            .foregroundStyle(AppTheme.textTertiary)
+                        Button("Add Alarm") {
+                            showingNewAlarm = true
                         }
+                        .buttonStyle(PillButtonStyle())
                     }
-                    .padding(AppTheme.spacingXl)
+                    .padding(AppTheme.spacingXxl)
+                    .frame(maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: AppTheme.spacingMd) {
+                            ForEach(alarms) { alarm in
+                                AlarmRow(alarm: alarm)
+                            }
+                        }
+                        .padding(AppTheme.spacingXl)
+                    }
                 }
             }
         }
@@ -54,6 +65,46 @@ struct AlarmListView: View {
         .sheet(isPresented: $showingNewAlarm) {
             AlarmDetailView(alarm: nil)
         }
+        .task {
+            // Refresh permission status and, if undetermined, prompt so the
+            // user's existing alarms can actually fire.
+            let center = UNUserNotificationCenter.current()
+            let settings = await center.notificationSettings()
+            if settings.authorizationStatus == .notDetermined {
+                _ = await scheduler.requestPermission()
+                // Re-arm all enabled alarms now that permission may be granted.
+                scheduler.rescheduleAll(alarms)
+            } else {
+                await scheduler.refreshPermissionStatus()
+            }
+        }
+    }
+
+    private var permissionBanner: some View {
+        VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
+            HStack(spacing: AppTheme.spacingSm) {
+                Image(systemName: "bell.slash.fill")
+                    .foregroundStyle(.orange)
+                Text("Notifications are off")
+                    .font(AppTheme.headline)
+                    .foregroundStyle(AppTheme.textPrimary)
+            }
+            Text("Your alarms can't ring until you enable notifications for Affirmation Alarm in Settings.")
+                .font(AppTheme.caption)
+                .foregroundStyle(AppTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+            .font(AppTheme.headline)
+            .foregroundStyle(AppTheme.gold)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(AppTheme.spacingLg)
+        .background(Color.orange.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
     }
 }
 
@@ -80,6 +131,11 @@ struct AlarmRow: View {
                             .font(AppTheme.caption)
                             .foregroundStyle(AppTheme.textSecondary)
                     }
+                    if alarm.isEnabled, let next = alarm.nextFireDate {
+                        Text("Next: \(Self.formatNext(next))")
+                            .font(AppTheme.caption)
+                            .foregroundStyle(AppTheme.gold)
+                    }
                 }
 
                 Spacer()
@@ -88,7 +144,12 @@ struct AlarmRow: View {
                     get: { alarm.isEnabled },
                     set: { newValue in
                         alarm.isEnabled = newValue
-                        AlarmSchedulingService.shared.scheduleAlarm(alarm)
+                        try? modelContext.save()
+                        if newValue {
+                            AlarmSchedulingService.shared.scheduleAlarm(alarm)
+                        } else {
+                            AlarmSchedulingService.shared.cancelAlarm(alarm)
+                        }
                     }
                 ))
                 .tint(AppTheme.sunsetOrange)
@@ -115,5 +176,17 @@ struct AlarmRow: View {
         .sheet(isPresented: $showingEdit) {
             AlarmDetailView(alarm: alarm)
         }
+    }
+
+    private static func formatNext(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        if Calendar.current.isDateInToday(date) {
+            formatter.dateFormat = "'Today' h:mm a"
+        } else if Calendar.current.isDateInTomorrow(date) {
+            formatter.dateFormat = "'Tomorrow' h:mm a"
+        } else {
+            formatter.dateFormat = "EEE h:mm a"
+        }
+        return formatter.string(from: date)
     }
 }

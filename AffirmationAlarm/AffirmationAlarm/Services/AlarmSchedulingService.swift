@@ -4,30 +4,73 @@ import UserNotifications
 class AlarmSchedulingService {
     static let shared = AlarmSchedulingService()
 
+    /// Set to `true` when the user has explicitly denied notification
+    /// permission. `AlarmListView` observes this to show a banner.
+    var permissionDenied = false
+
     private init() {}
 
+    // MARK: - Permission
+
+    @discardableResult
     func requestPermission() async -> Bool {
         do {
-            return try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+            let granted = try await UNUserNotificationCenter.current()
+                .requestAuthorization(options: [.alert, .sound, .badge, .providesAppNotificationSettings])
+            permissionDenied = !granted
+            return granted
         } catch {
+            permissionDenied = true
             return false
         }
     }
+
+    func refreshPermissionStatus() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        permissionDenied = (settings.authorizationStatus == .denied)
+    }
+
+    // MARK: - Scheduling
 
     func scheduleAlarm(_ alarm: Alarm) {
         cancelAlarm(alarm)
         guard alarm.isEnabled else { return }
 
-        // Skip scheduling if notifications aren't authorized
-        Task {
-            let settings = await UNUserNotificationCenter.current().notificationSettings()
-            guard settings.authorizationStatus == .authorized else { return }
-            self.scheduleNotifications(for: alarm)
+        Task { [weak self] in
+            guard let self else { return }
+            let center = UNUserNotificationCenter.current()
+            var settings = await center.notificationSettings()
+
+            if settings.authorizationStatus == .notDetermined {
+                _ = await self.requestPermission()
+                settings = await center.notificationSettings()
+            }
+
+            switch settings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
+                self.permissionDenied = false
+                self.scheduleNotifications(for: alarm)
+                #if DEBUG
+                await self.logPendingRequests()
+                #endif
+            case .denied:
+                self.permissionDenied = true
+            default:
+                break
+            }
+        }
+    }
+
+    /// Re-arm every enabled alarm. Called on app launch to ensure one-shot
+    /// alarms stay queued across relaunches and to self-heal any state drift
+    /// between SwiftData and `UNUserNotificationCenter`.
+    func rescheduleAll(_ alarms: [Alarm]) {
+        for alarm in alarms where alarm.isEnabled {
+            scheduleAlarm(alarm)
         }
     }
 
     private func scheduleNotifications(for alarm: Alarm) {
-
         let days = alarm.repeatDays.sorted()
         var identifiers: [String] = []
 
@@ -96,4 +139,20 @@ class AlarmSchedulingService {
 
         return content
     }
+
+    // MARK: - Debug
+
+    #if DEBUG
+    func logPendingRequests() async {
+        let requests = await UNUserNotificationCenter.current().pendingNotificationRequests()
+        print("[AlarmSchedulingService] Pending notification requests: \(requests.count)")
+        for r in requests {
+            if let trigger = r.trigger as? UNCalendarNotificationTrigger {
+                print("  - \(r.identifier) → next: \(trigger.nextTriggerDate().map { "\($0)" } ?? "nil")")
+            } else {
+                print("  - \(r.identifier) (\(type(of: r.trigger)))")
+            }
+        }
+    }
+    #endif
 }

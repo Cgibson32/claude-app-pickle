@@ -131,6 +131,7 @@ struct AlarmDetailView: View {
     }
 
     private func save() {
+        let targetAlarm: Alarm
         if let alarm {
             alarm.hour = hour
             alarm.minute = minute
@@ -138,6 +139,7 @@ struct AlarmDetailView: View {
             alarm.soundName = soundName.rawValue
             alarm.label = label
             alarm.isEnabled = isEnabled
+            targetAlarm = alarm
         } else {
             let newAlarm = Alarm(
                 hour: hour,
@@ -147,6 +149,14 @@ struct AlarmDetailView: View {
                 label: label
             )
             modelContext.insert(newAlarm)
+            targetAlarm = newAlarm
+        }
+        try? modelContext.save()
+
+        if targetAlarm.isEnabled {
+            AlarmSchedulingService.shared.scheduleAlarm(targetAlarm)
+        } else {
+            AlarmSchedulingService.shared.cancelAlarm(targetAlarm)
         }
         dismiss()
     }
