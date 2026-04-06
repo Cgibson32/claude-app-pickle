@@ -9,7 +9,7 @@ final class Alarm {
     var isEnabled: Bool = true
     var soundName: String = "alarm_gentle"
     var label: String = "Morning Affirmations"
-    var repeatDaysData: String = "[2,3,4,5,6]"
+    var repeatDaysData: String = "[]"
     var notificationIdentifiersData: String = "[]"
 
     var repeatDays: [Int] {
@@ -30,7 +30,7 @@ final class Alarm {
         }
     }
 
-    init(hour: Int = 6, minute: Int = 30, repeatDays: [Int] = [2, 3, 4, 5, 6], isEnabled: Bool = true, soundName: String = "alarm_gentle", label: String = "Morning Affirmations") {
+    init(hour: Int = 6, minute: Int = 30, repeatDays: [Int] = [], isEnabled: Bool = true, soundName: String = "alarm_gentle", label: String = "Morning Affirmations") {
         self.hour = hour
         self.minute = minute
         self.isEnabled = isEnabled
@@ -47,6 +47,7 @@ final class Alarm {
 
     var repeatDaysString: String {
         let days = repeatDays.sorted()
+        if days.isEmpty { return "Does not repeat" }
         if days == [1, 2, 3, 4, 5, 6, 7] { return "Every day" }
         if days == [2, 3, 4, 5, 6] { return "Weekdays" }
         if days == [1, 7] { return "Weekends" }

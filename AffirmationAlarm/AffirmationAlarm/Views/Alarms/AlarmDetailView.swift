@@ -18,7 +18,7 @@ struct AlarmDetailView: View {
         self.alarm = alarm
         _hour = State(initialValue: alarm?.hour ?? 6)
         _minute = State(initialValue: alarm?.minute ?? 30)
-        _repeatDays = State(initialValue: Set(alarm?.repeatDays ?? [2, 3, 4, 5, 6]))
+        _repeatDays = State(initialValue: Set(alarm?.repeatDays ?? []))
         _soundName = State(initialValue: AppConstants.AlarmSound(rawValue: alarm?.soundName ?? "alarm_gentle") ?? .gentle)
         _label = State(initialValue: alarm?.label ?? "Morning Affirmations")
         _isEnabled = State(initialValue: alarm?.isEnabled ?? true)

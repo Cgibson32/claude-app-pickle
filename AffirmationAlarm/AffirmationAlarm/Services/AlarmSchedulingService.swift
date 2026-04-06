@@ -61,12 +61,39 @@ class AlarmSchedulingService {
         }
     }
 
-    /// Re-arm every enabled alarm. Called on app launch to ensure one-shot
-    /// alarms stay queued across relaunches and to self-heal any state drift
-    /// between SwiftData and `UNUserNotificationCenter`.
+    /// Re-arm every enabled alarm on app launch. For repeating alarms this
+    /// is a cheap idempotent rehydration. For one-shot alarms (empty
+    /// `repeatDays`) we check whether the queued request is still pending:
+    /// if it's gone, the alarm already fired, so we flip `isEnabled = false`
+    /// instead of re-queuing it for another day.
     func rescheduleAll(_ alarms: [Alarm]) {
-        for alarm in alarms where alarm.isEnabled {
-            scheduleAlarm(alarm)
+        let enabled = alarms.filter { $0.isEnabled }
+        guard !enabled.isEmpty else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            let pending = await UNUserNotificationCenter.current().pendingNotificationRequests()
+            let pendingIDs = Set(pending.map(\.identifier))
+            for alarm in enabled {
+                if alarm.repeatDays.isEmpty {
+                    // One-shot.
+                    if alarm.notificationIdentifiers.isEmpty {
+                        // Never scheduled yet (freshly created) — queue it.
+                        self.scheduleAlarm(alarm)
+                    } else if alarm.notificationIdentifiers.contains(where: { pendingIDs.contains($0) }) {
+                        // Still waiting to fire — idempotent rehydrate.
+                        self.scheduleAlarm(alarm)
+                    } else {
+                        // Had a pending request but it's gone from the
+                        // notification center, which means it fired.
+                        // Auto-disable per the one-shot contract.
+                        alarm.isEnabled = false
+                        alarm.notificationIdentifiers = []
+                    }
+                } else {
+                    // Repeating alarms: always idempotent rehydrate.
+                    self.scheduleAlarm(alarm)
+                }
+            }
         }
     }
 

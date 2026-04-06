@@ -13,7 +13,7 @@ class OnboardingViewModel {
     var eveningReflectionMinute = 0
     var alarmHour = 6
     var alarmMinute = 30
-    var alarmRepeatDays: Set<Int> = [2, 3, 4, 5, 6]
+    var alarmRepeatDays: Set<Int> = []
     var alarmSound = AppConstants.AlarmSound.gentle
 
     let totalSteps = 5
