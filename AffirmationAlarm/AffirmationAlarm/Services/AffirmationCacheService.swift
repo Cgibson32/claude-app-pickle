@@ -12,17 +12,27 @@ class AffirmationCacheService {
         let today = Calendar.current.startOfDay(for: Date())
         let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today)!
 
-        // Check if we already have today's affirmations
+        // Check if we already have today's GENERATED affirmations. Custom
+        // affirmations the user typed on the home screen also live under
+        // today's generatedFor date but must not count as a cache hit —
+        // otherwise the first custom affirmation would short-circuit
+        // generation and the user would only hear that one line.
         let descriptor = FetchDescriptor<Affirmation>(
-            predicate: #Predicate { $0.generatedFor >= today && $0.generatedFor < tomorrow }
+            predicate: #Predicate { $0.generatedFor >= today && $0.generatedFor < tomorrow && $0.isCustom == false }
         )
-        let existing = (try? modelContext.fetch(descriptor)) ?? []
-        if !existing.isEmpty {
+        let existingGenerated = (try? modelContext.fetch(descriptor)) ?? []
+        if !existingGenerated.isEmpty {
+            // Also include any custom affirmations the user added today so
+            // they get spoken alongside the cached generated ones.
+            let customDescriptor = FetchDescriptor<Affirmation>(
+                predicate: #Predicate { $0.generatedFor >= today && $0.generatedFor < tomorrow && $0.isCustom == true }
+            )
+            let todayCustoms = (try? modelContext.fetch(customDescriptor)) ?? []
             let closingDescriptor = FetchDescriptor<DailyClosingMessage>(
                 predicate: #Predicate { $0.generatedFor >= today && $0.generatedFor < tomorrow }
             )
             let closingMessage = (try? modelContext.fetch(closingDescriptor))?.first
-            return (existing, closingMessage)
+            return (existingGenerated + todayCustoms, closingMessage)
         }
 
         // Fetch recent context
