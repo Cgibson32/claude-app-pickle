@@ -64,6 +64,8 @@ struct FirstAlarmSetupView: View {
                             Button {
                                 HapticService.selection()
                                 viewModel.alarmSound = sound
+                                AudioService.shared.stop()
+                                AudioService.shared.playSound(named: sound.rawValue, duration: 3)
                             } label: {
                                 HStack {
                                     Text(sound.displayName)
@@ -100,6 +102,7 @@ struct FirstAlarmSetupView: View {
             }
             .padding(.horizontal, AppTheme.spacingXxl)
         }
+        .onDisappear { AudioService.shared.stop() }
     }
 }
 

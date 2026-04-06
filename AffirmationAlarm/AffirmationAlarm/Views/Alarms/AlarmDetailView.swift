@@ -71,6 +71,8 @@ struct AlarmDetailView: View {
                                     Button {
                                         HapticService.selection()
                                         soundName = sound
+                                        AudioService.shared.stop()
+                                        AudioService.shared.playSound(named: sound.rawValue, duration: 3)
                                     } label: {
                                         HStack {
                                             Text(sound.displayName)
@@ -117,6 +119,7 @@ struct AlarmDetailView: View {
             }
             .navigationTitle(alarm == nil ? "New Alarm" : "Edit Alarm")
             .navigationBarTitleDisplayMode(.inline)
+            .onDisappear { AudioService.shared.stop() }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
