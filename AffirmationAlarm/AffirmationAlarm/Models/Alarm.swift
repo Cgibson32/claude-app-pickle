@@ -58,29 +58,24 @@ final class Alarm {
     var nextFireDate: Date? {
         let calendar = Calendar.current
         let now = Date()
-        var components = DateComponents()
-        components.hour = hour
-        components.minute = minute
+        let days = Set(repeatDays)
 
-        let days = repeatDays.sorted()
-        if days.isEmpty {
-            components.year = calendar.component(.year, from: now)
-            components.month = calendar.component(.month, from: now)
-            components.day = calendar.component(.day, from: now)
-            if let date = calendar.date(from: components), date > now {
-                return date
+        // Scan today + next 7 days. For each candidate day, build a date at
+        // this alarm's hour/minute and return the first one that is both in
+        // the future and (for repeating alarms) on an allowed weekday.
+        for offset in 0..<8 {
+            guard let dayBase = calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: now)) else { continue }
+            var comps = calendar.dateComponents([.year, .month, .day], from: dayBase)
+            comps.hour = hour
+            comps.minute = minute
+            guard let candidate = calendar.date(from: comps), candidate > now else { continue }
+
+            if days.isEmpty {
+                return candidate
             }
-            return calendar.date(byAdding: .day, value: 1, to: calendar.date(from: components) ?? now)
-        }
-
-        let currentWeekday = calendar.component(.weekday, from: now)
-        for offset in 0..<7 {
-            let targetWeekday = ((currentWeekday - 1 + offset) % 7) + 1
-            if days.contains(targetWeekday) {
-                components.weekday = targetWeekday
-                if let date = calendar.nextDate(after: offset == 0 ? now : calendar.startOfDay(for: now), matching: components, matchingPolicy: .nextTime) {
-                    return date
-                }
+            let weekday = calendar.component(.weekday, from: candidate)
+            if days.contains(weekday) {
+                return candidate
             }
         }
         return nil
