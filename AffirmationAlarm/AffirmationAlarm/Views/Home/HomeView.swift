@@ -7,6 +7,7 @@ struct HomeView: View {
     @Query(sort: \Alarm.hour) private var alarms: [Alarm]
     @Query private var completions: [SequenceCompletion]
     @State private var customAffirmationText = ""
+    @State private var showRecentAffirmations = false
 
     private var profile: UserProfile? { profiles.first }
     private var todayCompleted: Bool {
@@ -29,15 +30,18 @@ struct HomeView: View {
                         // Custom affirmation input
                         customAffirmationInput
 
-                        // Today's affirmations
-                        TodayAffirmationsCard()
-
-                        // Today's progress
+                        // Today's progress — tap to view + favorite affirmations from the most recent alarm
                         if let profile {
-                            TodayProgressCard(
-                                completed: todayCompleted,
-                                affirmationCount: profile.affirmationCount
-                            )
+                            Button {
+                                HapticService.light()
+                                showRecentAffirmations = true
+                            } label: {
+                                TodayProgressCard(
+                                    completed: todayCompleted,
+                                    affirmationCount: profile.affirmationCount
+                                )
+                            }
+                            .buttonStyle(.bounce)
                         }
 
                         // Quick actions
@@ -51,6 +55,9 @@ struct HomeView: View {
 
             }
             .preferredColorScheme(.dark)
+            .sheet(isPresented: $showRecentAffirmations) {
+                RecentAffirmationsSheet()
+            }
         }
     }
 
