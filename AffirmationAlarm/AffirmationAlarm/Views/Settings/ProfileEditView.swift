@@ -26,6 +26,7 @@ struct ProfileEditView: View {
                             .padding(AppTheme.spacingLg)
                             .background(AppTheme.inputBackground)
                             .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
+                            .dismissKeyboardOnSubmit()
                     }
 
                     VStack(alignment: .leading, spacing: AppTheme.spacingSm) {

@@ -59,6 +59,7 @@ struct AlarmDetailView: View {
                             .padding(AppTheme.spacingLg)
                             .background(AppTheme.inputBackground)
                             .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
+                            .dismissKeyboardOnSubmit()
 
                         VStack(spacing: AppTheme.spacingSm) {
                             Text("Sound")
