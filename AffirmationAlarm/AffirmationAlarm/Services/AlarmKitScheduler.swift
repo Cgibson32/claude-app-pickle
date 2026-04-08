@@ -6,10 +6,10 @@ import SwiftUI
 // MARK: - Metadata
 
 /// Custom metadata payload attached to every AlarmKit alarm we schedule.
-/// `AlarmMetadata` requires `Sendable`; making the struct `nonisolated`
-/// keeps it free of actor isolation so AlarmKit can deserialize it on any
-/// thread when the alarm fires.
-nonisolated struct AffirmationAlarmMetadata: AlarmMetadata {
+/// `AlarmMetadata` inherits `Decodable`, `Encodable`, `Hashable`, and
+/// `Sendable`; all four conformances auto-synthesize here because `UUID`
+/// and `String` are themselves Codable/Hashable/Sendable.
+struct AffirmationAlarmMetadata: AlarmMetadata {
     let alarmID: UUID
     let label: String
 
