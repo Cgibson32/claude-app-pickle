@@ -21,6 +21,7 @@ class SpeechService: NSObject, @preconcurrency AVSpeechSynthesizerDelegate, @pre
     private var completion: (() -> Void)?
     private var playerContinuation: CheckedContinuation<Void, Never>?
     private var fallbackContinuation: CheckedContinuation<Void, Never>?
+    private var sessionConfigured = false
     var isSpeaking = false
 
     /// Pre-fetched audio keyed by text. Populated by `prefetch(texts:)` during
@@ -30,6 +31,22 @@ class SpeechService: NSObject, @preconcurrency AVSpeechSynthesizerDelegate, @pre
     override init() {
         super.init()
         synthesizer.delegate = self
+    }
+
+    /// Activate a `.playback`/`.spokenAudio` audio session lazily. Required
+    /// so spoken TTS is audible even when `AudioService` didn't run first
+    /// (e.g., the user enters the sequence directly from the alarm fire
+    /// instead of through the in-app "Wake me up" button). Mirrors
+    /// `AudioService.configureSessionIfNeeded()`.
+    private func configureSessionIfNeeded() {
+        guard !sessionConfigured else { return }
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
+            try AVAudioSession.sharedInstance().setActive(true)
+            sessionConfigured = true
+        } catch {
+            // Audio session config is best-effort
+        }
     }
 
     // MARK: - Prefetch
@@ -53,6 +70,7 @@ class SpeechService: NSObject, @preconcurrency AVSpeechSynthesizerDelegate, @pre
     /// (nova) voice; falls back to `AVSpeechSynthesizer` on any error so the
     /// user always hears something even when offline.
     func speakAndWait(text: String) async {
+        configureSessionIfNeeded()
         isSpeaking = true
         defer { isSpeaking = false }
 

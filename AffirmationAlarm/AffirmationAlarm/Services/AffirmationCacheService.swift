@@ -66,10 +66,12 @@ class AffirmationCacheService {
             count: profile.affirmationCount
         )
 
-        // Store generated affirmations
+        // Store generated affirmations. Defensive `prefix` guard: if Claude
+        // returns more lines than the user asked for, clip to the requested
+        // count so the spoken sequence stays the configured length.
         var affirmations: [Affirmation] = []
         let goalContext = ([profile.freeformGoals] + profile.selectedCategories).joined(separator: "; ")
-        for text in content.affirmations {
+        for text in content.affirmations.prefix(profile.affirmationCount) {
             let a = Affirmation(text: text, generatedFor: Date(), goalContext: goalContext)
             modelContext.insert(a)
             affirmations.append(a)

@@ -158,9 +158,9 @@ struct AlarmDetailView: View {
         try? modelContext.save()
 
         if targetAlarm.isEnabled {
-            AlarmSchedulingService.shared.scheduleAlarm(targetAlarm)
+            AlarmKitScheduler.shared.scheduleAlarm(targetAlarm)
         } else {
-            AlarmSchedulingService.shared.cancelAlarm(targetAlarm)
+            AlarmKitScheduler.shared.cancelAlarm(targetAlarm)
         }
         dismiss()
     }

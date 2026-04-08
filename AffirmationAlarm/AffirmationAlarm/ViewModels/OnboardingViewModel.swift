@@ -72,12 +72,12 @@ class OnboardingViewModel {
 
         profile.hasCompletedOnboarding = true
 
-        // Ask for notification permission and schedule the first alarm so it
-        // actually fires. Without this, the alarm would sit in SwiftData with
-        // nothing ever queued in UNUserNotificationCenter.
+        // Ask for AlarmKit authorization and schedule the first alarm so it
+        // actually fires. Without this, the alarm would sit in SwiftData
+        // with nothing ever scheduled in AlarmKit.
         Task { @MainActor in
-            _ = await AlarmSchedulingService.shared.requestPermission()
-            AlarmSchedulingService.shared.scheduleAlarm(alarm)
+            _ = await AlarmKitScheduler.shared.requestPermission()
+            AlarmKitScheduler.shared.scheduleAlarm(alarm)
         }
     }
 }

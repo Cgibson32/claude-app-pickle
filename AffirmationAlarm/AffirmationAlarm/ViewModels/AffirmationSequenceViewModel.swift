@@ -37,18 +37,32 @@ class AffirmationSequenceViewModel {
             affirmations = affs
             if let closing { closingMessage = closing.message }
         } catch {
-            // Use fallback affirmations if API fails
-            affirmations = [
-                Affirmation(text: "Today I choose to be confident and kind", generatedFor: Date()),
-                Affirmation(text: "I am worthy of all the good things coming my way", generatedFor: Date()),
-                Affirmation(text: "I embrace this new day with gratitude and purpose", generatedFor: Date())
+            // Use fallback affirmations if API fails. Cycle the hardcoded
+            // pool up to the user's configured `affirmationCount` so the
+            // sequence length matches their expectation even offline.
+            let pool = [
+                "Today I choose to be confident and kind",
+                "I am worthy of all the good things coming my way",
+                "I embrace this new day with gratitude and purpose",
+                "I am grounded, present, and open to what today brings",
+                "Every breath brings me closer to who I am becoming",
+                "I carry calm and strength with me wherever I go"
             ]
+            let count = max(1, profile.affirmationCount)
+            affirmations = (0..<count).map { i in
+                Affirmation(text: pool[i % pool.count], generatedFor: Date())
+            }
             self.error = error.localizedDescription
         }
 
         // Build the full set of spoken lines and pre-fetch audio while the
         // alarm sound is playing, so each phase transition feels instant.
-        let greetingText = "Good morning, \(profile.name). Let's start your day with intention."
+        // Trim the name so an empty or whitespace-only profile doesn't
+        // render as "Good morning, ." with a dangling comma.
+        let trimmedName = profile.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let greetingText = trimmedName.isEmpty
+            ? "Good morning. Let's start your day with intention."
+            : "Good morning, \(trimmedName). Let's start your day with intention."
         let breathingText = "Let's take a deep breath together. Breathe in slowly... and release."
         let allSpokenTexts: [String] = {
             var texts = [greetingText]

@@ -1,13 +1,12 @@
 import SwiftUI
 import SwiftData
 import UIKit
-import UserNotifications
 
 struct AlarmListView: View {
     @Query(sort: \Alarm.hour) private var alarms: [Alarm]
     @Environment(\.modelContext) private var modelContext
     @State private var showingNewAlarm = false
-    @State private var scheduler = AlarmSchedulingService.shared
+    @State private var scheduler = AlarmKitScheduler.shared
 
     var body: some View {
         ZStack {
@@ -66,17 +65,9 @@ struct AlarmListView: View {
             AlarmDetailView(alarm: nil)
         }
         .task {
-            // Refresh permission status and, if undetermined, prompt so the
-            // user's existing alarms can actually fire.
-            let center = UNUserNotificationCenter.current()
-            let settings = await center.notificationSettings()
-            if settings.authorizationStatus == .notDetermined {
-                _ = await scheduler.requestPermission()
-                // Re-arm all enabled alarms now that permission may be granted.
-                scheduler.rescheduleAll(alarms)
-            } else {
-                await scheduler.refreshPermissionStatus()
-            }
+            // Refresh AlarmKit permission status. We do NOT proactively
+            // prompt here — the prompt fires on first schedule attempt.
+            await scheduler.refreshPermissionStatus()
         }
     }
 
@@ -85,11 +76,11 @@ struct AlarmListView: View {
             HStack(spacing: AppTheme.spacingSm) {
                 Image(systemName: "bell.slash.fill")
                     .foregroundStyle(.orange)
-                Text("Notifications are off")
+                Text("Alarms are off")
                     .font(AppTheme.headline)
                     .foregroundStyle(AppTheme.textPrimary)
             }
-            Text("Your alarms can't ring until you enable notifications for Affirmation Alarm in Settings.")
+            Text("Your alarms can't ring until you enable alarm permissions for Affirmation Alarm in Settings.")
                 .font(AppTheme.caption)
                 .foregroundStyle(AppTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -146,9 +137,9 @@ struct AlarmRow: View {
                         alarm.isEnabled = newValue
                         try? modelContext.save()
                         if newValue {
-                            AlarmSchedulingService.shared.scheduleAlarm(alarm)
+                            AlarmKitScheduler.shared.scheduleAlarm(alarm)
                         } else {
-                            AlarmSchedulingService.shared.cancelAlarm(alarm)
+                            AlarmKitScheduler.shared.cancelAlarm(alarm)
                         }
                     }
                 ))
@@ -169,7 +160,7 @@ struct AlarmRow: View {
         }
         .confirmationDialog("Delete this alarm?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
-                AlarmSchedulingService.shared.cancelAlarm(alarm)
+                AlarmKitScheduler.shared.cancelAlarm(alarm)
                 modelContext.delete(alarm)
             }
         }

@@ -62,7 +62,7 @@ struct RootView: View {
         }
         .onAppear {
             ensureProfileExists()
-            rehydrateAlarms()
+            reconcileAlarmsWithSystem()
         }
         .fullScreenCover(isPresented: $showSequence) {
             AffirmationSequenceView()
@@ -84,12 +84,13 @@ struct RootView: View {
         }
     }
 
-    /// Re-arm every enabled alarm on launch so one-shot alarms stay queued
-    /// across relaunches and any drift between SwiftData and
-    /// UNUserNotificationCenter is self-healed. `scheduleAlarm` is idempotent
-    /// (it cancels before rescheduling), so this is safe to call every launch.
-    private func rehydrateAlarms() {
+    /// Cross-reference SwiftData alarm rows with AlarmKit's live alarms on
+    /// launch. `reconcile` auto-disables one-shot rows whose system entry is
+    /// gone (they already fired) and re-arms repeating rows that got lost
+    /// (e.g. first launch after an app update). See
+    /// `AlarmKitScheduler.reconcile(alarms:)` for the full contract.
+    private func reconcileAlarmsWithSystem() {
         let alarms = (try? modelContext.fetch(FetchDescriptor<Alarm>())) ?? []
-        AlarmSchedulingService.shared.rescheduleAll(alarms)
+        AlarmKitScheduler.shared.reconcile(alarms: alarms)
     }
 }

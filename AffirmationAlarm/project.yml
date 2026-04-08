@@ -2,7 +2,7 @@ name: AffirmationAlarm
 options:
   bundleIdPrefix: com.cgibson
   deploymentTarget:
-    iOS: "17.0"
+    iOS: "26.0"
 settings:
   SWIFT_VERSION: "6.0"
 targets:
@@ -20,6 +20,7 @@ targets:
       properties:
         CFBundleIconName: AppIcon
         ITSAppUsesNonExemptEncryption: false
+        NSAlarmKitUsageDescription: "Affirmation Alarm uses the system alarm framework so your morning ritual rings reliably and wakes you on time, even in silent mode."
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UISupportedInterfaceOrientations~ipad:
