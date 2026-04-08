@@ -18,13 +18,65 @@ final class OpenAITTSService {
         }
     }
 
-    /// In-memory cache keyed by input text. Audio is small (~20-60KB per sentence)
-    /// and the session speaks the same set of ~5-7 phrases, so memory pressure is negligible.
+    /// OpenAI's supported voices, ranked roughly from warmest/most conversational
+    /// (nova, shimmer) to the more clinical options. Kept as a string-backed
+    /// enum so the raw value can be passed straight to the API and persisted on
+    /// `UserProfile.ttsVoice` without extra mapping.
+    enum Voice: String, CaseIterable, Sendable {
+        case nova        // Warm, conversational (default)
+        case shimmer     // Soft, gentle
+        case fable       // British, expressive
+        case alloy       // Neutral, balanced
+        case echo        // Clear, male
+        case onyx        // Deep, male
+
+        var displayName: String {
+            switch self {
+            case .nova: return "Nova"
+            case .shimmer: return "Shimmer"
+            case .fable: return "Fable"
+            case .alloy: return "Alloy"
+            case .echo: return "Echo"
+            case .onyx: return "Onyx"
+            }
+        }
+
+        var tagline: String {
+            switch self {
+            case .nova: return "Warm & conversational"
+            case .shimmer: return "Soft & gentle"
+            case .fable: return "British & expressive"
+            case .alloy: return "Neutral & balanced"
+            case .echo: return "Clear & grounded"
+            case .onyx: return "Deep & reassuring"
+            }
+        }
+    }
+
+    /// Audio formats OpenAI's `response_format` accepts. `mp3` is the smallest
+    /// and what the in-app speech playback uses. `wav` is Linear PCM inside a
+    /// WAV container — the only format we can drop straight into
+    /// `Library/Sounds/` and hand to AlarmKit as an alarm-fire sound without
+    /// transcoding.
+    enum Format: String, Sendable {
+        case mp3
+        case wav
+    }
+
+    /// In-memory cache keyed by (text, voice, format). Audio is small
+    /// (~20-60KB per sentence) and the session speaks the same set of ~5-7
+    /// phrases, so memory pressure is negligible.
     private var cache: [String: Data] = [:]
 
-    /// Fetches MP3 audio for the given text. Returns cached data on repeat calls.
-    func synthesize(text: String) async throws -> Data {
-        if let cached = cache[text] {
+    /// Fetches audio for the given text. Returns cached data on repeat calls
+    /// for the same (text, voice, format) triple.
+    func synthesize(
+        text: String,
+        voice: Voice = .nova,
+        format: Format = .mp3
+    ) async throws -> Data {
+        let cacheKey = "\(voice.rawValue)|\(format.rawValue)|\(text)"
+        if let cached = cache[cacheKey] {
             return cached
         }
 
@@ -38,9 +90,9 @@ final class OpenAITTSService {
 
         let body: [String: Any] = [
             "model": "tts-1-hd",
-            "voice": "nova",
+            "voice": voice.rawValue,
             "input": text,
-            "response_format": "mp3",
+            "response_format": format.rawValue,
             "speed": 0.95
         ]
 
@@ -67,18 +119,20 @@ final class OpenAITTSService {
             throw TTSError.httpError(http.statusCode, body)
         }
 
-        cache[text] = data
+        cache[cacheKey] = data
         return data
     }
 
     /// Concurrently pre-fetch multiple texts, ignoring individual failures.
     /// Returns a dictionary of text → audio data for items that succeeded.
-    func prefetch(_ texts: [String]) async -> [String: Data] {
+    /// Always uses MP3 at the default voice — callers that need a specific
+    /// voice should hit `synthesize(text:voice:format:)` directly.
+    func prefetch(_ texts: [String], voice: Voice = .nova) async -> [String: Data] {
         await withTaskGroup(of: (String, Data?).self) { group in
             for text in texts {
                 group.addTask { [weak self] in
                     guard let self else { return (text, nil) }
-                    let data = try? await self.synthesize(text: text)
+                    let data = try? await self.synthesize(text: text, voice: voice, format: .mp3)
                     return (text, data)
                 }
             }

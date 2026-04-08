@@ -24,6 +24,11 @@ class SpeechService: NSObject, @preconcurrency AVSpeechSynthesizerDelegate, @pre
     private var sessionConfigured = false
     var isSpeaking = false
 
+    /// Voice the cloud TTS should use. Set from `AffirmationSequenceViewModel`
+    /// based on the user's `UserProfile.ttsVoice` before any speaking starts,
+    /// so the spoken sequence matches the pre-rendered alarm audio.
+    var voice: OpenAITTSService.Voice = .nova
+
     /// Pre-fetched audio keyed by text. Populated by `prefetch(texts:)` during
     /// the loading phase so playback is instant later.
     private var prefetchedAudio: [String: Data] = [:]
@@ -55,7 +60,7 @@ class SpeechService: NSObject, @preconcurrency AVSpeechSynthesizerDelegate, @pre
     /// Safe to call even when offline — failures are silently ignored and
     /// those texts will fall back to `AVSpeechSynthesizer` at playback time.
     func prefetch(texts: [String]) async {
-        let results = await cloudTTS.prefetch(texts)
+        let results = await cloudTTS.prefetch(texts, voice: voice)
         prefetchedAudio.merge(results) { _, new in new }
     }
 
@@ -84,7 +89,7 @@ class SpeechService: NSObject, @preconcurrency AVSpeechSynthesizerDelegate, @pre
             if await playAudioData(data) { return }
         } else {
             do {
-                let data = try await cloudTTS.synthesize(text: text)
+                let data = try await cloudTTS.synthesize(text: text, voice: voice, format: .mp3)
                 if await playAudioData(data) { return }
             } catch {
                 // fall through to on-device fallback

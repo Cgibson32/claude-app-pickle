@@ -222,21 +222,29 @@ class AlarmKitScheduler {
         // present the full affirmation sequence.
         let stopIntent = StartMorningRitualIntent(alarmID: alarm.id)
 
+        // Prefer the pre-rendered personalized audio if `MorningAudioRenderer`
+        // has already written a file for this alarm into `Library/Sounds/`.
+        // That's the whole point of the migration: the user wakes up to a
+        // voice speaking their name + affirmations instead of a generic tone.
+        // If no rendered file exists yet (first launch, TTS failure, etc.)
+        // fall back to the bundled tone the user picked in onboarding so
+        // the alarm still rings reliably.
+        let soundName: String
+        if let rendered = MorningAudioRenderer.existingRenderedFilename(for: alarm) {
+            soundName = rendered
+        } else {
+            soundName = "\(alarm.soundName).caf"
+        }
+
         // Use the static `.alarm(...)` convenience initializer for
         // schedule-only (non-countdown) alarms. Equivalent to passing
         // `countdownDuration: nil` to the full initializer.
-        //
-        // Sound note: the iOS 26 beta had a bug where `.default` played no
-        // sound; `.named("alarm_gentle.caf")` uses the bundled file we
-        // already ship and should play reliably. If the sound fails to play
-        // post-migration, fall back to `.named("")` which the sample reports
-        // as triggering the system default.
         return ScheduleConfiguration.alarm(
             schedule: schedule,
             attributes: attributes,
             stopIntent: stopIntent,
             secondaryIntent: nil,
-            sound: .named("\(alarm.soundName).caf")
+            sound: .named(soundName)
         )
     }
 

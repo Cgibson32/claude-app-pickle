@@ -4,6 +4,7 @@ import SwiftData
 struct AlarmDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Query private var profiles: [UserProfile]
 
     let alarm: Alarm?
 
@@ -158,7 +159,23 @@ struct AlarmDetailView: View {
         try? modelContext.save()
 
         if targetAlarm.isEnabled {
-            AlarmKitScheduler.shared.scheduleAlarm(targetAlarm)
+            // Re-render the personalized morning audio for this alarm
+            // before rescheduling, then schedule so AlarmKit picks up the
+            // fresh file. Fire-and-forget Task — dismiss the sheet
+            // immediately so the UI doesn't hang on the TTS call.
+            if let profile = profiles.first {
+                let context = modelContext
+                Task { @MainActor in
+                    _ = await MorningAudioRenderer.shared.refresh(
+                        for: targetAlarm,
+                        profile: profile,
+                        modelContext: context
+                    )
+                    AlarmKitScheduler.shared.scheduleAlarm(targetAlarm)
+                }
+            } else {
+                AlarmKitScheduler.shared.scheduleAlarm(targetAlarm)
+            }
         } else {
             AlarmKitScheduler.shared.cancelAlarm(targetAlarm)
         }

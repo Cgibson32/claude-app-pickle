@@ -87,10 +87,34 @@ struct RootView: View {
     /// Cross-reference SwiftData alarm rows with AlarmKit's live alarms on
     /// launch. `reconcile` auto-disables one-shot rows whose system entry is
     /// gone (they already fired) and re-arms repeating rows that got lost
-    /// (e.g. first launch after an app update). See
-    /// `AlarmKitScheduler.reconcile(alarms:)` for the full contract.
+    /// (e.g. first launch after an app update).
+    ///
+    /// Also refreshes the pre-rendered morning audio for every enabled
+    /// alarm so the voice content stays fresh — if the file is older than
+    /// 20 hours it's regenerated with today's Claude-tailored affirmations
+    /// in the user's chosen voice. After rendering, every enabled alarm is
+    /// re-scheduled so AlarmKit picks up the new sound file.
     private func reconcileAlarmsWithSystem() {
         let alarms = (try? modelContext.fetch(FetchDescriptor<Alarm>())) ?? []
         AlarmKitScheduler.shared.reconcile(alarms: alarms)
+
+        guard let profile = (try? modelContext.fetch(FetchDescriptor<UserProfile>()))?.first,
+              profile.hasCompletedOnboarding else {
+            return
+        }
+
+        let context = modelContext
+        Task { @MainActor in
+            await MorningAudioRenderer.shared.refreshAll(
+                alarms: alarms,
+                profile: profile,
+                modelContext: context
+            )
+            // Re-schedule enabled alarms so AlarmKit picks up any freshly
+            // rendered audio files.
+            for alarm in alarms where alarm.isEnabled {
+                AlarmKitScheduler.shared.scheduleAlarm(alarm)
+            }
+        }
     }
 }

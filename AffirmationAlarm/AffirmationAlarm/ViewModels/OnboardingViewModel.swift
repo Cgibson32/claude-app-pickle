@@ -72,11 +72,19 @@ class OnboardingViewModel {
 
         profile.hasCompletedOnboarding = true
 
-        // Ask for AlarmKit authorization and schedule the first alarm so it
-        // actually fires. Without this, the alarm would sit in SwiftData
-        // with nothing ever scheduled in AlarmKit.
+        // Ask for AlarmKit authorization, pre-render the personalized
+        // morning audio (greeting + affirmations in the user's chosen
+        // voice), then schedule the alarm. Rendering first means the
+        // scheduler picks up the fresh file on its very first
+        // `scheduleAlarm` call — the user wakes up to the voice tomorrow
+        // morning with no empty-first-day gap.
         Task { @MainActor in
             _ = await AlarmKitScheduler.shared.requestPermission()
+            _ = await MorningAudioRenderer.shared.refresh(
+                for: alarm,
+                profile: profile,
+                modelContext: modelContext
+            )
             AlarmKitScheduler.shared.scheduleAlarm(alarm)
         }
     }

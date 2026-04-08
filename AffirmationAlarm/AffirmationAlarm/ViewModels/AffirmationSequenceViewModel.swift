@@ -32,6 +32,11 @@ class AffirmationSequenceViewModel {
             alarmSoundName = alarm.soundName
         }
 
+        // Match the in-app spoken voice to the user's chosen TTS voice so
+        // the sequence sounds like the same person who spoke the pre-rendered
+        // alarm audio.
+        speechService.voice = OpenAITTSService.Voice(rawValue: profile.ttsVoice) ?? .nova
+
         do {
             let (affs, closing) = try await cacheService.fetchOrGenerate(for: profile, modelContext: modelContext)
             affirmations = affs
