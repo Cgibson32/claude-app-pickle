@@ -1,3 +1,4 @@
+import ActivityKit
 import AlarmKit
 import AppIntents
 import SwiftUI
@@ -76,7 +77,7 @@ class AlarmKitScheduler {
     }
 
     private func observeAuthorizationUpdates() {
-        Task { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self else { return }
             for await _ in self.manager.authorizationUpdates {
                 await self.refreshPermissionStatus()
@@ -89,7 +90,7 @@ class AlarmKitScheduler {
     /// Schedule (or reschedule) a single `Alarm` row. Idempotent: always
     /// cancels any existing AlarmKit entry with the same id before scheduling.
     func scheduleAlarm(_ alarm: Alarm) {
-        Task { [weak self] in
+        Task { @MainActor [weak self] in
             guard let self else { return }
 
             // Always cancel the existing entry first so edits replace cleanly.
@@ -135,10 +136,9 @@ class AlarmKitScheduler {
     func cancelAlarm(_ alarm: Alarm) {
         let id = alarm.id
         alarm.notificationIdentifiers = []
-        Task { [weak self] in
-            guard let self else { return }
-            try? self.manager.cancel(id: id)
-        }
+        // `cancel(id:)` is sync and non-isolated; we can call it directly
+        // without spawning a Task.
+        try? manager.cancel(id: id)
     }
 
     /// Cross-reference SwiftData `Alarm` rows with the system's live
@@ -185,16 +185,11 @@ class AlarmKitScheduler {
             stringLiteral: alarm.label.isEmpty ? "Morning Affirmations" : alarm.label
         )
 
-        let stopButton = AlarmButton(
-            text: "Start Ritual",
-            textColor: .white,
-            systemImageName: "sun.max.fill"
-        )
-
-        let alertPresentation = AlarmPresentation.Alert(
-            title: title,
-            stopButton: stopButton
-        )
+        // The iOS 26 release of `AlarmPresentation.Alert` no longer accepts
+        // a `stopButton:` parameter — the system provides a default stop
+        // button automatically. Custom behavior on tap is wired up via the
+        // `stopIntent:` on the `AlarmConfiguration` below.
+        let alertPresentation = AlarmPresentation.Alert(title: title)
 
         let presentation = AlarmPresentation(alert: alertPresentation)
 
