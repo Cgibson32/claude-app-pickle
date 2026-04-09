@@ -21,6 +21,13 @@ targets:
         CFBundleIconName: AppIcon
         ITSAppUsesNonExemptEncryption: false
         NSAlarmKitUsageDescription: "Affirmation Alarm uses the system alarm framework so your morning ritual rings reliably and wakes you on time, even in silent mode."
+        # Required for StopAndPlayClosingIntent to activate an
+        # AVAudioSession and play `closing-<alarmID>.wav` while the app
+        # is in the background after the user taps Stop on the alarm.
+        # Without this, AVAudioSession.setActive(true) fails and the
+        # closing statement is silently swallowed.
+        UIBackgroundModes:
+          - audio
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UISupportedInterfaceOrientations~ipad:

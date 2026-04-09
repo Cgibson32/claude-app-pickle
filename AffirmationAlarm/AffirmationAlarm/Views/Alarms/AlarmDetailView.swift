@@ -101,6 +101,8 @@ struct AlarmDetailView: View {
                         if alarm != nil {
                             Button(role: .destructive) {
                                 if let alarm {
+                                    AlarmKitScheduler.shared.cancelAlarm(alarm)
+                                    MorningAudioRenderer.shared.removeFiles(for: alarm)
                                     modelContext.delete(alarm)
                                 }
                                 dismiss()

@@ -102,6 +102,7 @@ struct AlarmListView: View {
 struct AlarmRow: View {
     let alarm: Alarm
     @Environment(\.modelContext) private var modelContext
+    @Query private var profiles: [UserProfile]
     @State private var showingEdit = false
     @State private var showDeleteConfirmation = false
 
@@ -137,7 +138,25 @@ struct AlarmRow: View {
                         alarm.isEnabled = newValue
                         try? modelContext.save()
                         if newValue {
-                            AlarmKitScheduler.shared.scheduleAlarm(alarm)
+                            // Re-render the personalized audio before
+                            // scheduling so flipping an alarm off then on
+                            // doesn't leave the user with stale or missing
+                            // voice files. Fire-and-forget Task; the
+                            // scheduler falls back to the bundled tone
+                            // while the render is in flight.
+                            if let profile = profiles.first {
+                                let context = modelContext
+                                Task { @MainActor in
+                                    _ = await MorningAudioRenderer.shared.refresh(
+                                        for: alarm,
+                                        profile: profile,
+                                        modelContext: context
+                                    )
+                                    AlarmKitScheduler.shared.scheduleAlarm(alarm)
+                                }
+                            } else {
+                                AlarmKitScheduler.shared.scheduleAlarm(alarm)
+                            }
                         } else {
                             AlarmKitScheduler.shared.cancelAlarm(alarm)
                         }
@@ -161,6 +180,7 @@ struct AlarmRow: View {
         .confirmationDialog("Delete this alarm?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 AlarmKitScheduler.shared.cancelAlarm(alarm)
+                MorningAudioRenderer.shared.removeFiles(for: alarm)
                 modelContext.delete(alarm)
             }
         }

@@ -172,6 +172,22 @@ final class MorningAudioRenderer {
         }
     }
 
+    /// Remove every rendered file belonging to a single alarm. Called from
+    /// the alarm list / detail delete paths so orphaned files don't pile
+    /// up in `Library/Sounds/` after a user deletes their alarm.
+    func removeFiles(for alarm: Alarm) {
+        let soundsDir = Self.soundsDirectory()
+        let filenames = [
+            Self.morningFilename(for: alarm),
+            Self.closingFilename(for: alarm),
+            Self.snoozeFilename(for: alarm)
+        ]
+        for filename in filenames {
+            let url = soundsDir.appendingPathComponent(filename)
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
     /// The `morning-*.wav` filename for this alarm if it's on disk, else `nil`.
     /// Lets `AlarmKitScheduler` stay synchronous.
     static func existingRenderedFilename(for alarm: Alarm) -> String? {
