@@ -47,9 +47,14 @@ struct StopAndPlayClosingIntent: LiveActivityIntent {
         // this ensures the ring doesn't keep playing on top of our closing.
         try? AlarmManager.shared.cancel(id: uuid)
 
+        // `.caf` (not `.wav`) — AlarmKit on iOS 26.1 silently drops
+        // `.named(*.wav)` sounds, so `MorningAudioRenderer` re-wraps the
+        // OpenAI TTS PCM payload in a CAF container before writing.
+        // `AVAudioPlayer` happily plays CAF, so no change needed here
+        // beyond the filename extension.
         let closingURL = FileManager.default
             .urls(for: .libraryDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Sounds/closing-\(uuid.uuidString).wav")
+            .appendingPathComponent("Sounds/closing-\(uuid.uuidString).caf")
 
         guard FileManager.default.fileExists(atPath: closingURL.path) else {
             return .result()

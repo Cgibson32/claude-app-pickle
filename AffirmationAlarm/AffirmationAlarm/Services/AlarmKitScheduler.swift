@@ -315,8 +315,10 @@ class AlarmKitScheduler {
 
         // Use the pre-rendered snooze audio keyed to the ORIGINAL alarm ID
         // — one snooze file per source alarm, regenerated daily alongside
-        // the main + closing files.
-        let soundFile = "snooze-\(originalAlarmID.uuidString).wav"
+        // the main + closing files. `.caf` (not `.wav`) because AlarmKit
+        // on iOS 26.1 silently drops `.named(*.wav)` sounds; see the
+        // long comment in `MorningAudioRenderer.writeAsCAF`.
+        let soundFile = "snooze-\(originalAlarmID.uuidString).caf"
         let snoozeURL = FileManager.default
             .urls(for: .libraryDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Sounds/\(soundFile)")
