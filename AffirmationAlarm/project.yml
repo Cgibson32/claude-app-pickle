@@ -5,6 +5,12 @@ options:
     iOS: "26.0"
 settings:
   SWIFT_VERSION: "6.0"
+# Swift Package Manager dependencies resolved at build time by Xcode.
+# Keep this list minimal — every added package slows cold builds.
+packages:
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    from: 8.36.0
 targets:
   AffirmationAlarm:
     type: application
@@ -15,6 +21,9 @@ targets:
           - Preview Content
           - "**/*.example"
           - Info.generated.plist
+    dependencies:
+      - package: Sentry
+        product: Sentry
     info:
       path: AffirmationAlarm/Info.generated.plist
       properties:
@@ -45,7 +54,12 @@ targets:
           - Fonts/DMSans-Medium.ttf
           - Fonts/DMSans-SemiBold.ttf
           - Fonts/DMSans-Bold.ttf
-        UILaunchScreen: {}
+        # Branded launch screen: dark charcoal-plum background matching
+        # the app's `.sunrise` gradient end-state, so first launch doesn't
+        # flash a jarring white screen into the dark home UI. The
+        # `LaunchBackground` color set lives in Assets.xcassets.
+        UILaunchScreen:
+          UIColorName: "LaunchBackground"
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
     settings:
@@ -56,7 +70,11 @@ targets:
       CODE_SIGN_STYLE: Automatic
       DEVELOPMENT_TEAM: JLYXS97L8A
       GENERATE_INFOPLIST_FILE: YES
+      # INFOPLIST_KEY_* build settings below duplicate values in
+      # `info.properties` above. Kept in sync because some CI paths pass
+      # them on the command line and would silently drop the `info.properties`
+      # entries otherwise. Do not remove without also removing the
+      # command-line overrides in `codemagic.yaml`.
       INFOPLIST_KEY_CFBundleIconName: AppIcon
-      INFOPLIST_KEY_UILaunchScreen_Generation: YES
       INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
       INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"

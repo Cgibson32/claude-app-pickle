@@ -1,3 +1,4 @@
+import Sentry
 import UIKit
 import SwiftUI
 import UserNotifications
@@ -7,9 +8,41 @@ class AppDelegate: NSObject, UIApplicationDelegate, UIGestureRecognizerDelegate 
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        configureSentryIfAvailable()
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
         registerNotificationCategories()
         return true
+    }
+
+    /// Initialize Sentry crash reporting if a DSN is configured in the
+    /// bundle's Info.plist. No-ops silently when the DSN is missing or
+    /// still set to the unreplaced `$(SENTRY_DSN)` template — so local
+    /// debug builds and CI builds without a Sentry account still run.
+    ///
+    /// Apple rejects submissions that crash on launch; guarding with a
+    /// nil check means a missing `SENTRY_DSN` can never take down the
+    /// app. If you want crash reporting, set `SENTRY_DSN` in CodeMagic's
+    /// `appstore_credentials` environment group and the pre-archive
+    /// script in `codemagic.yaml` will inject it into Info.plist.
+    private func configureSentryIfAvailable() {
+        guard let dsn = Bundle.main.object(forInfoDictionaryKey: "SENTRY_DSN") as? String,
+              !dsn.isEmpty,
+              dsn != "$(SENTRY_DSN)" else {
+            return
+        }
+        SentrySDK.start { options in
+            options.dsn = dsn
+            options.debug = false
+            options.tracesSampleRate = 0.1
+            options.enableAutoPerformanceTracing = true
+            // Scrub any personally-identifying info before sending.
+            // We never attach user IDs or device IDs anyway — this is
+            // belt-and-suspenders.
+            options.beforeSend = { event in
+                event.user = nil
+                return event
+            }
+        }
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {

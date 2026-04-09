@@ -151,6 +151,30 @@ workflows:
           /usr/libexec/PlistBuddy -c "Print :CFBundleVersion" AffirmationAlarm/Info.generated.plist 2>&1 || echo "Not found"
           echo "=== Icon files in appiconset ==="
           ls -la AffirmationAlarm/Assets.xcassets/AppIcon.appiconset/ | head -10
+      - name: Inject secrets into Info.plist
+        script: |
+          # Write API keys and Sentry DSN into the xcodegen-generated
+          # Info.plist so the runtime `Bundle.main.object(forInfoDictionaryKey:)`
+          # calls in APIKeyConfiguration.swift and AppDelegate.configureSentryIfAvailable()
+          # can find them. Each secret is set from an env var in the
+          # `appstore_credentials` group; if the var isn't set, the key is
+          # written as an empty string and the runtime nil-checks fall
+          # through to either a keychain lookup or (for Sentry) a no-op.
+          cd AffirmationAlarm
+          PLIST=AffirmationAlarm/Info.generated.plist
+          for KEY in ANTHROPIC_API_KEY OPENAI_API_KEY SENTRY_DSN; do
+            VALUE="${!KEY:-}"
+            # PlistBuddy Add fails if the key exists; Set fails if missing.
+            # Try Add first; if it fails, fall back to Set.
+            /usr/libexec/PlistBuddy -c "Add :$KEY string $VALUE" "$PLIST" 2>/dev/null \
+              || /usr/libexec/PlistBuddy -c "Set :$KEY $VALUE" "$PLIST"
+            # Don't echo the value — these are secrets. Just confirm it's set.
+            if /usr/libexec/PlistBuddy -c "Print :$KEY" "$PLIST" >/dev/null 2>&1; then
+              echo "  $KEY: present"
+            else
+              echo "  $KEY: MISSING (runtime will fall back)"
+            fi
+          done
       - name: Set up API key
         script: |
           # Write the App Store Connect API key to a file

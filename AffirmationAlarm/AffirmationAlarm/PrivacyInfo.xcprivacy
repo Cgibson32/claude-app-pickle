@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+        Required privacy manifest for Affirmation Alarm.
+        Required by Apple for App Store submissions as of May 2024.
+
+        Declares:
+        - No tracking
+        - No data types collected or linked to the user
+        - Required reason APIs we use (FileManager, UserDefaults)
+
+        Third-party services we send data to (Claude for affirmation
+        generation, OpenAI for TTS synthesis) are documented in the
+        standalone PRIVACY.md policy in the repo root — App Store's
+        xcprivacy manifest covers data collection by THIS app; transmission
+        to third parties is covered by the privacy policy URL instead.
+    -->
+
+    <key>NSPrivacyTracking</key>
+    <false/>
+
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array/>
+
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <!--
+            UserDefaults: used for the `isPreparingFirstMorning` flag that
+            HomeView observes to show a loading banner after onboarding.
+            Apple category CA92.1 = "Access info from the same app".
+        -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>CA92.1</string>
+            </array>
+        </dict>
+
+        <!--
+            File timestamp: FileManager reads .modificationDate on the
+            per-alarm rendered WAV files in Library/Sounds/ to decide if
+            a file is stale (> 20h) and needs regeneration. See
+            `MorningAudioRenderer.refresh(for:profile:modelContext:)`.
+            Apple category C617.1 = "Inside app container".
+        -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>C617.1</string>
+            </array>
+        </dict>
+
+        <!--
+            Disk space: AVAudioSession and AVAudioPlayer internals query
+            available disk space when preparing audio playback. This is
+            Apple framework behavior we're inheriting, not an explicit
+            API we call ourselves.
+            Apple category E174.1 = "Reason: inside app container".
+        -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryDiskSpace</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>E174.1</string>
+            </array>
+        </dict>
+
+        <!--
+            System boot time: AVFoundation and other media frameworks
+            internally read boot time for timestamping. Declaring it
+            defensively so Apple's API-use scanner doesn't flag us.
+            Apple category 35F9.1 = "Reason: measure time intervals
+            inside the app".
+        -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <string>35F9.1</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>
