@@ -14,8 +14,7 @@ struct AffirmationAlarmApp: App {
             DailyClosingMessage.self,
             GratitudeEntry.self,
             DailyIntention.self,
-            EveningReflection.self,
-            SequenceCompletion.self
+            EveningReflection.self
         ])
         do {
             let config = ModelConfiguration(isStoredInMemoryOnly: false)

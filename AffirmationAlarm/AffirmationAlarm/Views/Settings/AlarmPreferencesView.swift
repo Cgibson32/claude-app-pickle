@@ -12,32 +12,15 @@ struct AlarmPreferencesView: View {
             ScrollView {
                 VStack(spacing: AppTheme.spacingXxl) {
                     if let profile {
-                        // Sound duration
-                        VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
-                            HStack {
-                                Text("Alarm Sound Duration")
-                                    .font(AppTheme.headline)
-                                    .foregroundStyle(AppTheme.textPrimary)
-                                Spacer()
-                                Text("\(Int(profile.alarmSoundDuration))s")
-                                    .font(AppTheme.subheadline)
-                                    .foregroundStyle(AppTheme.gold)
-                            }
-                            Slider(value: Binding(
-                                get: { profile.alarmSoundDuration },
-                                set: { profile.alarmSoundDuration = $0 }
-                            ), in: 3...15, step: 1)
-                            .tint(AppTheme.sunsetOrange)
-                        }
-                        .padding(AppTheme.spacingLg)
-                        .background(AppTheme.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
-
                         // Affirmation count
                         VStack(alignment: .leading, spacing: AppTheme.spacingMd) {
                             Text("Daily Affirmations")
                                 .font(AppTheme.headline)
                                 .foregroundStyle(AppTheme.textPrimary)
+
+                            Text("How many affirmations you hear each morning.")
+                                .font(AppTheme.caption)
+                                .foregroundStyle(AppTheme.textSecondary)
 
                             HStack(spacing: AppTheme.spacingMd) {
                                 ForEach(1...5, id: \.self) { count in

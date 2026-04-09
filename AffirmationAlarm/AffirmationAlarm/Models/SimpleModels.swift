@@ -52,13 +52,3 @@ final class EveningReflection {
         self.date = date
     }
 }
-
-@Model
-final class SequenceCompletion {
-    var id: UUID = UUID()
-    var date: Date = Date.now
-
-    init(date: Date = .now) {
-        self.date = date
-    }
-}

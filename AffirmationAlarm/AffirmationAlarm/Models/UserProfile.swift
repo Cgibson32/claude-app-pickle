@@ -15,7 +15,6 @@ final class UserProfile {
     /// Voice Settings. The field has a default value so existing SwiftData
     /// stores migrate without touching the schema.
     var ttsVoice: String = "nova"
-    var alarmSoundDuration: Float = 5
     var affirmationCount: Int = 3
     var createdAt: Date = Date.now
     var eveningReflectionEnabled: Bool = false

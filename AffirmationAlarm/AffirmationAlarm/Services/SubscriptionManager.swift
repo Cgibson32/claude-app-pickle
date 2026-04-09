@@ -30,7 +30,7 @@ class SubscriptionManager {
                 product = products.first
                 if product != nil { return }
             } catch {
-                print("Failed to load products (attempt \(attempt)): \(error)")
+                AppLogger.subscription.error("load products attempt \(attempt) failed: \(error.localizedDescription, privacy: .public)")
             }
             if attempt < 3 {
                 try? await Task.sleep(for: .seconds(2))

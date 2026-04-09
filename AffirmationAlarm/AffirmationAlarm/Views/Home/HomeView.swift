@@ -128,12 +128,6 @@ struct HomeView: View {
             }
 
             NavigationLink {
-                JournalView()
-            } label: {
-                QuickActionCard(icon: "book.fill", title: "Journal", color: AppTheme.warmAmber)
-            }
-
-            NavigationLink {
                 SettingsView()
             } label: {
                 QuickActionCard(icon: "gearshape.fill", title: "Settings", color: AppTheme.textSecondary)

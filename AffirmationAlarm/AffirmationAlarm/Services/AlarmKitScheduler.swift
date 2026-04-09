@@ -129,10 +129,9 @@ class AlarmKitScheduler {
                 let configuration = self.makeConfiguration(for: alarm)
                 _ = try await self.manager.schedule(id: alarm.id, configuration: configuration)
                 alarm.notificationIdentifiers = [alarm.id.uuidString]
+                AppLogger.alarm.info("scheduled alarm \(alarm.id, privacy: .public)")
             } catch {
-                #if DEBUG
-                print("[AlarmKitScheduler] schedule failed for \(alarm.id): \(error)")
-                #endif
+                AppLogger.alarm.error("schedule failed for \(alarm.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -329,10 +328,9 @@ class AlarmKitScheduler {
             guard let self else { return }
             do {
                 _ = try await self.manager.schedule(id: followUpID, configuration: config)
+                AppLogger.alarm.info("scheduled snooze follow-up \(followUpID, privacy: .public)")
             } catch {
-                #if DEBUG
-                print("[AlarmKitScheduler] snooze follow-up schedule failed: \(error)")
-                #endif
+                AppLogger.alarm.error("snooze follow-up schedule failed: \(error.localizedDescription, privacy: .public)")
             }
         }
     }

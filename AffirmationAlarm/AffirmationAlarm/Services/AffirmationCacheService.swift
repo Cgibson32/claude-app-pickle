@@ -55,16 +55,34 @@ class AffirmationCacheService {
         )
         let rotationFavorites = (try? modelContext.fetch(rotationDescriptor)) ?? []
 
-        // Generate new affirmations
-        let content = try await apiService.generateAffirmations(
-            name: profile.name,
-            goals: profile.freeformGoals,
-            categories: profile.selectedCategories,
-            recentGratitude: recentGratitude,
-            recentIntentions: recentIntentions,
-            recentReflections: recentReflections,
-            count: profile.affirmationCount
-        )
+        // Generate new affirmations. If Claude is unreachable (offline,
+        // rate limited, API key revoked, etc.) fall back to a deterministic
+        // per-day selection from `BundledAffirmationPool` so the user still
+        // wakes up to personalized-feeling content. The pool lines are
+        // generic-positive; the greeting and delivery voice stay personal
+        // via `MorningAudioRenderer`, so the offline experience still
+        // feels like "Good morning, [Name]. [3 affirmations]. [closing]"
+        // rather than silence or an error banner.
+        let content: ClaudeAPIService.GeneratedContent
+        do {
+            content = try await apiService.generateAffirmations(
+                name: profile.name,
+                goals: profile.freeformGoals,
+                categories: profile.selectedCategories,
+                recentGratitude: recentGratitude,
+                recentIntentions: recentIntentions,
+                recentReflections: recentReflections,
+                count: profile.affirmationCount
+            )
+        } catch {
+            AppLogger.claude.error("generateAffirmations failed, using bundled pool: \(error.localizedDescription, privacy: .public)")
+            let pooledAffirmations = BundledAffirmationPool.selection(count: profile.affirmationCount)
+            let pooledClosing = BundledAffirmationPool.closing()
+            content = ClaudeAPIService.GeneratedContent(
+                affirmations: pooledAffirmations,
+                closing: pooledClosing
+            )
+        }
 
         // Store generated affirmations. Defensive `prefix` guard: if Claude
         // returns more lines than the user asked for, clip to the requested

@@ -122,9 +122,7 @@ final class MorningAudioRenderer {
         } catch {
             // Non-fatal: the main file is written and the alarm can still
             // ring. The stop intent will no-op without a closing file.
-            #if DEBUG
-            print("[MorningAudioRenderer] closing render failed: \(error)")
-            #endif
+            AppLogger.audio.error("closing render failed: \(error.localizedDescription, privacy: .public)")
         }
 
         // 3. Snooze file: selected alarm tone + "time to get up, Name".
@@ -133,9 +131,7 @@ final class MorningAudioRenderer {
         do {
             _ = try await renderSnoozeFile(for: alarm, profile: profile, voice: voice)
         } catch {
-            #if DEBUG
-            print("[MorningAudioRenderer] snooze render failed: \(error)")
-            #endif
+            AppLogger.audio.error("snooze render failed: \(error.localizedDescription, privacy: .public)")
         }
 
         return morningFilename
