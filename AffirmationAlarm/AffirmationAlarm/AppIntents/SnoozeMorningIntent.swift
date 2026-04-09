@@ -20,9 +20,14 @@ import Foundation
 ///
 /// The follow-up alarm has only a Stop button — no further snoozing.
 struct SnoozeMorningIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "Snooze"
-    static var description = IntentDescription("Snooze for 10 minutes.")
-    static var openAppWhenRun: Bool = false
+    // These are protocol requirements declared as `{ get }`, so a `let`
+    // satisfies them. Using `let` (not `var`) keeps them immutable static
+    // shared state, which Swift 6 strict concurrency requires — otherwise
+    // the compiler errors with "not concurrency-safe because it is
+    // nonisolated global shared mutable state".
+    static let title: LocalizedStringResource = "Snooze"
+    static let description = IntentDescription("Snooze for 10 minutes.")
+    static let openAppWhenRun: Bool = false
 
     @Parameter(title: "alarmID")
     var alarmID: String

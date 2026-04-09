@@ -19,9 +19,13 @@ import Foundation
 /// with its own UUID, etc.) the intent no-ops gracefully and the alarm
 /// just dismisses silently — which is the correct fallback.
 struct StopAndPlayClosingIntent: LiveActivityIntent {
-    static var title: LocalizedStringResource = "Stop"
-    static var description = IntentDescription("Stop the alarm and play the closing message.")
-    static var openAppWhenRun: Bool = false
+    // See `SnoozeMorningIntent` for the rationale — these are `static let`
+    // (not `var`) to satisfy Swift 6 strict concurrency while still
+    // conforming to the `LiveActivityIntent` protocol's `{ get }`
+    // requirements for `title`, `description`, and `openAppWhenRun`.
+    static let title: LocalizedStringResource = "Stop"
+    static let description = IntentDescription("Stop the alarm and play the closing message.")
+    static let openAppWhenRun: Bool = false
 
     @Parameter(title: "alarmID")
     var alarmID: String
