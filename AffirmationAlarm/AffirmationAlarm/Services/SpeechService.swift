@@ -24,9 +24,10 @@ class SpeechService: NSObject, @preconcurrency AVSpeechSynthesizerDelegate, @pre
     private var sessionConfigured = false
     var isSpeaking = false
 
-    /// Voice the cloud TTS should use. Set from `AffirmationSequenceViewModel`
-    /// based on the user's `UserProfile.ttsVoice` before any speaking starts,
-    /// so the spoken sequence matches the pre-rendered alarm audio.
+    /// Voice the cloud TTS should use. Set from `SpeechSettingsView` when the
+    /// user previews a voice sample in Voice Settings — that's the only
+    /// remaining consumer of `SpeechService`. The alarm-time ritual is now
+    /// played as pre-rendered audio by AlarmKit, not by this service.
     var voice: OpenAITTSService.Voice = .nova
 
     /// Pre-fetched audio keyed by text. Populated by `prefetch(texts:)` during

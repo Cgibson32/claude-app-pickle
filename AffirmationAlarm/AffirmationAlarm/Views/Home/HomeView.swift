@@ -5,14 +5,9 @@ struct HomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [UserProfile]
     @Query(sort: \Alarm.hour) private var alarms: [Alarm]
-    @Query private var completions: [SequenceCompletion]
     @State private var customAffirmationText = ""
-    @State private var showRecentAffirmations = false
 
     private var profile: UserProfile? { profiles.first }
-    private var todayCompleted: Bool {
-        completions.contains { AppDateFormatters.isToday($0.date) }
-    }
 
     var body: some View {
         NavigationStack {
@@ -30,19 +25,12 @@ struct HomeView: View {
                         // Custom affirmation input
                         customAffirmationInput
 
-                        // Today's progress — tap to view + favorite affirmations from the most recent alarm
-                        if let profile {
-                            Button {
-                                HapticService.light()
-                                showRecentAffirmations = true
-                            } label: {
-                                TodayProgressCard(
-                                    completed: todayCompleted,
-                                    affirmationCount: profile.affirmationCount
-                                )
-                            }
-                            .buttonStyle(.bounce)
-                        }
+                        // Today's affirmations — the ones spoken by the
+                        // most recent alarm, shown inline as text with
+                        // heart/checkmark favorite buttons. This is the
+                        // only way users revisit affirmations in-app; the
+                        // spoken ritual only happens during the alarm ring.
+                        TodayAffirmationsCard()
 
                         // Quick actions
                         quickActionsGrid
@@ -55,9 +43,6 @@ struct HomeView: View {
 
             }
             .preferredColorScheme(.dark)
-            .sheet(isPresented: $showRecentAffirmations) {
-                RecentAffirmationsSheet()
-            }
         }
     }
 
@@ -183,42 +168,3 @@ struct QuickActionCard: View {
     }
 }
 
-// MARK: - Today Progress Card
-
-struct TodayProgressCard: View {
-    let completed: Bool
-    let affirmationCount: Int
-
-    var body: some View {
-        HStack(spacing: AppTheme.spacingLg) {
-            // Progress ring
-            ZStack {
-                Circle()
-                    .stroke(AppTheme.strokeLight, lineWidth: 4)
-                Circle()
-                    .trim(from: 0, to: completed ? 1.0 : 0.0)
-                    .stroke(AppTheme.gold, style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-
-                Image(systemName: completed ? "checkmark" : "sun.max.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(completed ? AppTheme.gold : AppTheme.textTertiary)
-            }
-            .frame(width: 48, height: 48)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(completed ? "Complete!" : "Today's Affirmations")
-                    .font(AppTheme.headline)
-                    .foregroundStyle(AppTheme.textPrimary)
-                Text(completed ? "\(affirmationCount) affirmations spoken" : "Your alarm will begin the sequence")
-                    .font(AppTheme.caption)
-                    .foregroundStyle(AppTheme.textSecondary)
-            }
-
-            Spacer()
-        }
-        .padding(AppTheme.spacingLg)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
-    }
-}

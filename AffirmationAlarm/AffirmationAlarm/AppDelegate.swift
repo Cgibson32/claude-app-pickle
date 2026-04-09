@@ -64,7 +64,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UIGestureRecognizerDelegate 
 
     /// Registers the evening-reflection notification category. Morning
     /// alarms no longer use `UNUserNotification` — they go through
-    /// AlarmKit (`AlarmKitScheduler` + `StartMorningRitualIntent`).
+    /// AlarmKit via `AlarmKitScheduler` and the `StopAndPlayClosingIntent`
+    /// / `SnoozeMorningIntent` pair.
     private func registerNotificationCategories() {
         let reflectAction = UNNotificationAction(
             identifier: "REFLECT_ACTION",

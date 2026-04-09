@@ -27,11 +27,21 @@ struct AffirmationAlarmMetadata: AlarmMetadata {
 ///
 /// Unlike the `UNUserNotificationCenter` path this replaces, AlarmKit:
 /// - rings through silent mode, Focus, and DND
-/// - has no 30-second audio cap (we play the full sequence live when the app
-///   comes to the foreground via `StartMorningRitualIntent`)
+/// - plays pre-rendered personalized audio (greeting + affirmations) as the
+///   alarm sound itself, via `MorningAudioRenderer`
 /// - persists alarms in the system rather than in our notification queue, so
 ///   we only ever have one configuration per `Alarm` row regardless of
 ///   weekday repetition
+///
+/// Each scheduled alarm has TWO buttons on the ringing UI:
+///
+/// - **Stop** → `StopAndPlayClosingIntent` runs with `openAppWhenRun = false`.
+///   AlarmKit cuts the main audio, the intent loads `closing-<alarmID>.wav`
+///   and plays it via AVAudioPlayer. The app does not open.
+/// - **Snooze** → `SnoozeMorningIntent` runs with `openAppWhenRun = false`.
+///   The current ring is cancelled and a new one-off follow-up alarm is
+///   scheduled 10 minutes from now via `scheduleSnoozeFollowUp(...)` below,
+///   using the pre-rendered `snooze-<originalAlarmID>.wav` as its sound.
 @MainActor @Observable
 class AlarmKitScheduler {
     typealias ScheduleConfiguration = AlarmManager.AlarmConfiguration<AffirmationAlarmMetadata>
@@ -185,11 +195,22 @@ class AlarmKitScheduler {
             stringLiteral: alarm.label.isEmpty ? "Morning Affirmations" : alarm.label
         )
 
-        // The iOS 26 release of `AlarmPresentation.Alert` no longer accepts
-        // a `stopButton:` parameter — the system provides a default stop
-        // button automatically. Custom behavior on tap is wired up via the
-        // `stopIntent:` on the `AlarmConfiguration` below.
-        let alertPresentation = AlarmPresentation.Alert(title: title)
+        // The iOS 26 release of `AlarmPresentation.Alert` dropped the
+        // `stopButton:` parameter — AlarmKit provides the stop button
+        // automatically and we wire its tap behavior via `stopIntent:` on
+        // the `AlarmConfiguration` below. The secondary (snooze) button
+        // IS customizable via `secondaryButton:` + `.custom` behavior.
+        let snoozeButton = AlarmButton(
+            text: "Snooze",
+            textColor: .white,
+            systemImageName: "zzz"
+        )
+
+        let alertPresentation = AlarmPresentation.Alert(
+            title: title,
+            secondaryButton: snoozeButton,
+            secondaryButtonBehavior: .custom
+        )
 
         let presentation = AlarmPresentation(alert: alertPresentation)
 
@@ -215,17 +236,17 @@ class AlarmKitScheduler {
             AlarmKit.Alarm.Schedule.Relative(time: time, repeats: recurrence)
         )
 
-        // The AlarmKit tap-to-stop button runs this App Intent. It has
-        // `openAppWhenRun = true`, so tapping it both stops the alarm AND
-        // launches the app into the foreground; the intent then posts
-        // `.didTapAlarmNotification`, which `RootView` listens for to
-        // present the full affirmation sequence.
-        let stopIntent = StartMorningRitualIntent(alarmID: alarm.id)
+        // Stop button → plays the pre-rendered `closing-<alarmID>.wav` via
+        // AVAudioPlayer, `openAppWhenRun = false`. App does not launch.
+        let stopIntent = StopAndPlayClosingIntent(alarmID: alarm.id)
+
+        // Snooze button → cancels this ring and schedules a 10-minute
+        // follow-up alarm with `snooze-<alarmID>.wav` as its sound.
+        // `openAppWhenRun = false`. App does not launch.
+        let snoozeIntent = SnoozeMorningIntent(alarmID: alarm.id)
 
         // Prefer the pre-rendered personalized audio if `MorningAudioRenderer`
         // has already written a file for this alarm into `Library/Sounds/`.
-        // That's the whole point of the migration: the user wakes up to a
-        // voice speaking their name + affirmations instead of a generic tone.
         // If no rendered file exists yet (first launch, TTS failure, etc.)
         // fall back to the bundled tone the user picked in onboarding so
         // the alarm still rings reliably.
@@ -243,9 +264,77 @@ class AlarmKitScheduler {
             schedule: schedule,
             attributes: attributes,
             stopIntent: stopIntent,
-            secondaryIntent: nil,
+            secondaryIntent: snoozeIntent,
             sound: .named(soundName)
         )
+    }
+
+    // MARK: - Snooze follow-up
+
+    /// Schedule a one-off follow-up alarm 10 minutes from now, called from
+    /// `SnoozeMorningIntent.perform()` when the user taps Snooze on the
+    /// main alarm.
+    ///
+    /// The follow-up uses `snooze-<originalAlarmID>.wav` (pre-rendered by
+    /// `MorningAudioRenderer`: selected alarm tone beeping briefly, then
+    /// *"Time to get up, [Name]. Let's have a great day."*) as its sound.
+    /// Its presentation has NO secondary button — the user gets one snooze
+    /// per ring, then must tap Stop on the follow-up to dismiss.
+    ///
+    /// The follow-up's stopIntent is still `StopAndPlayClosingIntent`, but
+    /// since no `closing-<followUpID>.wav` was rendered for this fresh
+    /// UUID, the intent falls through to its no-file no-op and the alarm
+    /// just dismisses silently. That's the intended behavior — we already
+    /// played the closing on the original alarm's stop (if they'd hit stop
+    /// instead of snooze), and the snooze follow-up's job is to get them
+    /// up, not to wind down again.
+    func scheduleSnoozeFollowUp(originalAlarmID: UUID) {
+        let followUpID = UUID()
+        let fireDate = Date().addingTimeInterval(10 * 60)
+
+        let title = LocalizedStringResource(stringLiteral: "Time to get up")
+        let presentation = AlarmPresentation(
+            alert: AlarmPresentation.Alert(title: title)
+        )
+        let attributes = AlarmAttributes(
+            presentation: presentation,
+            metadata: AffirmationAlarmMetadata(alarmID: followUpID, label: "Snooze follow-up"),
+            tintColor: Color.orange
+        )
+
+        let schedule = AlarmKit.Alarm.Schedule.fixed(fireDate)
+
+        // Use the pre-rendered snooze audio keyed to the ORIGINAL alarm ID
+        // — one snooze file per source alarm, regenerated daily alongside
+        // the main + closing files.
+        let soundFile = "snooze-\(originalAlarmID.uuidString).wav"
+        let snoozeURL = FileManager.default
+            .urls(for: .libraryDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Sounds/\(soundFile)")
+        let sound: AlertConfiguration.AlertSound = FileManager.default.fileExists(atPath: snoozeURL.path)
+            ? .named(soundFile)
+            : .default
+
+        let stopIntent = StopAndPlayClosingIntent(alarmID: followUpID)
+
+        let config = ScheduleConfiguration.alarm(
+            schedule: schedule,
+            attributes: attributes,
+            stopIntent: stopIntent,
+            secondaryIntent: nil,
+            sound: sound
+        )
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                _ = try await self.manager.schedule(id: followUpID, configuration: config)
+            } catch {
+                #if DEBUG
+                print("[AlarmKitScheduler] snooze follow-up schedule failed: \(error)")
+                #endif
+            }
+        }
     }
 
     /// Map Apple `Calendar.weekday` (1 = Sunday ... 7 = Saturday) to

@@ -2,7 +2,7 @@ import UserNotifications
 
 /// Handles taps on the evening-reflection reminder, which is still a plain
 /// `UNUserNotification` (alarms are handled by AlarmKit via
-/// `StartMorningRitualIntent`).
+/// `StopAndPlayClosingIntent` and `SnoozeMorningIntent`).
 @MainActor
 class NotificationDelegate: NSObject, @preconcurrency UNUserNotificationCenterDelegate {
     static let shared = NotificationDelegate()

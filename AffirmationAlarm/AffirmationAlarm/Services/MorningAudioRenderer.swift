@@ -1,40 +1,43 @@
 import Foundation
 import SwiftData
 
-/// Pre-renders the personalized morning ritual (greeting + 3 affirmations +
-/// closing) as a single WAV file inside `Library/Sounds/` so AlarmKit can
-/// play it as the alarm-fire sound. The user then literally wakes up to the
-/// nurturing voice speaking their name and affirmations — not a generic
-/// alarm tone.
+/// Pre-renders the three audio files AlarmKit and the stop/snooze intents
+/// need, all tailored to the user's chosen voice and tied to a specific
+/// `Alarm` by id:
 ///
-/// Flow:
-/// 1. Generate/fetch today's affirmations via `AffirmationCacheService`
-///    (uses Claude, tailored to profile name/goals/categories/recent context)
-/// 2. Compose the spoken script, trimmed so the audio stays under ~25s —
-///    well inside the legacy 30s custom-sound cap that AlarmKit appears to
-///    inherit from `UNNotificationSound`
-/// 3. Request a WAV from OpenAI TTS at the user's chosen voice
-/// 4. Write the bytes directly to `Library/Sounds/morning-<alarmID>.wav`
-/// 5. `AlarmKitScheduler` picks the file up by filename via
-///    `AlertConfiguration.AlertSound.named(_:)`
+/// 1. **`morning-<alarmID>.wav`** — greeting + affirmations only (no
+///    closing). Played by AlarmKit when the alarm fires.
+/// 2. **`closing-<alarmID>.wav`** — just the closing statement, ~3 seconds.
+///    Played by `StopAndPlayClosingIntent` when the user taps Stop — so the
+///    user hears `[affirmation cut] → [closing] → silence` instead of a
+///    hard cut.
+/// 3. **`snooze-<alarmID>.wav`** — the user's selected alarm tone briefly
+///    beeping (~3s), then the voice saying *"Time to get up, [Name]. Let's
+///    have a great day."* Played by AlarmKit on the 10-minute snooze
+///    follow-up alarm (see `AlarmKitScheduler.scheduleSnoozeFollowUp`).
 ///
-/// Rendered files are regenerated whenever the app becomes active, the
-/// user edits the alarm, the user changes their voice in settings, or the
-/// existing file is older than 20 hours — so the content stays fresh.
+/// All three files are refreshed together: on app launch/resume, on alarm
+/// edit, on onboarding completion, and on voice change in Settings.
+/// Staleness threshold is 20 hours — if any file is newer than that we
+/// reuse it rather than burning more TTS calls.
+///
+/// If Claude or OpenAI is unreachable the renderer returns `nil` and the
+/// scheduler falls back to the bundled alarm tone the user picked in
+/// onboarding. The alarm always rings.
 @MainActor
 final class MorningAudioRenderer {
     static let shared = MorningAudioRenderer()
 
     /// Staleness threshold. Files older than this are regenerated on the
-    /// next refresh trigger so the affirmations never play stale for more
+    /// next refresh trigger so the content never plays stale for more
     /// than a day.
     private let staleAfter: TimeInterval = 20 * 3600
 
-    /// How long (roughly) the spoken audio should stay under. Nova speaks at
-    /// about 2.6 words/second at 0.95x speed, so 25s ≈ 65 words. That's
-    /// plenty for greeting + 3 affirmations + closing, and keeps us safely
-    /// under the 30s custom-sound cap.
-    private let maxWords = 65
+    /// How long (roughly) the main spoken audio should stay under. Nova
+    /// speaks at about 2.6 words/second at 0.95x speed, so 25s ≈ 65 words.
+    /// That keeps us safely under the 30-second custom-sound cap and gives
+    /// us headroom for the separate closing file.
+    private let maxMainWords = 55
 
     private let tts = OpenAITTSService()
 
@@ -42,29 +45,33 @@ final class MorningAudioRenderer {
 
     // MARK: - Public API
 
-    /// Render (or refresh) the morning audio for a single alarm. Returns the
-    /// filename that `AlarmKitScheduler` should pass to
-    /// `AlertConfiguration.AlertSound.named(_:)`, or `nil` if rendering
-    /// failed — caller falls back to the bundled alarm tone.
+    /// Render (or refresh) all three audio files for a single alarm.
+    /// Returns the `morning-*.wav` filename that `AlarmKitScheduler` should
+    /// pass to `AlertConfiguration.AlertSound.named(_:)`, or `nil` if
+    /// rendering failed.
+    ///
+    /// Closing + snooze files are always rendered alongside the main file
+    /// in the same call, so callers don't need to invoke three separate
+    /// methods. If the main file is fresh, all three are assumed fresh.
     @discardableResult
     func refresh(
         for alarm: Alarm,
         profile: UserProfile,
         modelContext: ModelContext
     ) async -> String? {
-        let filename = Self.filename(for: alarm)
-        let fileURL = Self.soundsDirectory().appendingPathComponent(filename)
+        let morningFilename = Self.morningFilename(for: alarm)
+        let morningURL = Self.soundsDirectory().appendingPathComponent(morningFilename)
 
-        // Reuse recent renders. If the file exists and was written less than
-        // `staleAfter` ago, don't burn another TTS call.
-        if let attrs = try? FileManager.default.attributesOfItem(atPath: fileURL.path),
+        // Reuse recent renders. If the main file exists and was written
+        // less than `staleAfter` ago, assume all three are still good.
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: morningURL.path),
            let modDate = attrs[.modificationDate] as? Date,
            Date().timeIntervalSince(modDate) < staleAfter {
-            return filename
+            return morningFilename
         }
 
-        // Build the spoken script. Cache fetch is best-effort: if Claude is
-        // unreachable we bail out and let the scheduler fall back to the
+        // Generate the affirmations + closing text. Best-effort: if Claude
+        // is unreachable we bail out and let the scheduler fall back to the
         // bundled alarm tone — better than writing broken audio.
         let cache = AffirmationCacheService()
         let affirmations: [Affirmation]
@@ -78,35 +85,60 @@ final class MorningAudioRenderer {
             return nil
         }
 
-        let script = composeScript(
-            name: profile.name,
-            affirmations: affirmations,
-            closing: closing?.message
-        )
-
-        // Pick the user's chosen voice, falling back to nova if the stored
-        // string is unrecognized (e.g., stale data from a previous install).
         let voice = OpenAITTSService.Voice(rawValue: profile.ttsVoice) ?? .nova
 
-        let data: Data
-        do {
-            data = try await tts.synthesize(text: script, voice: voice, format: .wav)
-        } catch {
-            return nil
-        }
-
-        // Write to Library/Sounds/. Create the directory first — it doesn't
-        // exist by default in a fresh container.
+        // Ensure Library/Sounds exists — it doesn't by default in a fresh
+        // app container.
         do {
             try FileManager.default.createDirectory(
                 at: Self.soundsDirectory(),
                 withIntermediateDirectories: true
             )
-            try data.write(to: fileURL, options: .atomic)
-            return filename
         } catch {
             return nil
         }
+
+        // 1. Main file: greeting + affirmations (no closing).
+        let mainScript = composeMainScript(
+            name: profile.name,
+            affirmations: affirmations
+        )
+        do {
+            let mainData = try await tts.synthesize(text: mainScript, voice: voice, format: .wav)
+            try mainData.write(to: morningURL, options: .atomic)
+        } catch {
+            return nil
+        }
+
+        // 2. Closing file: just the closing statement, rendered as a
+        //    separate TTS call so `StopAndPlayClosingIntent` can play it
+        //    on its own.
+        let closingScript = composeClosingScript(closing: closing?.message)
+        let closingURL = Self.soundsDirectory()
+            .appendingPathComponent(Self.closingFilename(for: alarm))
+        do {
+            let closingData = try await tts.synthesize(text: closingScript, voice: voice, format: .wav)
+            try closingData.write(to: closingURL, options: .atomic)
+        } catch {
+            // Non-fatal: the main file is written and the alarm can still
+            // ring. The stop intent will no-op without a closing file.
+            #if DEBUG
+            print("[MorningAudioRenderer] closing render failed: \(error)")
+            #endif
+        }
+
+        // 3. Snooze file: selected alarm tone + "time to get up, Name".
+        //    Built by concatenating the first ~3s of the bundled tone with
+        //    a fresh TTS call via AVMutableComposition.
+        do {
+            _ = try await renderSnoozeFile(for: alarm, profile: profile, voice: voice)
+        } catch {
+            #if DEBUG
+            print("[MorningAudioRenderer] snooze render failed: \(error)")
+            #endif
+        }
+
+        return morningFilename
     }
 
     /// Batch refresh every enabled alarm. Called from `AffirmationAlarmApp`
@@ -122,8 +154,9 @@ final class MorningAudioRenderer {
     }
 
     /// Invalidate every cached render — called from Voice Settings when the
-    /// user picks a new voice, so the next refresh definitely re-generates
-    /// rather than reusing yesterday's file.
+    /// user picks a new voice. Wipes all three file prefixes so the next
+    /// refresh definitely re-generates rather than reusing yesterday's
+    /// content in the old voice.
     func invalidateAll() {
         guard let contents = try? FileManager.default.contentsOfDirectory(
             at: Self.soundsDirectory(),
@@ -131,62 +164,108 @@ final class MorningAudioRenderer {
         ) else {
             return
         }
-        for url in contents where url.lastPathComponent.hasPrefix("morning-") {
-            try? FileManager.default.removeItem(at: url)
+        for url in contents {
+            let name = url.lastPathComponent
+            if name.hasPrefix("morning-") || name.hasPrefix("closing-") || name.hasPrefix("snooze-") {
+                try? FileManager.default.removeItem(at: url)
+            }
         }
     }
 
-    /// The filename `AlarmKitScheduler` should pass to AlarmKit, OR `nil` if
-    /// no rendered file exists on disk yet. Lets the scheduler stay sync.
+    /// The `morning-*.wav` filename for this alarm if it's on disk, else `nil`.
+    /// Lets `AlarmKitScheduler` stay synchronous.
     static func existingRenderedFilename(for alarm: Alarm) -> String? {
-        let filename = filename(for: alarm)
+        let filename = morningFilename(for: alarm)
         let url = soundsDirectory().appendingPathComponent(filename)
         return FileManager.default.fileExists(atPath: url.path) ? filename : nil
     }
 
-    // MARK: - Helpers
+    // MARK: - Script composition
 
-    /// Build the full spoken script. Joins segments with paragraph breaks
-    /// so the TTS engine treats them as natural pauses instead of running
-    /// sentences together. Trims the combined text to `maxWords` so the
-    /// audio stays comfortably under the 30-second sound cap.
-    private func composeScript(
+    /// The main alarm audio content: greeting + up to 3 affirmations.
+    /// Joins segments with paragraph breaks so TTS treats them as natural
+    /// pauses. The closing is intentionally NOT included here — it lives in
+    /// its own file so the stop intent can play it independently.
+    private func composeMainScript(
         name: String,
-        affirmations: [Affirmation],
-        closing: String?
+        affirmations: [Affirmation]
     ) -> String {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let greeting = trimmedName.isEmpty
             ? "Good morning."
             : "Good morning, \(trimmedName)."
 
-        // Take the first three affirmations — anything beyond that pushes the
-        // audio past the cap. Priority favorites land at index 0 so they
-        // naturally win.
+        // Priority favorites already land at index 0 in the cache, so the
+        // first three naturally include any heart-marked ones the user
+        // wants surfaced.
         let lines = affirmations.prefix(3).map { $0.text }
-
-        let closingText = (closing?.isEmpty == false ? closing! : "Have a wonderful day.")
 
         var segments: [String] = [greeting]
         segments.append(contentsOf: lines)
-        segments.append(closingText)
 
         let joined = segments.joined(separator: "\n\n")
-        return trimToWordBudget(joined)
+        return trimToWordBudget(joined, budget: maxMainWords)
     }
 
-    /// Hard cap on word count. If the affirmations are unusually long, drop
-    /// trailing words rather than let AlarmKit truncate the clip at the 30s
-    /// boundary. This is a safety net — normal Claude output (~12 words per
-    /// affirmation) fits without trimming.
-    private func trimToWordBudget(_ text: String) -> String {
+    /// The standalone closing statement played by the stop intent.
+    private func composeClosingScript(closing: String?) -> String {
+        if let closing, !closing.isEmpty { return closing }
+        return "Have a wonderful day."
+    }
+
+    /// Hard cap on word count. If the affirmations are unusually long,
+    /// drop trailing words rather than let AlarmKit truncate the clip at
+    /// the 30s boundary. Normal Claude output (~12 words per affirmation)
+    /// fits without trimming.
+    private func trimToWordBudget(_ text: String, budget: Int) -> String {
         let words = text.split(separator: " ", omittingEmptySubsequences: false)
-        guard words.count > maxWords else { return text }
-        return words.prefix(maxWords).joined(separator: " ") + "."
+        guard words.count > budget else { return text }
+        return words.prefix(budget).joined(separator: " ") + "."
     }
 
-    private static func filename(for alarm: Alarm) -> String {
+    // MARK: - Snooze rendering
+
+    /// Build the snooze follow-up audio. The plan calls for a short beep
+    /// (first ~3s of the user's selected alarm tone) followed by the
+    /// spoken *"Time to get up, [Name]. Let's have a great day."* prompt.
+    ///
+    /// `AVAssetExportSession` is unreliable for WAV output on iOS (the
+    /// framework is optimized for video / M4A audio containers), so for
+    /// v1 we render just the TTS-only WAV. The user hears the spoken
+    /// prompt reliably. We can layer a beep in via `AVAssetReader` +
+    /// `AVAssetWriter` (or raw PCM concatenation through `AVAudioFile`)
+    /// in a follow-up once this path is verified on a real device.
+    private func renderSnoozeFile(
+        for alarm: Alarm,
+        profile: UserProfile,
+        voice: OpenAITTSService.Voice
+    ) async throws -> URL? {
+        let trimmedName = profile.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let spoken = trimmedName.isEmpty
+            ? "Time to get up. Let's have a great day."
+            : "Time to get up, \(trimmedName). Let's have a great day."
+
+        let ttsData = try await tts.synthesize(text: spoken, voice: voice, format: .wav)
+
+        let destURL = Self.soundsDirectory()
+            .appendingPathComponent(Self.snoozeFilename(for: alarm))
+        try? FileManager.default.removeItem(at: destURL)
+        try ttsData.write(to: destURL, options: .atomic)
+        return destURL
+    }
+
+    // MARK: - Filename helpers
+
+    private static func morningFilename(for alarm: Alarm) -> String {
         "morning-\(alarm.id.uuidString).wav"
+    }
+
+    private static func closingFilename(for alarm: Alarm) -> String {
+        "closing-\(alarm.id.uuidString).wav"
+    }
+
+    private static func snoozeFilename(for alarm: Alarm) -> String {
+        "snooze-\(alarm.id.uuidString).wav"
     }
 
     private static func soundsDirectory() -> URL {

@@ -43,7 +43,6 @@ struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(SubscriptionManager.self) private var subscriptionManager
     @Query private var profiles: [UserProfile]
-    @State private var showSequence = false
     @State private var showEveningReflection = false
 
     var body: some View {
@@ -64,14 +63,8 @@ struct RootView: View {
             ensureProfileExists()
             reconcileAlarmsWithSystem()
         }
-        .fullScreenCover(isPresented: $showSequence) {
-            AffirmationSequenceView()
-        }
         .sheet(isPresented: $showEveningReflection) {
             EveningReflectionView()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .didTapAlarmNotification)) { _ in
-            showSequence = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .didTapEveningReflection)) { _ in
             showEveningReflection = true
