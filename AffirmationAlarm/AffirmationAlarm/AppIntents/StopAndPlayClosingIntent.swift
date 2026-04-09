@@ -81,6 +81,14 @@ struct StopAndPlayClosingIntent: LiveActivityIntent {
         // — simpler, and the duration is fixed at render time.
         try? await Task.sleep(for: .seconds(duration + 0.15))
 
+        // Force ARC to keep `player` alive across the await boundary. Without
+        // this, the Swift optimizer is permitted to release the local `let`
+        // the moment its last observable use (`player.play()`) completes —
+        // which can cut the audio before playback finishes in release builds.
+        // `withExtendedLifetime` is the canonical fix for "I need this value
+        // to stick around until this exact point".
+        withExtendedLifetime(player) {}
+
         try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
         return .result()
     }
