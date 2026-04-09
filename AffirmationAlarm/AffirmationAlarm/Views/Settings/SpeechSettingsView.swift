@@ -7,9 +7,11 @@ struct SpeechSettingsView: View {
     @Query private var alarms: [Alarm]
     private var profile: UserProfile? { profiles.first }
 
-    /// Which voice (if any) is currently speaking a sample. Used to disable
-    /// other preview buttons while one is playing and show a speaker icon
-    /// next to the active one.
+    /// Which voice (if any) is currently being previewed. Set to the voice
+    /// as soon as the user taps its play button and cleared when the audio
+    /// finishes. The preview button shows a speaker-wave icon while active,
+    /// and all other rows' play buttons are disabled to prevent overlapping
+    /// playback.
     @State private var previewingVoice: OpenAITTSService.Voice?
 
     /// Held as `@State` rather than instantiating fresh each tap, so the
@@ -114,10 +116,12 @@ struct SpeechSettingsView: View {
             }
             .buttonStyle(.plain)
             .disabled(previewingVoice != nil && !isPreviewing)
+            .accessibilityLabel(isPreviewing ? "Stop \(voice.displayName) preview" : "Play \(voice.displayName) preview")
 
             if isSelected {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(AppTheme.gold)
+                    .accessibilityHidden(true)
             }
         }
         .contentShape(Rectangle())
@@ -127,6 +131,10 @@ struct SpeechSettingsView: View {
         }
         .padding(.horizontal, AppTheme.spacingLg)
         .padding(.vertical, AppTheme.spacingMd)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(voice.displayName), \(voice.tagline)\(isSelected ? ", selected voice" : "")")
+        .accessibilityHint("Double tap to select this voice")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     // MARK: - Actions
@@ -156,8 +164,10 @@ struct SpeechSettingsView: View {
     }
 
     /// Play a short sample of the given voice using the user's actual name
-    /// so they can hear what they'll wake up to. Clears the existing
-    /// preview before starting a new one.
+    /// so they can hear what they'll wake up to. Clears any in-flight
+    /// preview before starting a new one. First tap of any voice has a
+    /// ~1s OpenAI round-trip; subsequent taps hit the in-memory cache in
+    /// `OpenAITTSService` and play instantly.
     private func preview(voice: OpenAITTSService.Voice, profile: UserProfile) {
         previewSpeech.stop()
 

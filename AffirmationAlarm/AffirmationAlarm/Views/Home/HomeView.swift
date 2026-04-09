@@ -7,6 +7,13 @@ struct HomeView: View {
     @Query(sort: \Alarm.hour) private var alarms: [Alarm]
     @State private var customAffirmationText = ""
 
+    /// Set to `true` by `OnboardingViewModel.completeOnboarding` while the
+    /// first morning's audio is being rendered (~5-10s for Claude + TTS
+    /// round-trips) and cleared when rendering finishes. HomeView shows a
+    /// friendly "Preparing your first morning ritual..." banner while true
+    /// so the empty-state home screen doesn't feel broken.
+    @AppStorage("isPreparingFirstMorning") private var isPreparingFirstMorning = false
+
     private var profile: UserProfile? { profiles.first }
 
     var body: some View {
@@ -18,6 +25,10 @@ struct HomeView: View {
                     VStack(spacing: AppTheme.spacingXl) {
                         // Greeting
                         greetingSection
+
+                        if isPreparingFirstMorning {
+                            preparingBanner
+                        }
 
                         // Next alarm card
                         NextAlarmCard(alarms: alarms)
@@ -39,11 +50,43 @@ struct HomeView: View {
                     }
                     .padding(.horizontal, AppTheme.spacingXl)
                     .padding(.top, AppTheme.spacingLg)
+                    .animation(AppTheme.gentle, value: isPreparingFirstMorning)
                 }
 
             }
             .preferredColorScheme(.dark)
         }
+    }
+
+    /// Dismissible-by-completion banner shown only during the 5-10s window
+    /// after the user finishes onboarding and the first alarm audio is
+    /// being generated. Auto-dismisses when
+    /// `OnboardingViewModel.completeOnboarding`'s render Task clears the
+    /// `isPreparingFirstMorning` flag in UserDefaults.
+    private var preparingBanner: some View {
+        HStack(spacing: AppTheme.spacingMd) {
+            ProgressView()
+                .controlSize(.small)
+                .tint(AppTheme.gold)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Preparing your first morning")
+                    .font(AppTheme.subheadline)
+                    .foregroundStyle(AppTheme.textPrimary)
+                Text("Crafting your personalized affirmations in your chosen voice.")
+                    .font(AppTheme.caption)
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(AppTheme.spacingLg)
+        .background(AppTheme.gold.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
+        .transition(.opacity.combined(with: .move(edge: .top)))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Preparing your first morning ritual")
     }
 
     private var greetingSection: some View {

@@ -76,11 +76,12 @@ struct AlarmListView: View {
             HStack(spacing: AppTheme.spacingSm) {
                 Image(systemName: "bell.slash.fill")
                     .foregroundStyle(.orange)
-                Text("Alarms are off")
+                    .accessibilityHidden(true)
+                Text("Your alarms are muted")
                     .font(AppTheme.headline)
                     .foregroundStyle(AppTheme.textPrimary)
             }
-            Text("Your alarms can't ring until you enable alarm permissions for Affirmation Alarm in Settings.")
+            Text("Let's wake you up properly. Enable alarm permissions in Settings so your morning ritual can ring.")
                 .font(AppTheme.caption)
                 .foregroundStyle(AppTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -91,11 +92,13 @@ struct AlarmListView: View {
             }
             .font(AppTheme.headline)
             .foregroundStyle(AppTheme.gold)
+            .accessibilityHint("Opens the Settings app to enable alarm permissions")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(AppTheme.spacingLg)
         .background(Color.orange.opacity(0.12))
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -164,12 +167,16 @@ struct AlarmRow: View {
                 ))
                 .tint(AppTheme.sunsetOrange)
                 .labelsHidden()
+                .accessibilityLabel(alarm.isEnabled ? "Turn off alarm" : "Turn on alarm")
             }
             .padding(AppTheme.spacingLg)
             .background(AppTheme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
         }
         .buttonStyle(.bounce)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityDescription)
+        .accessibilityHint("Double tap to edit this alarm")
         .contextMenu {
             Button(role: .destructive) {
                 showDeleteConfirmation = true
@@ -187,6 +194,21 @@ struct AlarmRow: View {
         .sheet(isPresented: $showingEdit) {
             AlarmDetailView(alarm: alarm)
         }
+    }
+
+    /// Composed VoiceOver description. Collapses the visible time, repeat
+    /// days, label, next-fire line, and enabled state into one fluent
+    /// sentence instead of making VoiceOver announce four separate texts.
+    private var accessibilityDescription: String {
+        var parts: [String] = [alarm.timeString]
+        if !alarm.repeatDaysString.isEmpty {
+            parts.append(alarm.repeatDaysString)
+        }
+        if !alarm.label.isEmpty {
+            parts.append(alarm.label)
+        }
+        parts.append(alarm.isEnabled ? "on" : "off")
+        return parts.joined(separator: ", ")
     }
 
     private static func formatNext(_ date: Date) -> String {

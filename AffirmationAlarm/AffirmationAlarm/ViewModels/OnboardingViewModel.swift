@@ -78,7 +78,15 @@ class OnboardingViewModel {
         // scheduler picks up the fresh file on its very first
         // `scheduleAlarm` call — the user wakes up to the voice tomorrow
         // morning with no empty-first-day gap.
+        //
+        // The render takes ~5-10 seconds (Claude + OpenAI TTS round-trips)
+        // during which the user is already on HomeView with an empty
+        // `TodayAffirmationsCard`. We set an `isPreparingFirstMorning`
+        // flag in UserDefaults so HomeView can show a "Preparing your
+        // first morning ritual..." banner until the render completes.
+        UserDefaults.standard.set(true, forKey: "isPreparingFirstMorning")
         Task { @MainActor in
+            defer { UserDefaults.standard.set(false, forKey: "isPreparingFirstMorning") }
             _ = await AlarmKitScheduler.shared.requestPermission()
             _ = await MorningAudioRenderer.shared.refresh(
                 for: alarm,

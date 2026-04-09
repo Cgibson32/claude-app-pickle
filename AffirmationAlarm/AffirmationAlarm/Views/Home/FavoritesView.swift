@@ -125,6 +125,7 @@ struct FavoriteCard: View {
                         .font(.system(size: 16))
                 }
                 .buttonStyle(.bounce)
+                .accessibilityLabel(affirmation.isPriority ? "Remove from priority favorites" : "Add to priority favorites")
 
                 // Rotation toggle
                 Button {
@@ -137,6 +138,7 @@ struct FavoriteCard: View {
                         .font(.system(size: 16))
                 }
                 .buttonStyle(.bounce)
+                .accessibilityLabel(affirmation.isRotation ? "Remove from rotation" : "Add to rotation")
             }
         }
         .padding(AppTheme.spacingLg)
