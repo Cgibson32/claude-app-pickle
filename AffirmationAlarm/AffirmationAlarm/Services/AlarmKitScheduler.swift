@@ -1,5 +1,15 @@
 import ActivityKit
-import AlarmKit
+// `@preconcurrency` silences Swift 6's region-based isolation errors for
+// AlarmKit's async APIs (`requestAuthorization()`, `schedule(id:configuration:)`).
+// Those methods are declared nonisolated and take an `AlarmConfiguration`
+// that contains `(any LiveActivityIntent)?` — a non-Sendable protocol
+// existential — so the strict Swift 6 region check flags the main-actor
+// isolated `self.manager` and `configuration` values as "sending ... risks
+// causing data races" when they cross the await boundary. AlarmKit wasn't
+// annotated for Swift 6 strict concurrency; `@preconcurrency import` is
+// Apple's sanctioned escape hatch for exactly this case until the framework
+// ships proper `sending` / `Sendable` annotations in a future SDK.
+@preconcurrency import AlarmKit
 import AppIntents
 import SwiftUI
 
