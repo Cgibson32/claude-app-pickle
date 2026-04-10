@@ -1,6 +1,7 @@
 import ActivityKit
 @preconcurrency import AlarmKit
 import AppIntents
+import AVFoundation
 import SwiftUI
 import UIKit
 import UserNotifications
