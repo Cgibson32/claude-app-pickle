@@ -8,10 +8,9 @@ import Foundation
 /// Because `.named(_:)` is broken on iOS 26.1, AlarmKit plays `.default`
 /// as the wake-up sound. Once the user taps Stop, THIS intent plays the
 /// pre-rendered morning affirmation sequence followed by the closing
-/// statement via AVAudioPlayer.
+/// statement via AVAudioPlayer routed to the loudspeaker at max volume.
 ///
-/// The user hears:
-///   `.default` alarm → [taps Stop] → greeting + affirmations → closing → silence
+/// Flow: `.default` alarm (~3s) → [tap Stop] → greeting + affirmations → closing → silence
 struct StopAndPlayClosingIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Stop"
     static let description = IntentDescription("Stop the alarm and play the closing message.")
@@ -48,10 +47,6 @@ struct StopAndPlayClosingIntent: LiveActivityIntent {
             log("alarm cancel error: \(error.localizedDescription)")
         }
 
-        // Give AlarmKit a moment to fully tear down its audio session
-        // before we try to claim the audio route.
-        try? await Task.sleep(for: .seconds(0.5))
-
         let soundsDir = FileManager.default
             .urls(for: .libraryDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Sounds")
@@ -73,14 +68,18 @@ struct StopAndPlayClosingIntent: LiveActivityIntent {
             return .result()
         }
 
-        // Configure audio session for playback.
+        // Configure audio session for LOUD playback through the main
+        // speaker. Use `.playback` category (not `.soloAmbient`) so audio
+        // plays even if the ring/silent switch is on, and `.default` mode
+        // (not `.spokenAudio` which can route to the ear speaker). Force
+        // output to the bottom loudspeaker for maximum volume.
         do {
             let session = AVAudioSession.sharedInstance()
-            log("current audio route: \(session.currentRoute.outputs.map { $0.portType.rawValue })")
-            try session.setCategory(.playback, mode: .spokenAudio, options: [])
+            log("pre-setup route: \(session.currentRoute.outputs.map { $0.portType.rawValue })")
+            try session.setCategory(.playback, mode: .default, options: [])
             try session.setActive(true, options: [])
-            log("audio session active, category=playback, mode=spokenAudio")
-            log("output volume: \(session.outputVolume)")
+            try session.overrideOutputAudioPort(.speaker)
+            log("audio session active, routed to speaker, volume=\(session.outputVolume)")
         } catch {
             log("audio session FAILED: \(error.localizedDescription)")
             return .result()
@@ -105,8 +104,8 @@ struct StopAndPlayClosingIntent: LiveActivityIntent {
         return .result()
     }
 
-    /// Play a single audio file to completion. Returns `true` if playback
-    /// started successfully.
+    /// Play a single audio file at max volume through the loudspeaker.
+    /// Returns `true` if playback started successfully.
     private func playFile(at url: URL) async -> Bool {
         let log = { (msg: String) in
             Task { @MainActor in DiagnosticLog.shared.log("  playFile: \(msg)") }
@@ -121,9 +120,10 @@ struct StopAndPlayClosingIntent: LiveActivityIntent {
             return false
         }
 
+        player.volume = 1.0
         player.prepareToPlay()
         let started = player.play()
-        log("play() returned \(started)")
+        log("play() returned \(started), volume=\(player.volume)")
 
         if !started {
             log("play() returned false — audio will not play")
