@@ -285,12 +285,20 @@ class AlarmKitScheduler {
         // Use the static `.alarm(...)` convenience initializer for
         // schedule-only (non-countdown) alarms. Equivalent to passing
         // `countdownDuration: nil` to the full initializer.
+        //
+        // WORKAROUND: iOS 26.1 — `.named(_:)` is completely broken in
+        // AlarmKit. Both bundled and Library/Sounds files are silently
+        // ignored (confirmed via Alarm Diagnostics screen). Only
+        // `.default` produces audible output. Using `.default` until
+        // Apple ships a fix.
+        // TODO: Switch back to `.named(soundName)` once `.named()` works.
+        DiagnosticLog.shared.log("  Using .default (iOS 26.1 .named() workaround)")
         return ScheduleConfiguration.alarm(
             schedule: schedule,
             attributes: attributes,
             stopIntent: stopIntent,
             secondaryIntent: snoozeIntent,
-            sound: .named(soundName)
+            sound: .default
         )
     }
 
@@ -329,18 +337,11 @@ class AlarmKitScheduler {
 
         let schedule = AlarmKit.Alarm.Schedule.fixed(fireDate)
 
-        // Use the pre-rendered snooze audio keyed to the ORIGINAL alarm ID
-        // — one snooze file per source alarm, regenerated daily alongside
-        // the main + closing files. `.caf` (not `.wav`) because AlarmKit
-        // on iOS 26.1 silently drops `.named(*.wav)` sounds; see the
-        // long comment in `MorningAudioRenderer.writeAsCAF`.
-        let soundFile = "snooze-\(originalAlarmID.uuidString).caf"
-        let snoozeURL = FileManager.default
-            .urls(for: .libraryDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Sounds/\(soundFile)")
-        let sound: AlertConfiguration.AlertSound = FileManager.default.fileExists(atPath: snoozeURL.path)
-            ? .named(soundFile)
-            : .default
+        // WORKAROUND: iOS 26.1 — `.named(_:)` is completely broken in
+        // AlarmKit (both bundled and Library/Sounds). Force `.default`
+        // for snooze follow-ups too.
+        // TODO: Restore `.named(soundFile)` once Apple fixes `.named()`.
+        let sound: AlertConfiguration.AlertSound = .default
 
         let stopIntent = StopAndPlayClosingIntent(alarmID: followUpID)
 
