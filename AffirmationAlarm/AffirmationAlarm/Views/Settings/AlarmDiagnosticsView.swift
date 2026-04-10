@@ -3,11 +3,9 @@ import ActivityKit
 import AppIntents
 import SwiftUI
 import UIKit
+import UserNotifications
 
-/// Temporary diagnostic screen for isolating why AlarmKit plays no audio.
-/// Three test buttons each schedule a 10-second alarm with a DIFFERENT
-/// sound source so we can pin down which playback path is broken on the
-/// user's specific iOS version / device.
+/// Diagnostic screen for isolating sound playback paths on iOS 26.1.
 struct AlarmDiagnosticsView: View {
     @State private var log = DiagnosticLog.shared
     @State private var copiedBanner = false
@@ -23,7 +21,7 @@ struct AlarmDiagnosticsView: View {
                         Text("Alarm Sound Diagnostics")
                             .font(AppTheme.headline)
                             .foregroundStyle(AppTheme.textPrimary)
-                        Text("Each button schedules a real alarm that fires in 10 seconds. Test each one and note which play audio. Then tap \"Copy Log\" and share the result.")
+                        Text("Each button fires a test in 10 seconds. Note which ones play audio, then tap \"Copy Log\" and share the result.")
                             .font(AppTheme.caption)
                             .foregroundStyle(AppTheme.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -51,6 +49,18 @@ struct AlarmDiagnosticsView: View {
                         icon: "folder.fill",
                         color: .orange
                     ) { await runTest3_librarySounds() }
+
+                    testButton(
+                        label: "Test 4: Notification Sound",
+                        icon: "bell.badge.fill",
+                        color: .purple
+                    ) { await runTest4_notificationSound() }
+
+                    testButton(
+                        label: "Test 5: AVAudioPlayer",
+                        icon: "play.circle.fill",
+                        color: .red
+                    ) { await runTest5_avAudioPlayer() }
 
                     // Log output
                     VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
@@ -133,10 +143,8 @@ struct AlarmDiagnosticsView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Test implementations
+    // MARK: - Test 1: AlarmKit .default
 
-    /// Test 1: `.default` sound. If this plays audio, AlarmKit can produce
-    /// sound on this device and the issue is specifically with `.named(_:)`.
     private func runTest1_default() async {
         log.log("--- TEST 1: Default Sound ---")
 
@@ -147,7 +155,6 @@ struct AlarmDiagnosticsView: View {
         let id = UUID()
         let fireDate = Date().addingTimeInterval(10)
         log.log("  Alarm ID: \(id.uuidString.prefix(8))")
-        log.log("  Fire date: \(fireDate)")
 
         do {
             let config = makeTestConfig(
@@ -157,14 +164,13 @@ struct AlarmDiagnosticsView: View {
             )
             _ = try await AlarmManager.shared.schedule(id: id, configuration: config)
             log.log("  Scheduled with sound: .default ✓")
-            log.log("  Alarm should fire in ~10 seconds")
         } catch {
             log.log("  SCHEDULE FAILED: \(error.localizedDescription)")
         }
     }
 
-    /// Test 2: `.named("alarm_gentle.caf")` — a bundled file in the main
-    /// bundle. If this plays but Test 3 doesn't, Library/Sounds is broken.
+    // MARK: - Test 2: AlarmKit .named (bundled)
+
     private func runTest2_bundled() async {
         log.log("--- TEST 2: Bundled CAF ---")
 
@@ -172,36 +178,30 @@ struct AlarmDiagnosticsView: View {
         log.log("  Authorization: \(authOK ? "granted" : "DENIED")")
         guard authOK else { return }
 
-        // Verify the bundled file exists
         let bundledURL = Bundle.main.url(forResource: "alarm_gentle", withExtension: "caf")
         if let url = bundledURL {
             let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
             log.log("  alarm_gentle.caf in bundle: YES (\(size) bytes)")
         } else {
-            log.log("  alarm_gentle.caf in bundle: NO — FILE MISSING")
+            log.log("  alarm_gentle.caf in bundle: NO — MISSING")
         }
 
         let id = UUID()
-        let fireDate = Date().addingTimeInterval(10)
-        log.log("  Alarm ID: \(id.uuidString.prefix(8))")
-
         do {
             let config = makeTestConfig(
                 title: "Diag: Bundled",
-                schedule: .fixed(fireDate),
+                schedule: .fixed(Date().addingTimeInterval(10)),
                 sound: .named("alarm_gentle.caf")
             )
             _ = try await AlarmManager.shared.schedule(id: id, configuration: config)
             log.log("  Scheduled with sound: .named(\"alarm_gentle.caf\") ✓")
-            log.log("  Alarm should fire in ~10 seconds")
         } catch {
             log.log("  SCHEDULE FAILED: \(error.localizedDescription)")
         }
     }
 
-    /// Test 3: Copy a known-good CAF into Library/Sounds/ at runtime, then
-    /// schedule with that path. If this is silent but Test 2 plays, the
-    /// Library/Sounds lookup is broken on this iOS version (FB19779004).
+    // MARK: - Test 3: AlarmKit .named (Library/Sounds)
+
     private func runTest3_librarySounds() async {
         log.log("--- TEST 3: Library/Sounds CAF ---")
 
@@ -209,20 +209,18 @@ struct AlarmDiagnosticsView: View {
         log.log("  Authorization: \(authOK ? "granted" : "DENIED")")
         guard authOK else { return }
 
-        // Copy alarm_gentle.caf from bundle → Library/Sounds/
         let soundsDir = MorningAudioRenderer.soundsDirectory()
         let destURL = soundsDir.appendingPathComponent("diagnostic_test.caf")
 
         do {
             try FileManager.default.createDirectory(at: soundsDir, withIntermediateDirectories: true)
-            log.log("  Library/Sounds/ directory: OK")
         } catch {
-            log.log("  Library/Sounds/ directory FAILED: \(error.localizedDescription)")
+            log.log("  Library/Sounds/ dir FAILED: \(error.localizedDescription)")
             return
         }
 
         guard let sourceURL = Bundle.main.url(forResource: "alarm_gentle", withExtension: "caf") else {
-            log.log("  Source file missing from bundle")
+            log.log("  Source missing from bundle")
             return
         }
 
@@ -237,27 +235,147 @@ struct AlarmDiagnosticsView: View {
         }
 
         let id = UUID()
-        let fireDate = Date().addingTimeInterval(10)
-        log.log("  Alarm ID: \(id.uuidString.prefix(8))")
-
         do {
             let config = makeTestConfig(
                 title: "Diag: Lib/Sounds",
-                schedule: .fixed(fireDate),
+                schedule: .fixed(Date().addingTimeInterval(10)),
                 sound: .named("diagnostic_test.caf")
             )
             _ = try await AlarmManager.shared.schedule(id: id, configuration: config)
             log.log("  Scheduled with sound: .named(\"diagnostic_test.caf\") ✓")
-            log.log("  Alarm should fire in ~10 seconds")
         } catch {
             log.log("  SCHEDULE FAILED: \(error.localizedDescription)")
         }
     }
 
+    // MARK: - Test 4: UNUserNotification with custom sound
+
+    /// Tests whether UNNotificationSound(named:) works on this device.
+    /// This is a DIFFERENT API from AlarmKit's .named() — it might work
+    /// even though AlarmKit's version is broken on iOS 26.1.
+    /// If this plays audio, we can use a local notification alongside
+    /// the AlarmKit alarm to deliver the affirmation audio automatically.
+    private func runTest4_notificationSound() async {
+        log.log("--- TEST 4: Notification Sound ---")
+
+        // Request notification permission
+        let center = UNUserNotificationCenter.current()
+        do {
+            let granted = try await center.requestAuthorization(options: [.alert, .sound])
+            log.log("  Notification auth: \(granted ? "granted" : "DENIED")")
+            guard granted else { return }
+        } catch {
+            log.log("  Notification auth FAILED: \(error.localizedDescription)")
+            return
+        }
+
+        // Copy bundled alarm_gentle.caf to Library/Sounds/ (where
+        // UNNotificationSound looks for named files)
+        let soundsDir = MorningAudioRenderer.soundsDirectory()
+        let destURL = soundsDir.appendingPathComponent("notif_test.caf")
+
+        do {
+            try FileManager.default.createDirectory(at: soundsDir, withIntermediateDirectories: true)
+        } catch {
+            log.log("  Library/Sounds/ dir FAILED: \(error.localizedDescription)")
+            return
+        }
+
+        guard let sourceURL = Bundle.main.url(forResource: "alarm_gentle", withExtension: "caf") else {
+            log.log("  Source missing from bundle")
+            return
+        }
+
+        do {
+            try? FileManager.default.removeItem(at: destURL)
+            try FileManager.default.copyItem(at: sourceURL, to: destURL)
+            let size = (try? FileManager.default.attributesOfItem(atPath: destURL.path)[.size] as? Int) ?? 0
+            log.log("  Copied notif_test.caf (\(size) bytes)")
+        } catch {
+            log.log("  COPY FAILED: \(error.localizedDescription)")
+            return
+        }
+
+        // Schedule notification in 10 seconds with custom sound
+        let content = UNMutableNotificationContent()
+        content.title = "Diag: Notification Sound"
+        content.body = "This notification should play alarm_gentle.caf audio."
+        content.sound = UNNotificationSound(named: UNNotificationSoundName("notif_test.caf"))
+
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 10, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "diag-notif-sound-\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+
+        do {
+            try await center.add(request)
+            log.log("  Notification scheduled, fires in 10s ✓")
+            log.log("  sound = UNNotificationSound(named: \"notif_test.caf\")")
+            log.log("  IMPORTANT: Lock your phone or leave this app to hear it")
+            log.log("  (notifications don't play sound while the app is in foreground by default)")
+        } catch {
+            log.log("  NOTIFICATION SCHEDULE FAILED: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - Test 5: Direct AVAudioPlayer playback
+
+    /// Tests whether AVAudioPlayer can play audio from the app process
+    /// right now, independent of AlarmKit. This confirms the audio file
+    /// is valid and the audio session works.
+    private func runTest5_avAudioPlayer() async {
+        log.log("--- TEST 5: AVAudioPlayer ---")
+
+        guard let sourceURL = Bundle.main.url(forResource: "alarm_gentle", withExtension: "caf") else {
+            log.log("  alarm_gentle.caf missing from bundle")
+            return
+        }
+
+        let size = (try? FileManager.default.attributesOfItem(atPath: sourceURL.path)[.size] as? Int) ?? 0
+        log.log("  File: alarm_gentle.caf (\(size) bytes)")
+
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .default, options: [])
+            try session.setActive(true, options: [])
+            try session.overrideOutputAudioPort(.speaker)
+            log.log("  Audio session: active, routed to speaker")
+            log.log("  Output volume: \(session.outputVolume)")
+        } catch {
+            log.log("  Audio session FAILED: \(error.localizedDescription)")
+            return
+        }
+
+        let player: AVAudioPlayer
+        do {
+            player = try AVAudioPlayer(contentsOf: sourceURL)
+            log.log("  Player created, duration=\(String(format: "%.1f", player.duration))s")
+        } catch {
+            log.log("  AVAudioPlayer init FAILED: \(error.localizedDescription)")
+            return
+        }
+
+        player.volume = 1.0
+        player.prepareToPlay()
+        let started = player.play()
+        log.log("  play() returned \(started)")
+
+        if started {
+            log.log("  Playing now (should hear audio immediately)...")
+            try? await Task.sleep(for: .seconds(player.duration + 0.3))
+            withExtendedLifetime(player) {}
+            log.log("  Playback complete")
+        } else {
+            log.log("  play() returned false — NO AUDIO")
+        }
+
+        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+    }
+
     // MARK: - Helpers
 
-    /// Minimal AlarmKit configuration for a diagnostic test alarm.
-    /// No stop/snooze intents — just a simple alarm with a title and sound.
     private func makeTestConfig(
         title: String,
         schedule: AlarmKit.Alarm.Schedule,
