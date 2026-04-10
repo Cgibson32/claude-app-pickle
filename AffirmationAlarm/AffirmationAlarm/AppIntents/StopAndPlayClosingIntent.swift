@@ -68,18 +68,18 @@ struct StopAndPlayClosingIntent: LiveActivityIntent {
             return .result()
         }
 
-        // Configure audio session for LOUD playback through the main
-        // speaker. Use `.playback` category (not `.soloAmbient`) so audio
-        // plays even if the ring/silent switch is on, and `.default` mode
-        // (not `.spokenAudio` which can route to the ear speaker). Force
-        // output to the bottom loudspeaker for maximum volume.
+        // Configure audio session for playback. Use `.playback` category
+        // so audio plays even if the ring/silent switch is on.
+        // NOTE: Do NOT call overrideOutputAudioPort(.speaker) — it throws
+        // error -50 on iOS 26.1 and causes the entire audio session to
+        // fail silently, which is why previous builds had no audio after
+        // tapping Stop.
         do {
             let session = AVAudioSession.sharedInstance()
             log("pre-setup route: \(session.currentRoute.outputs.map { $0.portType.rawValue })")
             try session.setCategory(.playback, mode: .default, options: [])
             try session.setActive(true, options: [])
-            try session.overrideOutputAudioPort(.speaker)
-            log("audio session active, routed to speaker, volume=\(session.outputVolume)")
+            log("audio session active, volume=\(session.outputVolume)")
         } catch {
             log("audio session FAILED: \(error.localizedDescription)")
             return .result()
