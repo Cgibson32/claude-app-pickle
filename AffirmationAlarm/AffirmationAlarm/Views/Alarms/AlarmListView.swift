@@ -138,39 +138,7 @@ struct AlarmRow: View {
                 Toggle("", isOn: Binding(
                     get: { alarm.isEnabled },
                     set: { newValue in
-                        alarm.isEnabled = newValue
-                        try? modelContext.save()
-                        if newValue {
-                            // Re-render the personalized audio before
-                            // scheduling so flipping an alarm off then on
-                            // doesn't leave the user with stale or missing
-                            // voice files. Fire-and-forget Task; the
-                            // scheduler falls back to the bundled tone
-                            // while the render is in flight.
-                            if let profile = profiles.first {
-                                let context = modelContext
-                                Task { @MainActor in
-                                    _ = await MorningAudioRenderer.shared.refresh(
-                                        for: alarm,
-                                        profile: profile,
-                                        modelContext: context
-                                    )
-                                    AlarmKitScheduler.shared.scheduleAlarm(alarm)
-                                }
-                            } else {
-                                AlarmKitScheduler.shared.scheduleAlarm(alarm)
-                            }
-                            // Start background keep-alive so the auto-play
-                            // observer stays alive when the app is backgrounded.
-                            BackgroundKeepAlive.shared.start()
-                        } else {
-                            AlarmKitScheduler.shared.cancelAlarm(alarm)
-                            // Stop keep-alive if no other alarms remain enabled
-                            let othersEnabled = self.alarms.contains { $0.isEnabled && $0.id != alarm.id }
-                            if !othersEnabled {
-                                BackgroundKeepAlive.shared.stop()
-                            }
-                        }
+                        handleAlarmToggle(alarm: alarm, enabled: newValue)
                     }
                 ))
                 .tint(AppTheme.sunsetOrange)
@@ -201,6 +169,31 @@ struct AlarmRow: View {
         }
         .sheet(isPresented: $showingEdit) {
             AlarmDetailView(alarm: alarm)
+        }
+    }
+
+    private func handleAlarmToggle(alarm: Alarm, enabled: Bool) {
+        alarm.isEnabled = enabled
+        try? modelContext.save()
+        if enabled {
+            if let profile = profiles.first {
+                let context = modelContext
+                Task { @MainActor in
+                    _ = await MorningAudioRenderer.shared.refresh(
+                        for: alarm, profile: profile, modelContext: context
+                    )
+                    AlarmKitScheduler.shared.scheduleAlarm(alarm)
+                }
+            } else {
+                AlarmKitScheduler.shared.scheduleAlarm(alarm)
+            }
+            BackgroundKeepAlive.shared.start()
+        } else {
+            AlarmKitScheduler.shared.cancelAlarm(alarm)
+            let anyEnabled = (try? modelContext.fetch(FetchDescriptor<Alarm>()))?.contains(where: \.isEnabled) ?? false
+            if !anyEnabled {
+                BackgroundKeepAlive.shared.stop()
+            }
         }
     }
 
