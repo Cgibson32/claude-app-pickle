@@ -105,40 +105,34 @@ final class MorningAudioRenderer {
 
         // 1. Main file: greeting + affirmations (no closing).
         //
-        // OpenAI returns 24 kHz 16-bit mono PCM wrapped in a WAV container.
-        // We re-wrap that PCM in a CAF container before writing to disk —
-        // AlarmKit on iOS 26.1 appears to reject `.named(*.wav)` sounds
-        // silently (alarm fires, phone vibrates, no audio), even though
-        // WAV is nominally a supported notification-sound container per
-        // Apple docs. CAF is battle-tested across every audio path in iOS
-        // and is what the built-in Clock.app uses. Same PCM bytes, different
-        // wrapper — no quality loss.
+        // Request MP3 directly from OpenAI TTS. AlarmKit's `.named()`
+        // mechanism is handled by the system daemon (mobiletimerd) which
+        // looks for the file in Library/Sounds/. MP3 is an officially
+        // supported format per Apple docs. Previous attempts with WAV and
+        // CAF both failed silently on iOS 26.1 — MP3 may work where they
+        // didn't (forum reports suggest MP3 support was fixed in 26.1).
         let mainScript = composeMainScript(
             name: profile.name,
             affirmations: affirmations,
             affirmationCount: profile.affirmationCount
         )
         do {
-            let mainWAV = try await tts.synthesize(text: mainScript, voice: voice, format: .wav)
-            try Self.writeAsCAF(wavData: mainWAV, to: morningURL)
+            let mainMP3 = try await tts.synthesize(text: mainScript, voice: voice, format: .mp3)
+            try mainMP3.write(to: morningURL, options: .atomic)
         } catch {
             AppLogger.audio.error("main render failed: \(error.localizedDescription, privacy: .public)")
             return nil
         }
 
-        // 2. Closing file: just the closing statement, rendered as a
-        //    separate TTS call so `StopAndPlayClosingIntent` can play it
-        //    on its own via AVAudioPlayer. AVAudioPlayer handles CAF
-        //    natively, same as WAV.
+        // 2. Closing file: just the closing statement. AVAudioPlayer
+        //    handles MP3 natively.
         let closingScript = composeClosingScript(closing: closing?.message)
         let closingURL = Self.soundsDirectory()
             .appendingPathComponent(Self.closingFilename(for: alarm))
         do {
-            let closingWAV = try await tts.synthesize(text: closingScript, voice: voice, format: .wav)
-            try Self.writeAsCAF(wavData: closingWAV, to: closingURL)
+            let closingMP3 = try await tts.synthesize(text: closingScript, voice: voice, format: .mp3)
+            try closingMP3.write(to: closingURL, options: .atomic)
         } catch {
-            // Non-fatal: the main file is written and the alarm can still
-            // ring. The stop intent will no-op without a closing file.
             AppLogger.audio.error("closing render failed: \(error.localizedDescription, privacy: .public)")
         }
 
@@ -274,14 +268,11 @@ final class MorningAudioRenderer {
             ? "Time to get up. Let's have a great day."
             : "Time to get up, \(trimmedName). Let's have a great day."
 
-        let ttsWAV = try await tts.synthesize(text: spoken, voice: voice, format: .wav)
+        let ttsMP3 = try await tts.synthesize(text: spoken, voice: voice, format: .mp3)
 
         let destURL = Self.soundsDirectory()
             .appendingPathComponent(Self.snoozeFilename(for: alarm))
-        // Re-wrap the OpenAI WAV as CAF for the same reason as the main
-        // and closing files — AlarmKit on iOS 26.1 plays `.named(*.caf)`
-        // reliably but silently drops `.named(*.wav)` sounds.
-        try Self.writeAsCAF(wavData: ttsWAV, to: destURL)
+        try ttsMP3.write(to: destURL, options: .atomic)
         return destURL
     }
 
@@ -340,15 +331,15 @@ final class MorningAudioRenderer {
     // MARK: - Filename helpers
 
     private static func morningFilename(for alarm: Alarm) -> String {
-        "morning-\(alarm.id.uuidString).caf"
+        "morning-\(alarm.id.uuidString).mp3"
     }
 
     private static func closingFilename(for alarm: Alarm) -> String {
-        "closing-\(alarm.id.uuidString).caf"
+        "closing-\(alarm.id.uuidString).mp3"
     }
 
     private static func snoozeFilename(for alarm: Alarm) -> String {
-        "snooze-\(alarm.id.uuidString).caf"
+        "snooze-\(alarm.id.uuidString).mp3"
     }
 
     nonisolated static func soundsDirectory() -> URL {

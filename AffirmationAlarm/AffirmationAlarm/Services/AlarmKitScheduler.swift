@@ -322,21 +322,26 @@ class AlarmKitScheduler {
         // `openAppWhenRun = false`. App does not launch.
         let snoozeIntent = SnoozeMorningIntent(alarmID: alarm.id)
 
-        // Use the static `.alarm(...)` convenience initializer for
-        // schedule-only (non-countdown) alarms. Equivalent to passing
-        // `countdownDuration: nil` to the full initializer.
-        //
-        // WORKAROUND: iOS 26.1 — `.named(_:)` is completely broken in
-        // AlarmKit. Both bundled and Library/Sounds files are silently
-        // ignored. Only `.default` produces audible output. Using
-        // `.default` until Apple ships a fix.
-        // TODO: Switch back to `.named(soundName)` once `.named()` works.
+        // Resolve the sound file name. Prefer the pre-rendered MP3 if
+        // MorningAudioRenderer has written one, else fall back to bundled.
+        let soundName: String
+        if let rendered = MorningAudioRenderer.existingRenderedFilename(for: alarm) {
+            soundName = rendered
+        } else {
+            soundName = "\(alarm.soundName).caf"
+        }
+
+        // AlarmKit's `.named()` is played by the system daemon
+        // (mobiletimerd) — the same process that powers Clock.app. It
+        // looks for files in the main bundle and Library/Sounds/.
+        // Using MP3 format because CAF and WAV both fail silently on
+        // iOS 26.1 while MP3 support was reportedly fixed.
         return ScheduleConfiguration.alarm(
             schedule: schedule,
             attributes: attributes,
             stopIntent: stopIntent,
             secondaryIntent: snoozeIntent,
-            sound: .default
+            sound: .named(soundName)
         )
     }
 
@@ -375,11 +380,13 @@ class AlarmKitScheduler {
 
         let schedule = AlarmKit.Alarm.Schedule.fixed(fireDate)
 
-        // WORKAROUND: iOS 26.1 — `.named(_:)` is completely broken in
-        // AlarmKit (both bundled and Library/Sounds). Force `.default`
-        // for snooze follow-ups too.
-        // TODO: Restore `.named(soundFile)` once Apple fixes `.named()`.
-        let sound: AlertConfiguration.AlertSound = .default
+        // Use the pre-rendered snooze MP3 keyed to the original alarm ID.
+        let soundFile = "snooze-\(originalAlarmID.uuidString).mp3"
+        let snoozeURL = MorningAudioRenderer.soundsDirectory()
+            .appendingPathComponent(soundFile)
+        let sound: AlertConfiguration.AlertSound = FileManager.default.fileExists(atPath: snoozeURL.path)
+            ? .named(soundFile)
+            : .default
 
         let stopIntent = StopAndPlayClosingIntent(alarmID: followUpID)
 
