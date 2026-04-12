@@ -33,6 +33,13 @@ struct StopAndPlayClosingIntent: LiveActivityIntent {
 
         try? AlarmManager.shared.cancel(id: uuid)
 
+        // Flag for foreground fallback: iOS 26.1 opens the app on
+        // slide-to-stop despite openAppWhenRun = false. If the actor
+        // can't play from this sandboxed intent context, RootView's
+        // scenePhase observer picks up the flag and plays from foreground.
+        UserDefaults.standard.set(uuid.uuidString, forKey: "pendingMorningPlayback")
+
+        // Try background playback — actor deduplicates if both paths fire
         _ = await AlarmAudioPlayer.shared.playMorningAndClosing(for: uuid)
 
         return .result()

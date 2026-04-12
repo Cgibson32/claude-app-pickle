@@ -68,6 +68,7 @@ class AlarmKitScheduler {
     /// handled). Prevents duplicate auto-play when `alarmUpdates` emits
     /// the same `.alerting` state multiple times.
     private var currentlyAlerting: Set<UUID> = []
+    private var alarmObserverTask: Task<Void, Never>?
 
     private init() {
         observeAuthorizationUpdates()
@@ -126,7 +127,7 @@ class AlarmKitScheduler {
     // `AlarmAudioPlayer` which deduplicates, so there's never double audio.
 
     private func observeAlarmFireUpdates() {
-        Task { @MainActor [weak self] in
+        alarmObserverTask = Task { @MainActor [weak self] in
             guard let self else { return }
             for await alarms in self.manager.alarmUpdates {
                 self.handleAlarmUpdate(alarms)

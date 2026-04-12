@@ -101,6 +101,10 @@ class OnboardingViewModel {
                 modelContext: modelContext
             )
             AlarmKitScheduler.shared.scheduleAlarm(alarm)
+
+            // Start background keep-alive so auto-play observer stays
+            // alive when the app is backgrounded after onboarding.
+            BackgroundKeepAlive.shared.start()
         }
     }
 }

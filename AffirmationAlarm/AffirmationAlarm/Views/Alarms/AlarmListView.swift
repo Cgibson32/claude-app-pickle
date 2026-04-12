@@ -160,8 +160,15 @@ struct AlarmRow: View {
                             } else {
                                 AlarmKitScheduler.shared.scheduleAlarm(alarm)
                             }
+                            // Start background keep-alive so the auto-play
+                            // observer stays alive when the app is backgrounded.
+                            BackgroundKeepAlive.shared.start()
                         } else {
                             AlarmKitScheduler.shared.cancelAlarm(alarm)
+                            // Stop keep-alive if no alarms remain enabled
+                            if !alarms.contains(where: { $0.isEnabled && $0.id != alarm.id }) {
+                                BackgroundKeepAlive.shared.stop()
+                            }
                         }
                     }
                 ))

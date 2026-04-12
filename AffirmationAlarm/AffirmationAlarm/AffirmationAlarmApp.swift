@@ -30,9 +30,6 @@ struct AffirmationAlarmApp: App {
 
         // Force the AlarmKitScheduler singleton to materialize at launch so
         // its alarmUpdates observer is running before the first alarm fires.
-        // Without this, .shared is only instantiated lazily when the alarm
-        // list first renders, which could miss an alarm that fires during
-        // a cold start.
         _ = AlarmKitScheduler.shared
     }
 
@@ -47,19 +44,15 @@ struct AffirmationAlarmApp: App {
 
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(SubscriptionManager.self) private var subscriptionManager
     @Query private var profiles: [UserProfile]
+    @Query private var alarms: [Alarm]
     @State private var showEveningReflection = false
 
     var body: some View {
         Group {
             if let profile = profiles.first, profile.hasCompletedOnboarding {
-                // TODO: Re-enable paywall when subscription is configured in App Store Connect
-                // if subscriptionManager.isSubscribed {
-                //     HomeView()
-                // } else {
-                //     PaywallView()
-                // }
                 HomeView()
             } else {
                 OnboardingContainerView()
@@ -68,6 +61,15 @@ struct RootView: View {
         .onAppear {
             ensureProfileExists()
             reconcileAlarmsWithSystem()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                checkPendingMorningPlayback()
+                // Re-start keep-alive if it was interrupted (e.g. phone call)
+                if alarms.contains(where: \.isEnabled) {
+                    BackgroundKeepAlive.shared.start()
+                }
+            }
         }
         .sheet(isPresented: $showEveningReflection) {
             EveningReflectionView()
@@ -83,27 +85,35 @@ struct RootView: View {
         }
     }
 
-    /// Cross-reference SwiftData alarm rows with AlarmKit's live alarms on
-    /// launch. `reconcile` auto-disables one-shot rows whose system entry is
-    /// gone (they already fired) and re-arms repeating rows that got lost
-    /// (e.g. first launch after an app update).
-    ///
-    /// Also refreshes the pre-rendered morning audio for every enabled
-    /// alarm so the voice content stays fresh — if the file is older than
-    /// 20 hours it's regenerated with today's Claude-tailored affirmations
-    /// in the user's chosen voice. After rendering, every enabled alarm is
-    /// re-scheduled so AlarmKit picks up the new sound file.
+    /// Fallback playback path: if the Stop-slide intent set a pending
+    /// playback flag and the app opened, play from the foreground.
+    private func checkPendingMorningPlayback() {
+        guard let idString = UserDefaults.standard.string(forKey: "pendingMorningPlayback"),
+              let alarmID = UUID(uuidString: idString) else { return }
+
+        UserDefaults.standard.removeObject(forKey: "pendingMorningPlayback")
+
+        Task {
+            _ = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
+        }
+    }
+
     private func reconcileAlarmsWithSystem() {
-        let alarms = (try? modelContext.fetch(FetchDescriptor<Alarm>())) ?? []
-        AlarmKitScheduler.shared.reconcile(alarms: alarms)
+        let allAlarms = (try? modelContext.fetch(FetchDescriptor<Alarm>())) ?? []
+        AlarmKitScheduler.shared.reconcile(alarms: allAlarms)
+
+        // Start background keep-alive if any alarm is enabled — this keeps
+        // the app process alive so the alarmUpdates observer can detect
+        // .alerting state and auto-play affirmation audio.
+        if allAlarms.contains(where: \.isEnabled) {
+            BackgroundKeepAlive.shared.start()
+        }
 
         guard let profile = (try? modelContext.fetch(FetchDescriptor<UserProfile>()))?.first,
               profile.hasCompletedOnboarding else {
             return
         }
 
-        // Re-arm the evening reflection notification on launch in case
-        // it was lost (OS update, permission change, etc.).
         if profile.eveningReflectionEnabled {
             EveningReflectionSchedulingService.schedule(
                 hour: profile.eveningReflectionHour,
@@ -114,13 +124,11 @@ struct RootView: View {
         let context = modelContext
         Task { @MainActor in
             await MorningAudioRenderer.shared.refreshAll(
-                alarms: alarms,
+                alarms: allAlarms,
                 profile: profile,
                 modelContext: context
             )
-            // Re-schedule enabled alarms so AlarmKit picks up any freshly
-            // rendered audio files.
-            for alarm in alarms where alarm.isEnabled {
+            for alarm in allAlarms where alarm.isEnabled {
                 AlarmKitScheduler.shared.scheduleAlarm(alarm)
             }
         }
