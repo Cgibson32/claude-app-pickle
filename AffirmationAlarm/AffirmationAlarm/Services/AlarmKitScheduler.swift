@@ -138,7 +138,6 @@ class AlarmKitScheduler {
             do {
                 let configuration = self.makeConfiguration(for: alarm)
                 _ = try await self.manager.schedule(id: alarm.id, configuration: configuration)
-                alarm.notificationIdentifiers = [alarm.id.uuidString]
                 AppLogger.alarm.info("scheduled alarm \(alarm.id, privacy: .public)")
             } catch {
                 AppLogger.alarm.error("schedule failed for \(alarm.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
@@ -154,7 +153,6 @@ class AlarmKitScheduler {
     /// alarm from the system daemon unconditionally.
     func cancelAlarm(_ alarm: Alarm) {
         let id = alarm.id
-        alarm.notificationIdentifiers = []
         // `cancel(id:)` is sync and non-isolated; we can call it directly
         // without spawning a Task.
         try? manager.cancel(id: id)
@@ -188,7 +186,6 @@ class AlarmKitScheduler {
             if alarm.repeatDays.isEmpty {
                 // One-shot that's no longer present = already fired.
                 alarm.isEnabled = false
-                alarm.notificationIdentifiers = []
             } else {
                 // Repeating alarm missing from the system (e.g. first
                 // launch after update) — re-arm it.

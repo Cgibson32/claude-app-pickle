@@ -10,6 +10,10 @@ final class Alarm {
     var soundName: String = "alarm_gentle"
     var label: String = "Morning Affirmations"
     var repeatDaysData: String = "[]"
+    // TODO(v1.1): Remove alongside a proper VersionedSchema migration.
+    // Vestigial field — never read, only written to by old scheduler code.
+    // Kept to avoid SwiftData schema change that would trigger in-memory
+    // fallback and wipe existing alarm data.
     var notificationIdentifiersData: String = "[]"
 
     var repeatDays: [Int] {
@@ -18,15 +22,6 @@ final class Alarm {
         }
         set {
             repeatDaysData = (try? String(data: JSONEncoder().encode(newValue), encoding: .utf8)) ?? "[]"
-        }
-    }
-
-    var notificationIdentifiers: [String] {
-        get {
-            (try? JSONDecoder().decode([String].self, from: Data(notificationIdentifiersData.utf8))) ?? []
-        }
-        set {
-            notificationIdentifiersData = (try? String(data: JSONEncoder().encode(newValue), encoding: .utf8)) ?? "[]"
         }
     }
 

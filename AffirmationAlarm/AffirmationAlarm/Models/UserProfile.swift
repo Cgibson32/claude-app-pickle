@@ -7,6 +7,8 @@ final class UserProfile {
     var freeformGoals: String = ""
     var hasCompletedOnboarding: Bool = false
     var selectedCategoriesData: String = "[]"
+    // TODO(v1.1): Remove alongside a proper VersionedSchema migration.
+    // Vestigial — never read. Kept to avoid SwiftData schema change.
     var speechRate: Float = 0.42
     var speechPitch: Float = 0.85
     var ttsEnabled: Bool = true

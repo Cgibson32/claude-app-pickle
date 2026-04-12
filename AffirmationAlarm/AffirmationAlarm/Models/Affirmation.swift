@@ -7,6 +7,8 @@ final class Affirmation {
     var text: String = ""
     var generatedFor: Date = Date.now
     var goalContext: String = ""
+    // TODO(v1.1): Remove alongside a proper VersionedSchema migration.
+    // Vestigial — never read. Kept to avoid SwiftData schema change.
     var wasSpoken: Bool = false
     var isFavorited: Bool = false
     var favoriteType: Int = 0
