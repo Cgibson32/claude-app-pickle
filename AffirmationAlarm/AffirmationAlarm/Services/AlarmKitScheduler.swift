@@ -266,33 +266,15 @@ class AlarmKitScheduler {
             soundName = "\(alarm.soundName).caf"
         }
 
-        // Diagnostic logging — visible in Settings → Alarm Diagnostics
-        DiagnosticLog.shared.log("makeConfig: alarm \(alarm.id.uuidString.prefix(8))")
-        DiagnosticLog.shared.log("  soundName = \(soundName)")
-        if soundName.hasPrefix("morning-") || soundName.hasPrefix("closing-") || soundName.hasPrefix("snooze-") {
-            let url = MorningAudioRenderer.soundsDirectory().appendingPathComponent(soundName)
-            let exists = FileManager.default.fileExists(atPath: url.path)
-            let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
-            DiagnosticLog.shared.log("  Library/Sounds exists: \(exists), size: \(size)B")
-        } else {
-            let bundled = Bundle.main.url(
-                forResource: soundName.replacingOccurrences(of: ".caf", with: ""),
-                withExtension: "caf"
-            )
-            DiagnosticLog.shared.log("  Bundle exists: \(bundled != nil)")
-        }
-
         // Use the static `.alarm(...)` convenience initializer for
         // schedule-only (non-countdown) alarms. Equivalent to passing
         // `countdownDuration: nil` to the full initializer.
         //
         // WORKAROUND: iOS 26.1 — `.named(_:)` is completely broken in
         // AlarmKit. Both bundled and Library/Sounds files are silently
-        // ignored (confirmed via Alarm Diagnostics screen). Only
-        // `.default` produces audible output. Using `.default` until
-        // Apple ships a fix.
+        // ignored. Only `.default` produces audible output. Using
+        // `.default` until Apple ships a fix.
         // TODO: Switch back to `.named(soundName)` once `.named()` works.
-        DiagnosticLog.shared.log("  Using .default (iOS 26.1 .named() workaround)")
         return ScheduleConfiguration.alarm(
             schedule: schedule,
             attributes: attributes,

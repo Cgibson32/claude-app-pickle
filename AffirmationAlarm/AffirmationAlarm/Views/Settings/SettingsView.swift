@@ -56,14 +56,6 @@ struct SettingsView: View {
                         SettingsRow(icon: "arrow.clockwise", title: "Restore Purchases", color: AppTheme.warmAmber)
                     }
 
-                    // Alarm diagnostics (temporary — for isolating the
-                    // silent-alarm bug on iOS 26.1)
-                    NavigationLink {
-                        AlarmDiagnosticsView()
-                    } label: {
-                        SettingsRow(icon: "stethoscope", title: "Alarm Diagnostics", color: AppTheme.sunsetOrange)
-                    }
-
                     // About
                     VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
                         Text("About")
