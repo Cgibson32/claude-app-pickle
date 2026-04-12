@@ -339,18 +339,6 @@ class AlarmKitScheduler {
         // `openAppWhenRun = false`. App does not launch.
         let snoozeIntent = SnoozeMorningIntent(alarmID: alarm.id)
 
-        // Prefer the pre-rendered personalized audio if `MorningAudioRenderer`
-        // has already written a file for this alarm into `Library/Sounds/`.
-        // If no rendered file exists yet (first launch, TTS failure, etc.)
-        // fall back to the bundled tone the user picked in onboarding so
-        // the alarm still rings reliably.
-        let soundName: String
-        if let rendered = MorningAudioRenderer.existingRenderedFilename(for: alarm) {
-            soundName = rendered
-        } else {
-            soundName = "\(alarm.soundName).caf"
-        }
-
         // Use the static `.alarm(...)` convenience initializer for
         // schedule-only (non-countdown) alarms. Equivalent to passing
         // `countdownDuration: nil` to the full initializer.

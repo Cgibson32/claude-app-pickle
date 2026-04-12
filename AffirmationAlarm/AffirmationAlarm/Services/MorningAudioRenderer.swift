@@ -351,7 +351,7 @@ final class MorningAudioRenderer {
         "snooze-\(alarm.id.uuidString).caf"
     }
 
-    static func soundsDirectory() -> URL {
+    nonisolated static func soundsDirectory() -> URL {
         let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
         return library.appendingPathComponent("Sounds", isDirectory: true)
     }
