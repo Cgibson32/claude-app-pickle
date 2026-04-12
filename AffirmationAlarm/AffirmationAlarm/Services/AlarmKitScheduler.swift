@@ -154,9 +154,8 @@ class AlarmKitScheduler {
     }
 
     private func handleFire(alarmID: UUID) async {
-        // Check that pre-rendered files exist BEFORE cancelling the alarm.
-        // If files are missing (offline first run, TTS failure), we must NOT
-        // cut .default — the user still needs to wake up.
+        // Check that pre-rendered files exist. If missing, let .default
+        // keep ringing as a safety net.
         let soundsDir = MorningAudioRenderer.soundsDirectory()
         let morningExists = FileManager.default.fileExists(
             atPath: soundsDir.appendingPathComponent("morning-\(alarmID.uuidString).caf").path
@@ -166,25 +165,8 @@ class AlarmKitScheduler {
             return
         }
 
-        // Let .default ring for 3 seconds as the wake-up sound.
-        try? await Task.sleep(for: .seconds(3))
-
-        // Re-check: is the alarm still alerting? If the user tapped Stop
-        // or Snooze during the 3-second window, bail out — the
-        // StopAndPlayClosingIntent or SnoozeMorningIntent already handled it.
-        let stillAlerting: Bool
-        if let alarms = try? manager.alarms {
-            stillAlerting = alarms.contains { $0.id == alarmID && $0.state == .alerting }
-        } else {
-            stillAlerting = false
-        }
-
-        guard stillAlerting else {
-            AppLogger.alarm.info("auto-play: alarm \(alarmID.uuidString.prefix(8), privacy: .public) no longer alerting, skipping")
-            return
-        }
-
-        // Stop the .default system sound.
+        // Cancel the alarm immediately — no delay. This stops .default
+        // and we take over audio entirely with the affirmation sequence.
         try? manager.cancel(id: alarmID)
 
         // Play the morning affirmation sequence + closing via the shared actor.
