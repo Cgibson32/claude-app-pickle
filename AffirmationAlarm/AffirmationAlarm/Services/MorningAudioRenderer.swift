@@ -34,11 +34,15 @@ final class MorningAudioRenderer {
     /// than a day.
     private let staleAfter: TimeInterval = 20 * 3600
 
-    /// How long (roughly) the main spoken audio should stay under. Nova
-    /// speaks at about 2.6 words/second at 0.95x speed, so 25s ≈ 65 words.
-    /// That keeps us safely under the 30-second custom-sound cap and gives
-    /// us headroom for the separate closing file.
-    private let maxMainWords = 55
+    /// Word budget for the main script as a function of affirmation count.
+    /// Nova speaks at about 2.6 words/sec at 0.95x speed (~2.47 wps).
+    /// Since we play via AVAudioPlayer (not AlarmKit .named()), there's no
+    /// 30-second cap. We cap at 80 words (~32s) for user comfort.
+    private func wordBudget(for affirmationCount: Int) -> Int {
+        let greetingWords = 3
+        let wordsPerAffirmation = 15
+        return min(greetingWords + wordsPerAffirmation * affirmationCount + 5, 80)
+    }
 
     private let tts = OpenAITTSService()
 
@@ -111,7 +115,8 @@ final class MorningAudioRenderer {
         // wrapper — no quality loss.
         let mainScript = composeMainScript(
             name: profile.name,
-            affirmations: affirmations
+            affirmations: affirmations,
+            affirmationCount: profile.affirmationCount
         )
         do {
             let mainWAV = try await tts.synthesize(text: mainScript, voice: voice, format: .wav)
@@ -206,13 +211,14 @@ final class MorningAudioRenderer {
 
     // MARK: - Script composition
 
-    /// The main alarm audio content: greeting + up to 3 affirmations.
-    /// Joins segments with paragraph breaks so TTS treats them as natural
-    /// pauses. The closing is intentionally NOT included here — it lives in
-    /// its own file so the stop intent can play it independently.
+    /// The main alarm audio content: greeting + the user's chosen number
+    /// of affirmations. Joins segments with paragraph breaks so TTS
+    /// treats them as natural pauses. The closing is intentionally NOT
+    /// included here — it lives in its own file.
     private func composeMainScript(
         name: String,
-        affirmations: [Affirmation]
+        affirmations: [Affirmation],
+        affirmationCount: Int
     ) -> String {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let greeting = trimmedName.isEmpty
@@ -220,15 +226,14 @@ final class MorningAudioRenderer {
             : "Good morning, \(trimmedName)."
 
         // Priority favorites already land at index 0 in the cache, so the
-        // first three naturally include any heart-marked ones the user
-        // wants surfaced.
-        let lines = affirmations.prefix(3).map { $0.text }
+        // first N naturally include any heart-marked ones the user wants.
+        let lines = affirmations.prefix(affirmationCount).map { $0.text }
 
         var segments: [String] = [greeting]
         segments.append(contentsOf: lines)
 
         let joined = segments.joined(separator: "\n\n")
-        return trimToWordBudget(joined, budget: maxMainWords)
+        return trimToWordBudget(joined, budget: wordBudget(for: affirmationCount))
     }
 
     /// The standalone closing statement played by the stop intent.
