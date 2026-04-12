@@ -165,8 +165,9 @@ struct AlarmRow: View {
                             BackgroundKeepAlive.shared.start()
                         } else {
                             AlarmKitScheduler.shared.cancelAlarm(alarm)
-                            // Stop keep-alive if no alarms remain enabled
-                            if !alarms.contains(where: { $0.isEnabled && $0.id != alarm.id }) {
+                            // Stop keep-alive if no other alarms remain enabled
+                            let othersEnabled = self.alarms.contains { $0.isEnabled && $0.id != alarm.id }
+                            if !othersEnabled {
                                 BackgroundKeepAlive.shared.stop()
                             }
                         }
