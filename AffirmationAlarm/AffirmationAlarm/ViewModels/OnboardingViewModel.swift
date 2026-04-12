@@ -61,6 +61,13 @@ class OnboardingViewModel {
         profile.eveningReflectionHour = eveningReflectionHour
         profile.eveningReflectionMinute = eveningReflectionMinute
 
+        if eveningReflectionEnabled {
+            EveningReflectionSchedulingService.schedule(
+                hour: eveningReflectionHour,
+                minute: eveningReflectionMinute
+            )
+        }
+
         let alarm = Alarm(
             hour: alarmHour,
             minute: alarmMinute,

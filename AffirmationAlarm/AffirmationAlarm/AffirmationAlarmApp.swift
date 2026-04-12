@@ -95,6 +95,15 @@ struct RootView: View {
             return
         }
 
+        // Re-arm the evening reflection notification on launch in case
+        // it was lost (OS update, permission change, etc.).
+        if profile.eveningReflectionEnabled {
+            EveningReflectionSchedulingService.schedule(
+                hour: profile.eveningReflectionHour,
+                minute: profile.eveningReflectionMinute
+            )
+        }
+
         let context = modelContext
         Task { @MainActor in
             await MorningAudioRenderer.shared.refreshAll(

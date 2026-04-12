@@ -130,6 +130,7 @@ struct EveningReflectionView: View {
             gratitude: gratitude.trimmingCharacters(in: .whitespaces)
         )
         modelContext.insert(reflection)
+        try? modelContext.save()
 
         HapticService.success()
         dismiss()

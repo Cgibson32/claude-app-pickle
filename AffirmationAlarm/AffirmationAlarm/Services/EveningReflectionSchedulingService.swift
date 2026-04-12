@@ -18,7 +18,11 @@ enum EveningReflectionSchedulingService {
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-        UNUserNotificationCenter.current().add(request)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error {
+                AppLogger.alarm.error("evening reflection schedule failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
     }
 
     static func cancel() {

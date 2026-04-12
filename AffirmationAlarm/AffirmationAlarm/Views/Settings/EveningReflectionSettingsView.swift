@@ -14,7 +14,17 @@ struct EveningReflectionSettingsView: View {
                     if let profile {
                         Toggle(isOn: Binding(
                             get: { profile.eveningReflectionEnabled },
-                            set: { profile.eveningReflectionEnabled = $0 }
+                            set: { newValue in
+                                profile.eveningReflectionEnabled = newValue
+                                if newValue {
+                                    EveningReflectionSchedulingService.schedule(
+                                        hour: profile.eveningReflectionHour,
+                                        minute: profile.eveningReflectionMinute
+                                    )
+                                } else {
+                                    EveningReflectionSchedulingService.cancel()
+                                }
+                            }
                         )) {
                             Text("Evening Reminders")
                                 .font(AppTheme.headline)
@@ -42,6 +52,10 @@ struct EveningReflectionSettingsView: View {
                                         set: { date in
                                             profile.eveningReflectionHour = Calendar.current.component(.hour, from: date)
                                             profile.eveningReflectionMinute = Calendar.current.component(.minute, from: date)
+                                            EveningReflectionSchedulingService.schedule(
+                                                hour: profile.eveningReflectionHour,
+                                                minute: profile.eveningReflectionMinute
+                                            )
                                         }
                                     ),
                                     displayedComponents: .hourAndMinute
