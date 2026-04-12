@@ -64,8 +64,14 @@ class AlarmKitScheduler {
 
     private let manager = AlarmManager.shared
 
+    /// Alarm IDs we've detected as `.alerting` and are handling (or have
+    /// handled). Prevents duplicate auto-play when `alarmUpdates` emits
+    /// the same `.alerting` state multiple times.
+    private var currentlyAlerting: Set<UUID> = []
+
     private init() {
         observeAuthorizationUpdates()
+        observeAlarmFireUpdates()
     }
 
     // MARK: - Permission
@@ -103,6 +109,88 @@ class AlarmKitScheduler {
                 await self.refreshPermissionStatus()
             }
         }
+    }
+
+    // MARK: - Auto-play observer
+    //
+    // Observes `AlarmManager.alarmUpdates` — an async sequence that emits
+    // the full `[Alarm]` array whenever any alarm's state changes. When an
+    // alarm transitions to `.alerting`, we wait 3 seconds (letting .default
+    // ring to wake the user), then cancel the system sound and play the
+    // pre-rendered morning affirmation audio via `AlarmAudioPlayer`.
+    //
+    // IMPORTANT: This observer only works while the app process is alive
+    // (backgrounded but not force-quit). If the app was killed, the
+    // `StopAndPlayClosingIntent` serves as the fallback — it plays the same
+    // audio when the user taps Stop. Both paths route through
+    // `AlarmAudioPlayer` which deduplicates, so there's never double audio.
+
+    private func observeAlarmFireUpdates() {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await alarms in self.manager.alarmUpdates {
+                self.handleAlarmUpdate(alarms)
+            }
+        }
+    }
+
+    private func handleAlarmUpdate(_ alarms: [AlarmKit.Alarm]) {
+        let alertingIDs = Set(alarms.filter { $0.state == .alerting }.map(\.id))
+
+        // Clean up IDs that are no longer alerting (user tapped Stop/Snooze).
+        currentlyAlerting = currentlyAlerting.intersection(alertingIDs)
+
+        // Start auto-play for newly-alerting alarms.
+        for alarm in alarms where alarm.state == .alerting {
+            let id = alarm.id
+            guard !currentlyAlerting.contains(id) else { continue }
+            currentlyAlerting.insert(id)
+
+            Task { @MainActor [weak self] in
+                await self?.handleFire(alarmID: id)
+            }
+        }
+    }
+
+    private func handleFire(alarmID: UUID) async {
+        // Check that pre-rendered files exist BEFORE cancelling the alarm.
+        // If files are missing (offline first run, TTS failure), we must NOT
+        // cut .default — the user still needs to wake up.
+        let soundsDir = MorningAudioRenderer.soundsDirectory()
+        let morningExists = FileManager.default.fileExists(
+            atPath: soundsDir.appendingPathComponent("morning-\(alarmID.uuidString).caf").path
+        )
+        guard morningExists else {
+            AppLogger.alarm.info("auto-play: no morning file for \(alarmID.uuidString.prefix(8), privacy: .public), letting .default ring")
+            return
+        }
+
+        // Let .default ring for 3 seconds as the wake-up sound.
+        try? await Task.sleep(for: .seconds(3))
+
+        // Re-check: is the alarm still alerting? If the user tapped Stop
+        // or Snooze during the 3-second window, bail out — the
+        // StopAndPlayClosingIntent or SnoozeMorningIntent already handled it.
+        let stillAlerting: Bool
+        if let alarms = try? manager.alarms {
+            stillAlerting = alarms.contains { $0.id == alarmID && $0.state == .alerting }
+        } else {
+            stillAlerting = false
+        }
+
+        guard stillAlerting else {
+            AppLogger.alarm.info("auto-play: alarm \(alarmID.uuidString.prefix(8), privacy: .public) no longer alerting, skipping")
+            return
+        }
+
+        // Stop the .default system sound.
+        try? manager.cancel(id: alarmID)
+
+        // Play the morning affirmation sequence + closing via the shared actor.
+        let outcome = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
+        AppLogger.alarm.info("auto-play: \(alarmID.uuidString.prefix(8), privacy: .public) outcome=\(String(describing: outcome), privacy: .public)")
+
+        currentlyAlerting.remove(alarmID)
     }
 
     // MARK: - Scheduling

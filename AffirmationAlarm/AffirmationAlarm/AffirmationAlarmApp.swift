@@ -27,6 +27,13 @@ struct AffirmationAlarmApp: App {
                 fatalError("Failed to create ModelContainer: \(error)")
             }
         }
+
+        // Force the AlarmKitScheduler singleton to materialize at launch so
+        // its alarmUpdates observer is running before the first alarm fires.
+        // Without this, .shared is only instantiated lazily when the alarm
+        // list first renders, which could miss an alarm that fires during
+        // a cold start.
+        _ = AlarmKitScheduler.shared
     }
 
     var body: some Scene {
