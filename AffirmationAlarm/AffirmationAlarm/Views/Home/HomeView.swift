@@ -6,6 +6,7 @@ struct HomeView: View {
     @Query private var profiles: [UserProfile]
     @Query(sort: \Alarm.hour) private var alarms: [Alarm]
     @State private var customAffirmationText = ""
+    @State private var showSleepMode = false
 
     /// Set to `true` by `OnboardingViewModel.completeOnboarding` while the
     /// first morning's audio is being rendered (~5-10s for Claude + TTS
@@ -33,6 +34,11 @@ struct HomeView: View {
                         // Next alarm card
                         NextAlarmCard(alarms: alarms)
 
+                        // Sleep Mode card — only shown when an alarm is active
+                        if alarms.contains(where: \.isEnabled) {
+                            sleepModeCard
+                        }
+
                         // Custom affirmation input
                         customAffirmationInput
 
@@ -55,7 +61,46 @@ struct HomeView: View {
 
             }
             .preferredColorScheme(.dark)
+            .fullScreenCover(isPresented: $showSleepMode) {
+                SleepModeView()
+            }
         }
+    }
+
+    private var sleepModeCard: some View {
+        Button {
+            showSleepMode = true
+        } label: {
+            HStack(spacing: AppTheme.spacingMd) {
+                Image(systemName: "moon.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(AppTheme.gold)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Sleep Mode")
+                        .font(AppTheme.headline)
+                        .foregroundStyle(AppTheme.textPrimary)
+                    Text("Keep open overnight to play your affirmations when your alarm rings")
+                        .font(AppTheme.caption)
+                        .foregroundStyle(AppTheme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppTheme.textTertiary)
+            }
+            .padding(AppTheme.spacingLg)
+            .background(AppTheme.gold.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.radiusLg)
+                    .strokeBorder(AppTheme.gold.opacity(0.15), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.bounce)
     }
 
     /// Dismissible-by-completion banner shown only during the 5-10s window

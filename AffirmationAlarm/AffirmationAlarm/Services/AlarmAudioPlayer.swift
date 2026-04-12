@@ -30,8 +30,8 @@ actor AlarmAudioPlayer {
         if completedAlarmIDs.contains(alarmID) { return .alreadyPlayed }
 
         let soundsDir = MorningAudioRenderer.soundsDirectory()
-        let morningURL = soundsDir.appendingPathComponent("morning-\(alarmID.uuidString).caf")
-        let closingURL = soundsDir.appendingPathComponent("closing-\(alarmID.uuidString).caf")
+        let morningURL = soundsDir.appendingPathComponent("morning-\(alarmID.uuidString).mp3")
+        let closingURL = soundsDir.appendingPathComponent("closing-\(alarmID.uuidString).mp3")
 
         let hasMorning = FileManager.default.fileExists(atPath: morningURL.path)
         let hasClosing = FileManager.default.fileExists(atPath: closingURL.path)

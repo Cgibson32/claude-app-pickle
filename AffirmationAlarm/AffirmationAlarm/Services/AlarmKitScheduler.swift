@@ -62,6 +62,11 @@ class AlarmKitScheduler {
     /// observes this to show its banner and deep-link to Settings.
     var permissionDenied = false
 
+    /// Set to `true` while the morning affirmation sequence is actively
+    /// playing through the auto-play observer. `SleepModeView` observes
+    /// this to show a "Playing your affirmations..." state.
+    var isPlayingMorningAudio = false
+
     private let manager = AlarmManager.shared
 
     /// Alarm IDs we've detected as `.alerting` and are handling (or have
@@ -158,7 +163,7 @@ class AlarmKitScheduler {
         // keep ringing as a safety net.
         let soundsDir = MorningAudioRenderer.soundsDirectory()
         let morningExists = FileManager.default.fileExists(
-            atPath: soundsDir.appendingPathComponent("morning-\(alarmID.uuidString).caf").path
+            atPath: soundsDir.appendingPathComponent("morning-\(alarmID.uuidString).mp3").path
         )
         guard morningExists else {
             AppLogger.alarm.info("auto-play: no morning file for \(alarmID.uuidString.prefix(8), privacy: .public), letting .default ring")
@@ -170,7 +175,9 @@ class AlarmKitScheduler {
         try? manager.cancel(id: alarmID)
 
         // Play the morning affirmation sequence + closing via the shared actor.
+        isPlayingMorningAudio = true
         let outcome = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
+        isPlayingMorningAudio = false
         AppLogger.alarm.info("auto-play: \(alarmID.uuidString.prefix(8), privacy: .public) outcome=\(String(describing: outcome), privacy: .public)")
 
         currentlyAlerting.remove(alarmID)
