@@ -1,25 +1,27 @@
+import AVFoundation
 import Foundation
 import SwiftData
 
-/// Pre-renders the three MP3 audio files that `AlarmAudioPlayer` plays
-/// when the alarm fires, all tailored to the user's chosen voice and tied
-/// to a specific `Alarm` by id:
+/// Pre-renders personalized audio for each alarm:
 ///
-/// 1. **`morning-<alarmID>.mp3`** — greeting + affirmations only (no
-///    closing). Played first by `AlarmAudioPlayer`.
-/// 2. **`closing-<alarmID>.mp3`** — just the closing statement, ~3 seconds.
-///    Played immediately after the morning audio finishes.
-/// 3. **`snooze-<alarmID>.mp3`** — the voice saying *"Time to get up,
-///    [Name]. Let's have a great day."* Reserved for snooze follow-ups.
+/// **Primary (alarm sound itself):**
+/// - **`alarm-<alarmID>.caf`** — greeting + affirmations + closing, all in
+///   one CAF file. Passed to AlarmKit via `.named("alarm-<alarmID>")` (no
+///   extension) so mobiletimerd plays it as the alarm sound. The user wakes
+///   up hearing their personalized affirmations — no interaction needed.
 ///
-/// All three files are refreshed together: on app launch/resume, on alarm
-/// edit, on onboarding completion, and on voice change in Settings.
-/// Staleness threshold is 20 hours — if any file is newer than that we
-/// reuse it rather than burning more TTS calls.
+///   CAF (Core Audio Format) is required because mobiletimerd only supports
+///   WAV/AIFF/CAF for `.named()`. MP3 fails silently. The filename is
+///   passed WITHOUT extension per AlarmKit convention.
 ///
-/// If Claude or OpenAI is unreachable the renderer returns `nil` and the
-/// alarm still rings with `.default` sound (the affirmation sequence is
-/// skipped gracefully).
+/// **Fallback (played by AlarmAudioPlayer if .named() fails):**
+/// - **`morning-<alarmID>.mp3`** — greeting + affirmations (no closing).
+/// - **`closing-<alarmID>.mp3`** — just the closing statement.
+/// - **`snooze-<alarmID>.mp3`** — "Time to get up, [Name]."
+///
+/// All files are refreshed together: on app launch/resume, on alarm edit,
+/// on onboarding completion, and on voice change in Settings. Staleness
+/// threshold is 20 hours.
 @MainActor
 final class MorningAudioRenderer {
     static let shared = MorningAudioRenderer()
@@ -131,6 +133,25 @@ final class MorningAudioRenderer {
             AppLogger.audio.error("snooze render failed: \(error.localizedDescription, privacy: .public)")
         }
 
+        // 4. Combined alarm sound: greeting + affirmations + closing as a
+        //    single CAF file for AlarmKit `.named()`. This is the PRIMARY
+        //    playback path — mobiletimerd plays it as the alarm sound itself.
+        let fullScript = composeFullAlarmScript(
+            name: profile.name,
+            affirmations: affirmations,
+            affirmationCount: profile.affirmationCount,
+            closing: closing?.message
+        )
+        let alarmCAFURL = Self.soundsDirectory()
+            .appendingPathComponent(Self.alarmCAFFilename(for: alarm))
+        do {
+            let wavData = try await tts.synthesize(text: fullScript, voice: voice, format: .wav)
+            try Self.writeAsCAF(wavData: wavData, to: alarmCAFURL)
+            AppLogger.audio.info("rendered alarm CAF for \(alarm.id.uuidString.prefix(8), privacy: .public)")
+        } catch {
+            AppLogger.audio.error("alarm CAF render failed: \(error.localizedDescription, privacy: .public)")
+        }
+
         return morningFilename
     }
 
@@ -159,7 +180,7 @@ final class MorningAudioRenderer {
         }
         for url in contents {
             let name = url.lastPathComponent
-            if name.hasPrefix("morning-") || name.hasPrefix("closing-") || name.hasPrefix("snooze-") {
+            if name.hasPrefix("alarm-") || name.hasPrefix("morning-") || name.hasPrefix("closing-") || name.hasPrefix("snooze-") {
                 try? FileManager.default.removeItem(at: url)
             }
         }
@@ -171,6 +192,7 @@ final class MorningAudioRenderer {
     func removeFiles(for alarm: Alarm) {
         let soundsDir = Self.soundsDirectory()
         let filenames = [
+            Self.alarmCAFFilename(for: alarm),
             Self.morningFilename(for: alarm),
             Self.closingFilename(for: alarm),
             Self.snoozeFilename(for: alarm)
@@ -231,6 +253,30 @@ final class MorningAudioRenderer {
         return words.prefix(budget).joined(separator: " ") + "."
     }
 
+    /// Compose the full alarm sound script: greeting + affirmations + closing.
+    /// This becomes a single CAF file that AlarmKit plays as the alarm sound.
+    private func composeFullAlarmScript(
+        name: String,
+        affirmations: [Affirmation],
+        affirmationCount: Int,
+        closing: String?
+    ) -> String {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let greeting = trimmedName.isEmpty
+            ? "Good morning."
+            : "Good morning, \(trimmedName)."
+
+        let lines = affirmations.prefix(affirmationCount).map { $0.text }
+        let closingLine = composeClosingScript(closing: closing)
+
+        var segments: [String] = [greeting]
+        segments.append(contentsOf: lines)
+        segments.append(closingLine)
+
+        let joined = segments.joined(separator: "\n\n")
+        return trimToWordBudget(joined, budget: wordBudget(for: affirmationCount))
+    }
+
     // MARK: - Snooze rendering
 
     /// Build the snooze follow-up audio: a TTS-only MP3 of
@@ -253,7 +299,61 @@ final class MorningAudioRenderer {
         return destURL
     }
 
+    // MARK: - WAV → CAF conversion
+
+    /// Re-wrap PCM audio from a WAV container into a CAF container.
+    /// mobiletimerd (the system daemon that plays AlarmKit sounds) only
+    /// supports WAV/AIFF/CAF for `.named()` — MP3 fails silently.
+    /// We request WAV from OpenAI TTS (24 kHz 16-bit mono) and rewrap
+    /// the raw PCM into a CAF container via AVAudioFile. Same bytes,
+    /// different wrapper, zero quality loss.
+    private static func writeAsCAF(wavData: Data, to destinationURL: URL) throws {
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tts-\(UUID().uuidString).wav")
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+        try wavData.write(to: tempURL, options: .atomic)
+
+        let sourceFile = try AVAudioFile(forReading: tempURL)
+        let format = sourceFile.processingFormat
+        let frameCount = AVAudioFrameCount(sourceFile.length)
+        guard let buffer = AVAudioPCMBuffer(
+            pcmFormat: format,
+            frameCapacity: frameCount
+        ) else {
+            throw NSError(
+                domain: "MorningAudioRenderer",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Could not allocate PCM buffer"]
+            )
+        }
+        try sourceFile.read(into: buffer)
+
+        try? FileManager.default.removeItem(at: destinationURL)
+        let destinationFile = try AVAudioFile(
+            forWriting: destinationURL,
+            settings: format.settings
+        )
+        try destinationFile.write(from: buffer)
+    }
+
     // MARK: - Filename helpers
+
+    /// The combined alarm sound filename (CAF) for AlarmKit `.named()`.
+    static func alarmCAFFilename(for alarm: Alarm) -> String {
+        "alarm-\(alarm.id.uuidString).caf"
+    }
+
+    /// The stem (no extension) for `.named()`. AlarmKit expects the
+    /// filename without extension per convention.
+    static func alarmCAFStem(for alarm: Alarm) -> String {
+        "alarm-\(alarm.id.uuidString)"
+    }
+
+    /// Whether the combined CAF alarm sound exists on disk.
+    static func hasAlarmCAF(for alarm: Alarm) -> Bool {
+        let url = soundsDirectory().appendingPathComponent(alarmCAFFilename(for: alarm))
+        return FileManager.default.fileExists(atPath: url.path)
+    }
 
     private static func morningFilename(for alarm: Alarm) -> String {
         "morning-\(alarm.id.uuidString).mp3"
@@ -265,6 +365,13 @@ final class MorningAudioRenderer {
 
     private static func snoozeFilename(for alarm: Alarm) -> String {
         "snooze-\(alarm.id.uuidString).mp3"
+    }
+
+    /// The `morning-*.mp3` filename for this alarm if it's on disk, else `nil`.
+    static func existingRenderedFilename(for alarm: Alarm) -> String? {
+        let filename = morningFilename(for: alarm)
+        let url = soundsDirectory().appendingPathComponent(filename)
+        return FileManager.default.fileExists(atPath: url.path) ? filename : nil
     }
 
     nonisolated static func soundsDirectory() -> URL {

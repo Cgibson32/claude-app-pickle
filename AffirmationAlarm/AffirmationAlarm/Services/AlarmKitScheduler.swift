@@ -330,17 +330,24 @@ class AlarmKitScheduler {
         let stopIntent = StopAndPlayClosingIntent(alarmID: alarm.id)
         let snoozeIntent = SnoozeMorningIntent(alarmID: alarm.id)
 
-        // Use `.default` because `.named()` is broken on iOS 26.1 for all
-        // audio formats (Apple bug FB19779004). `.default` is the ONLY sound
-        // that reliably plays. The auto-play observer (in Sleep Mode) cancels
-        // `.default` almost immediately and replaces it with the pre-rendered
-        // morning affirmation audio via AlarmAudioPlayer.
+        // Prefer the pre-rendered combined CAF file so the alarm sound
+        // IS the personalized affirmation sequence — no user interaction
+        // needed. mobiletimerd only supports WAV/AIFF/CAF for .named(),
+        // and the filename must be passed WITHOUT extension.
+        // Falls back to .default if the CAF hasn't been rendered yet.
+        let sound: AlertConfiguration.AlertSound
+        if MorningAudioRenderer.hasAlarmCAF(for: alarm) {
+            sound = .named(MorningAudioRenderer.alarmCAFStem(for: alarm))
+        } else {
+            sound = .default
+        }
+
         return ScheduleConfiguration.alarm(
             schedule: schedule,
             attributes: attributes,
             stopIntent: stopIntent,
             secondaryIntent: snoozeIntent,
-            sound: .default
+            sound: sound
         )
     }
 
