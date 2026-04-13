@@ -26,9 +26,11 @@ struct AlarmListView: View {
                         Text("No alarms yet")
                             .font(AppTheme.title3)
                             .foregroundStyle(AppTheme.textSecondary)
-                        Text("Tap + to add your first alarm")
+                        Text("Tap + to add your first alarm. It'll ring loud, and your personalized affirmations play the moment you slide to stop.")
                             .font(AppTheme.bodyFont)
                             .foregroundStyle(AppTheme.textTertiary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
                         Button("Add Alarm") {
                             showingNewAlarm = true
                         }

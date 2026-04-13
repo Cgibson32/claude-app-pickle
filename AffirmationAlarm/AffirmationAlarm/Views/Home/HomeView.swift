@@ -80,7 +80,7 @@ struct HomeView: View {
                     Text("Sleep Mode")
                         .font(AppTheme.headline)
                         .foregroundStyle(AppTheme.textPrimary)
-                    Text("Keep open overnight to play your affirmations when your alarm rings")
+                    Text("Hands-free affirmations when the alarm rings. Otherwise, slide to stop and they'll play automatically.")
                         .font(AppTheme.caption)
                         .foregroundStyle(AppTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)

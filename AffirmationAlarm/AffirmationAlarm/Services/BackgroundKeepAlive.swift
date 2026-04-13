@@ -63,8 +63,7 @@ final class BackgroundKeepAlive {
     // MARK: - Silence generation
 
     /// Create a 1-second silent CAF at `silenceURL` using AVAudioFile.
-    /// Same technique as MorningAudioRenderer.writeAsCAF — writes a
-    /// zeroed PCM buffer into a CAF container.
+    /// Writes a zeroed PCM buffer into a CAF container.
     private func generateSilenceFileIfNeeded() throws {
         guard !FileManager.default.fileExists(atPath: silenceURL.path) else { return }
 

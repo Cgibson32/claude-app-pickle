@@ -31,26 +31,28 @@ struct AffirmationAlarmMetadata: AlarmMetadata {
 
 // MARK: - Scheduler
 
-/// Thin wrapper around `AlarmManager.shared` that mirrors the public shape of
-/// the old `AlarmSchedulingService` so call sites (`AlarmListView`,
-/// `AlarmDetailView`, `OnboardingViewModel`) don't need structural changes.
+/// Thin wrapper around `AlarmManager.shared` that rings a loud system
+/// alarm on schedule, then plays the user's personalized Nova-voice
+/// affirmation sequence the moment they interact.
 ///
-/// Unlike the `UNUserNotificationCenter` path this replaces, AlarmKit:
-/// - rings through silent mode, Focus, and DND
-/// - plays pre-rendered personalized audio (greeting + affirmations) as the
-///   alarm sound itself, via `MorningAudioRenderer`
-/// - persists alarms in the system rather than in our notification queue, so
-///   we only ever have one configuration per `Alarm` row regardless of
-///   weekday repetition
+/// **Alarm sound:** `.default` — the standard iOS alarm tone. We do NOT
+/// use `.named()` because Apple bug FB19779004 (unresolved as of Feb 2026)
+/// makes it silently fall back to default anyway when reading from
+/// Library/Sounds. `.default` guarantees a loud, reliable wake-up.
 ///
-/// Each scheduled alarm has TWO buttons on the ringing UI:
+/// **Personalized affirmation playback paths:**
 ///
-/// - **Stop** → `StopAndPlayClosingIntent` runs with `openAppWhenRun = false`.
-///   AlarmKit cuts the main audio, the intent plays `morning-<alarmID>.mp3`
-///   + `closing-<alarmID>.mp3` via `AlarmAudioPlayer`. The app does not open.
-/// - **Snooze** → `SnoozeMorningIntent` runs with `openAppWhenRun = false`.
-///   The current ring is cancelled and a new one-off follow-up alarm is
-///   scheduled 10 minutes from now via `scheduleSnoozeFollowUp(...)` below.
+/// - **Stop slide (primary):** `StopAndPlayClosingIntent` runs when user
+///   slides Stop. It plays `morning-<id>.mp3` + `closing-<id>.mp3`
+///   rendered by `MorningAudioRenderer` via `AlarmAudioPlayer`.
+/// - **Sleep Mode (hands-free):** While the app is foregrounded (bedside
+///   clock with `isIdleTimerDisabled = true`), the `alarmUpdates` observer
+///   in this class catches `.alerting`, cancels the `.default` tone, and
+///   plays the same `morning` + `closing` audio — no user interaction.
+///
+/// AlarmKit advantages over UNUserNotificationCenter (which this replaces):
+/// rings through silent mode, Focus, and DND; persisted by the system
+/// daemon (mobiletimerd) so we only store one configuration per Alarm row.
 @MainActor @Observable
 class AlarmKitScheduler {
     typealias ScheduleConfiguration = AlarmManager.AlarmConfiguration<AffirmationAlarmMetadata>
@@ -330,24 +332,22 @@ class AlarmKitScheduler {
         let stopIntent = StopAndPlayClosingIntent(alarmID: alarm.id)
         let snoozeIntent = SnoozeMorningIntent(alarmID: alarm.id)
 
-        // Prefer the pre-rendered combined CAF file so the alarm sound
-        // IS the personalized affirmation sequence — no user interaction
-        // needed. mobiletimerd only supports WAV/AIFF/CAF for .named(),
-        // and the filename must be passed WITHOUT extension.
-        // Falls back to .default if the CAF hasn't been rendered yet.
-        let sound: AlertConfiguration.AlertSound
-        if MorningAudioRenderer.hasAlarmCAF(for: alarm) {
-            sound = .named(MorningAudioRenderer.alarmCAFStem(for: alarm))
-        } else {
-            sound = .default
-        }
-
+        // TODO(iOS 26.3): Swap to `.named()` once Apple fixes FB19779004.
+        // `.named()` with runtime-generated audio in Library/Sounds is broken
+        // on iOS 26.1 — it silently falls back to `.default` anyway. Multiple
+        // iOS 26.1 sample apps (lioneldude83/AlarmKitDemo, ItsukiAlarm) and
+        // Apple Developer Forum thread 798140 confirm this. Main bundle audio
+        // would work but can't hold per-user personalized content (code-signed).
+        //
+        // So we use `.default` to guarantee the alarm rings loudly. The user's
+        // personalized Nova-voice affirmations play via `StopAndPlayClosingIntent`
+        // when they slide Stop, or via the `alarmUpdates` observer in Sleep Mode.
         return ScheduleConfiguration.alarm(
             schedule: schedule,
             attributes: attributes,
             stopIntent: stopIntent,
             secondaryIntent: snoozeIntent,
-            sound: sound
+            sound: .default
         )
     }
 
