@@ -367,13 +367,6 @@ final class MorningAudioRenderer {
         "snooze-\(alarm.id.uuidString).mp3"
     }
 
-    /// The `morning-*.mp3` filename for this alarm if it's on disk, else `nil`.
-    static func existingRenderedFilename(for alarm: Alarm) -> String? {
-        let filename = morningFilename(for: alarm)
-        let url = soundsDirectory().appendingPathComponent(filename)
-        return FileManager.default.fileExists(atPath: url.path) ? filename : nil
-    }
-
     nonisolated static func soundsDirectory() -> URL {
         let library = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
         return library.appendingPathComponent("Sounds", isDirectory: true)
