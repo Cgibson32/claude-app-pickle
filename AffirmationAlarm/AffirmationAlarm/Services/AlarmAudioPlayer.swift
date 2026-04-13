@@ -22,7 +22,7 @@ actor AlarmAudioPlayer {
         case noFiles
     }
 
-    /// Play `morning-<id>.caf` then `closing-<id>.caf` for the given alarm.
+    /// Play `morning-<id>.mp3` then `closing-<id>.mp3` for the given alarm.
     /// Returns immediately with `.alreadyPlaying` / `.alreadyPlayed` if
     /// another caller already triggered playback for this alarm.
     func playMorningAndClosing(for alarmID: UUID) async -> PlaybackOutcome {

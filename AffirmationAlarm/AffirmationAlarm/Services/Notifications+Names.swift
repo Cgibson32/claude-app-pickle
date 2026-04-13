@@ -13,4 +13,10 @@ extension Notification.Name {
     /// Posted by `NotificationDelegate` when the user taps the evening
     /// reflection reminder (still a plain `UNUserNotification`, not an alarm).
     static let didTapEveningReflection = Notification.Name("didTapEveningReflection")
+
+    /// Posted by `AlarmKitScheduler.handleFire` after the morning
+    /// affirmation sequence finishes. `RootView` observes this to
+    /// reconcile (re-schedule repeating alarms that `cancel(id:)`
+    /// removed from the system).
+    static let didCompleteMorningPlayback = Notification.Name("didCompleteMorningPlayback")
 }

@@ -77,6 +77,10 @@ struct RootView: View {
         .onReceive(NotificationCenter.default.publisher(for: .didTapEveningReflection)) { _ in
             showEveningReflection = true
         }
+        .onReceive(NotificationCenter.default.publisher(for: .didCompleteMorningPlayback)) { _ in
+            // Re-schedule repeating alarms that cancel(id:) removed.
+            reconcileAlarmsWithSystem()
+        }
     }
 
     private func ensureProfileExists() {

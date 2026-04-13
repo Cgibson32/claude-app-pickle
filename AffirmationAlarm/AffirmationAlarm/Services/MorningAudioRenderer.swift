@@ -1,21 +1,16 @@
-import AVFoundation
 import Foundation
 import SwiftData
 
-/// Pre-renders the three audio files AlarmKit and the stop/snooze intents
-/// need, all tailored to the user's chosen voice and tied to a specific
-/// `Alarm` by id:
+/// Pre-renders the three MP3 audio files that `AlarmAudioPlayer` plays
+/// when the alarm fires, all tailored to the user's chosen voice and tied
+/// to a specific `Alarm` by id:
 ///
-/// 1. **`morning-<alarmID>.wav`** — greeting + affirmations only (no
-///    closing). Played by AlarmKit when the alarm fires.
-/// 2. **`closing-<alarmID>.wav`** — just the closing statement, ~3 seconds.
-///    Played by `StopAndPlayClosingIntent` when the user taps Stop — so the
-///    user hears `[affirmation cut] → [closing] → silence` instead of a
-///    hard cut.
-/// 3. **`snooze-<alarmID>.wav`** — the user's selected alarm tone briefly
-///    beeping (~3s), then the voice saying *"Time to get up, [Name]. Let's
-///    have a great day."* Played by AlarmKit on the 10-minute snooze
-///    follow-up alarm (see `AlarmKitScheduler.scheduleSnoozeFollowUp`).
+/// 1. **`morning-<alarmID>.mp3`** — greeting + affirmations only (no
+///    closing). Played first by `AlarmAudioPlayer`.
+/// 2. **`closing-<alarmID>.mp3`** — just the closing statement, ~3 seconds.
+///    Played immediately after the morning audio finishes.
+/// 3. **`snooze-<alarmID>.mp3`** — the voice saying *"Time to get up,
+///    [Name]. Let's have a great day."* Reserved for snooze follow-ups.
 ///
 /// All three files are refreshed together: on app launch/resume, on alarm
 /// edit, on onboarding completion, and on voice change in Settings.
@@ -23,8 +18,8 @@ import SwiftData
 /// reuse it rather than burning more TTS calls.
 ///
 /// If Claude or OpenAI is unreachable the renderer returns `nil` and the
-/// scheduler falls back to the bundled alarm tone the user picked in
-/// onboarding. The alarm always rings.
+/// alarm still rings with `.default` sound (the affirmation sequence is
+/// skipped gracefully).
 @MainActor
 final class MorningAudioRenderer {
     static let shared = MorningAudioRenderer()
@@ -50,9 +45,8 @@ final class MorningAudioRenderer {
 
     // MARK: - Public API
 
-    /// Render (or refresh) all three audio files for a single alarm.
-    /// Returns the `morning-*.wav` filename that `AlarmKitScheduler` should
-    /// pass to `AlertConfiguration.AlertSound.named(_:)`, or `nil` if
+    /// Render (or refresh) all three MP3 files for a single alarm.
+    /// Returns the `morning-*.mp3` filename on success, or `nil` if
     /// rendering failed.
     ///
     /// Closing + snooze files are always rendered alongside the main file
@@ -104,13 +98,7 @@ final class MorningAudioRenderer {
         }
 
         // 1. Main file: greeting + affirmations (no closing).
-        //
-        // Request MP3 directly from OpenAI TTS. AlarmKit's `.named()`
-        // mechanism is handled by the system daemon (mobiletimerd) which
-        // looks for the file in Library/Sounds/. MP3 is an officially
-        // supported format per Apple docs. Previous attempts with WAV and
-        // CAF both failed silently on iOS 26.1 — MP3 may work where they
-        // didn't (forum reports suggest MP3 support was fixed in 26.1).
+        //    MP3 from OpenAI TTS, played by AlarmAudioPlayer via AVAudioPlayer.
         let mainScript = composeMainScript(
             name: profile.name,
             affirmations: affirmations,
@@ -136,9 +124,7 @@ final class MorningAudioRenderer {
             AppLogger.audio.error("closing render failed: \(error.localizedDescription, privacy: .public)")
         }
 
-        // 3. Snooze file: selected alarm tone + "time to get up, Name".
-        //    Built by concatenating the first ~3s of the bundled tone with
-        //    a fresh TTS call via AVMutableComposition.
+        // 3. Snooze file: "Time to get up, Name. Let's have a great day."
         do {
             _ = try await renderSnoozeFile(for: alarm, profile: profile, voice: voice)
         } catch {
@@ -195,8 +181,7 @@ final class MorningAudioRenderer {
         }
     }
 
-    /// The `morning-*.wav` filename for this alarm if it's on disk, else `nil`.
-    /// Lets `AlarmKitScheduler` stay synchronous.
+    /// The `morning-*.mp3` filename for this alarm if it's on disk, else `nil`.
     static func existingRenderedFilename(for alarm: Alarm) -> String? {
         let filename = morningFilename(for: alarm)
         let url = soundsDirectory().appendingPathComponent(filename)
@@ -248,16 +233,8 @@ final class MorningAudioRenderer {
 
     // MARK: - Snooze rendering
 
-    /// Build the snooze follow-up audio. The plan calls for a short beep
-    /// (first ~3s of the user's selected alarm tone) followed by the
-    /// spoken *"Time to get up, [Name]. Let's have a great day."* prompt.
-    ///
-    /// `AVAssetExportSession` is unreliable for WAV output on iOS (the
-    /// framework is optimized for video / M4A audio containers), so for
-    /// v1 we render just the TTS-only WAV. The user hears the spoken
-    /// prompt reliably. We can layer a beep in via `AVAssetReader` +
-    /// `AVAssetWriter` (or raw PCM concatenation through `AVAudioFile`)
-    /// in a follow-up once this path is verified on a real device.
+    /// Build the snooze follow-up audio: a TTS-only MP3 of
+    /// *"Time to get up, [Name]. Let's have a great day."*
     private func renderSnoozeFile(
         for alarm: Alarm,
         profile: UserProfile,
@@ -274,58 +251,6 @@ final class MorningAudioRenderer {
             .appendingPathComponent(Self.snoozeFilename(for: alarm))
         try ttsMP3.write(to: destURL, options: .atomic)
         return destURL
-    }
-
-    // MARK: - WAV → CAF conversion
-
-    /// Re-wrap PCM audio from a WAV container into a CAF container, writing
-    /// the result to `destinationURL`. Used for every rendered alarm sound
-    /// because AlarmKit on iOS 26.1 only reliably plays CAF-wrapped
-    /// `.named(_:)` sounds — WAV files silently fail (the alarm fires, the
-    /// phone vibrates, but no audio plays).
-    ///
-    /// OpenAI TTS returns 24 kHz 16-bit mono Linear PCM inside a WAV
-    /// container. We parse the WAV with `AVAudioFile` (which exposes the
-    /// raw PCM as a buffer), then write the same buffer to a new file with
-    /// a `.caf` extension — `AVAudioFile` auto-selects the container
-    /// format from the destination URL extension. Same bytes, different
-    /// wrapper, zero quality loss, no resampling.
-    private static func writeAsCAF(wavData: Data, to destinationURL: URL) throws {
-        // Drop the WAV bytes into a temp file so `AVAudioFile(forReading:)`
-        // can parse the container header.
-        let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("tts-\(UUID().uuidString).wav")
-        defer { try? FileManager.default.removeItem(at: tempURL) }
-        try wavData.write(to: tempURL, options: .atomic)
-
-        // Read the full PCM content into an in-memory buffer using the
-        // source file's native format (24 kHz mono int16 for OpenAI).
-        let sourceFile = try AVAudioFile(forReading: tempURL)
-        let format = sourceFile.processingFormat
-        let frameCount = AVAudioFrameCount(sourceFile.length)
-        guard let buffer = AVAudioPCMBuffer(
-            pcmFormat: format,
-            frameCapacity: frameCount
-        ) else {
-            throw NSError(
-                domain: "MorningAudioRenderer.writeAsCAF",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Could not allocate PCM buffer"]
-            )
-        }
-        try sourceFile.read(into: buffer)
-
-        // Write the same PCM buffer to the destination. The `.caf`
-        // extension on the URL tells `AVAudioFile` to produce a CAF
-        // container; passing `format.settings` reuses the source's exact
-        // codec config (Linear PCM, 16-bit, 24 kHz, mono).
-        try? FileManager.default.removeItem(at: destinationURL)
-        let destinationFile = try AVAudioFile(
-            forWriting: destinationURL,
-            settings: format.settings
-        )
-        try destinationFile.write(from: buffer)
-        // AVAudioFile flushes and closes on deinit as it drops out of scope.
     }
 
     // MARK: - Filename helpers
