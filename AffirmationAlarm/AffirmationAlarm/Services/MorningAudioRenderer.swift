@@ -183,7 +183,7 @@ final class MorningAudioRenderer {
             name: profile.name,
             affirmations: affirmations,
             affirmationCount: count,
-            closing: closing?.message,
+            closingMessage: closing?.message,
             wordBudget: budget
         )
 
@@ -304,7 +304,7 @@ private struct ScriptComposer {
     let name: String
     let affirmations: [Affirmation]
     let affirmationCount: Int
-    let closing: String?
+    let closingMessage: String?
     let wordBudget: Int
 
     /// Morning MP3: greeting + N affirmations, no closing. Played by
@@ -317,7 +317,7 @@ private struct ScriptComposer {
 
     /// Closing MP3: just the closing message (user-personal or fallback).
     func closing() -> String {
-        if let text = closing?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
+        if let text = closingMessage?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
             return text
         }
         return "Have a wonderful day."
