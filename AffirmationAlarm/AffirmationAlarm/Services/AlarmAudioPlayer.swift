@@ -79,6 +79,12 @@ actor AlarmAudioPlayer {
     /// file may be missing; we play whichever exists. Returns immediately
     /// with `.alreadyPlaying` / `.alreadyPlayed` if another call already
     /// fired for this alarm.
+    ///
+    /// Purgatory (`recentlyCompleted`) is only set after audio actually
+    /// got out — not on setup failures. The intent's sandboxed audio
+    /// session intermittently fails on iOS 26.3.1, and when it does we
+    /// want the foreground retry from `checkPendingMorningPlayback` to
+    /// succeed rather than get short-circuited by purgatory.
     func playMorningAndClosing(for alarmID: UUID) async -> PlaybackOutcome {
         if playing.contains(alarmID) { return .alreadyPlaying }
         if recentlyCompleted.contains(alarmID) { return .alreadyPlayed }
@@ -87,10 +93,9 @@ actor AlarmAudioPlayer {
         guard morning != nil || closing != nil else { return .noFiles }
 
         playing.insert(alarmID)
-        defer {
-            playing.remove(alarmID)
-            markCompleted(alarmID: alarmID)
-        }
+        // Release the `playing` slot no matter how we exit. Purgatory is
+        // set explicitly on success paths below.
+        defer { playing.remove(alarmID) }
 
         guard activateAudioSession() else {
             return .audioSessionUnavailable
@@ -100,6 +105,7 @@ actor AlarmAudioPlayer {
         if let closing { await playFile(at: closing) }
 
         deactivateAudioSession()
+        markCompleted(alarmID: alarmID)
         return .played
     }
 
