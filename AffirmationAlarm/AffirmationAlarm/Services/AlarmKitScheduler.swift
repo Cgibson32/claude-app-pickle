@@ -370,22 +370,14 @@ final class AlarmKitScheduler {
         )
     }
 
-    /// Pick the AlarmKit sound for this alarm. Prefer the runtime CAF
-    /// (hands-free personalized audio on iOS 26.3.1 *if* FB19779004 is
-    /// fixed); fall back to `.default` otherwise.
-    ///
-    /// Either choice is safe: on silent-alarm 26.3.1 hardware, the
-    /// observer and Stop-slide paths still deliver affirmations via
-    /// `AlarmAudioPlayer`. The sound choice only affects the first
-    /// few seconds before the observer fires or the user interacts.
+    /// Pick the AlarmKit sound for this alarm. We trust iOS 26.3.1 to
+    /// have fixed FB19779004 and pass the runtime CAF stem to `.named()`.
+    /// If the CAF hasn't been rendered yet (fresh schedule, render
+    /// failure), AlarmKit falls back to `.default` internally.
     private func resolveSound(for alarm: Alarm) -> AlertConfiguration.AlertSound {
-        if MorningAudioRenderer.hasAlarmCAF(for: alarm) {
-            let stem = MorningAudioRenderer.alarmCAFStem(for: alarm)
-            AppLogger.alarm.info("sound: .named(\(stem, privacy: .public)) for \(alarm.id.uuidString.prefix(8), privacy: .public)")
-            return .named(stem)
-        }
-        AppLogger.alarm.info("sound: .default for \(alarm.id.uuidString.prefix(8), privacy: .public) (CAF not rendered)")
-        return .default
+        let stem = MorningAudioRenderer.alarmCAFStem(for: alarm)
+        AppLogger.alarm.info("sound: .named(\(stem, privacy: .public)) for \(alarm.id.uuidString.prefix(8), privacy: .public)")
+        return .named(stem)
     }
 
     // MARK: - Weekday mapping
