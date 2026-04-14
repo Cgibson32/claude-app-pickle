@@ -67,11 +67,14 @@ workflows:
   #    - Save the Issuer ID, Key ID, and download the .p8 file
   #
   # 4. Codemagic Dashboard Setup:
-  #    Go to codemagic.io → your app → Environment variables (app-level).
-  #    Add each of the following, marked "Secure":
+  #    Go to codemagic.io → your app → Environment variables.
+  #    Create a variable group named EXACTLY `app_secrets` and add each
+  #    of the following inside it, marked "Secure":
   #      OPENAI_API_KEY      (for Nova-voice TTS rendering)
   #      ANTHROPIC_API_KEY   (for affirmation generation)
   #      SENTRY_DSN          (optional — crash reporting)
+  #    The workflow below references this group by name — if you use a
+  #    different name, update the `groups:` block in ios-testflight.
   #    App Store Connect auth is handled by the `integrations` block in
   #    the workflow, so you do NOT need to add
   #    APP_STORE_CONNECT_ISSUER_ID / KEY_IDENTIFIER / PRIVATE_KEY manually
@@ -92,14 +95,16 @@ workflows:
       app_store_connect: Codemagic CI
     environment:
       xcode: latest
-      # Env vars are pulled from app-level Environment variables in the
-      # Codemagic dashboard (not a shared group). Required:
+      # Env vars come from the `app_secrets` variable group in the
+      # Codemagic dashboard. Required keys in that group:
       #   OPENAI_API_KEY      — Nova-voice TTS
       #   ANTHROPIC_API_KEY   — affirmation generation
       # Optional:
       #   SENTRY_DSN          — crash reporting
-      # App Store Connect auth comes from the `integrations` block above
-      # (Codemagic CI integration), not from env vars.
+      # All must be marked Secure. App Store Connect auth comes from the
+      # `integrations` block above (Codemagic CI integration), not env vars.
+      groups:
+        - app_secrets
       vars:
         BUNDLE_ID: "com.cgibson.affirmationalarm"
         XCODE_SCHEME: "AffirmationAlarm"
