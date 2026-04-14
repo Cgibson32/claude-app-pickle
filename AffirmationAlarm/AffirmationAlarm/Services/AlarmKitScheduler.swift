@@ -312,6 +312,14 @@ final class AlarmKitScheduler {
 
         AppLogger.alarm.info("observer: \(alarmID.uuidString.prefix(8), privacy: .public) outcome=\(String(describing: outcome), privacy: .public)")
 
+        // AlarmAudioPlayer deactivates the audio session when it finishes.
+        // For repeating alarms (and any one-shot followed by a reschedule),
+        // we need the keep-alive session live again so tomorrow's observer
+        // is still running. Restart immediately rather than waiting for the
+        // reconcile-via-notification detour to do it — minimizes the window
+        // where iOS could suspend the process.
+        BackgroundKeepAlive.shared.start()
+
         NotificationCenter.default.post(name: .didCompleteMorningPlayback, object: nil)
     }
 
