@@ -135,7 +135,11 @@ actor AlarmAudioPlayer {
         if let morning { await playFile(at: morning) }
         if let closing { await playFile(at: closing) }
 
-        deactivateAudioSession()
+        // Do NOT deactivate the session here. We're sharing keep-alive's
+        // `.playback + .mixWithOthers` session; tearing it down would
+        // kill keep-alive's silent loop and force `BackgroundKeepAlive`
+        // to restart (which it does via `handleFire`, but that's a
+        // window where iOS could suspend the process).
         markCompleted(alarmID: alarmID)
         return record(outcome: .played, alarmID: alarmID)
     }
@@ -178,40 +182,35 @@ actor AlarmAudioPlayer {
     ///
     /// ## iOS 26.3.1 session-priority handoff
     ///
-    /// When the observer fires during an active AlarmKit alarm, the
-    /// system daemon's audio session has priority. Simply calling
-    /// `setCategory(.playback)` on top of our keep-alive (which used
-    /// `.mixWithOthers`) doesn't reliably take over — our AVAudioPlayer
-    /// starts but its first ~1-2 seconds play inaudibly while iOS
-    /// completes the session handoff.
+    /// The observer path fires during an active AlarmKit alarm; the
+    /// system daemon holds an exclusive audio priority for ~1 second
+    /// after `manager.cancel(id:)` returns. Earlier attempts to take
+    /// that priority forcefully (setActive(false) → `.duckOthers` →
+    /// setActive(true)) were observed to block for ~800ms and then
+    /// throw — the AlarmKit priority wins the contention and our
+    /// activation fails with `audioSessionUnavailable`.
     ///
-    /// The fix is a three-step forceful takeover:
-    ///   1. `setActive(false, .notifyOthersOnDeactivation)` — signals
-    ///      every other audio session (including the just-cancelled
-    ///      alarm) that we're about to take over.
-    ///   2. `setCategory(.playback, [.duckOthers])` — asks iOS to lower
-    ///      any competing audio priority rather than mix.
-    ///   3. `setActive(true)` — activate with exclusive priority.
+    /// The working approach is to **match the keep-alive's category**
+    /// (`.playback + .mixWithOthers`, already active) so we don't
+    /// trigger any session transition. Our `AVAudioPlayer` at volume
+    /// 1.0 plays over the keep-alive's silent 0.0 loop; `.mixWithOthers`
+    /// lets any residual system audio coexist for the brief handoff
+    /// window. No ownership battle, no -50, and the MP3 plays from
+    /// sample 0.
     private func activateAudioSession() -> Bool {
         let session = AVAudioSession.sharedInstance()
-        // Step 1: deactivate any existing session (keep-alive's
-        // .mixWithOthers). `try?` because we expect this to be a no-op
-        // on fresh launches where no session was ever active.
-        try? session.setActive(false, options: [.notifyOthersOnDeactivation])
-
         do {
-            // Step 2 + 3.
-            try session.setCategory(.playback, mode: .default, options: [.duckOthers])
+            // Match keep-alive. If session is already set up this way,
+            // setCategory/setActive are near-noops.
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try session.setActive(true, options: [])
             return true
         } catch {
-            AppLogger.alarm.error("AlarmAudioPlayer: audio session failed: \(error.localizedDescription, privacy: .public)")
+            let msg = error.localizedDescription
+            AppLogger.alarm.error("AlarmAudioPlayer: audio session failed: \(msg, privacy: .public)")
+            DiagnosticsLog.shared.log("player", "session activation failed: \(msg)")
             return false
         }
-    }
-
-    private func deactivateAudioSession() {
-        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
     }
 
     /// Play a single audio file and await its completion. Uses
