@@ -68,12 +68,22 @@ workflows:
   #
   # 4. Codemagic Dashboard Setup:
   #    - Go to your app settings in codemagic.io
-  #    - Under Environment Variables, add:
-  #      APP_STORE_CONNECT_ISSUER_ID  (from step 3)
-  #      APP_STORE_CONNECT_KEY_IDENTIFIER  (Key ID from step 3)
-  #      APP_STORE_CONNECT_PRIVATE_KEY  (contents of .p8 file)
-  #      CERTIFICATE_PRIVATE_KEY  (your code signing private key)
+  #    - Under Environment Variables (group: appstore_credentials), add:
+  #      APP_STORE_CONNECT_ISSUER_ID      (from step 3)
+  #      APP_STORE_CONNECT_KEY_IDENTIFIER (Key ID from step 3)
+  #      APP_STORE_CONNECT_PRIVATE_KEY    (contents of .p8 file)
+  #      CERTIFICATE_PRIVATE_KEY          (code signing private key)
+  #      OPENAI_API_KEY                   (for Nova-voice TTS rendering)
+  #      ANTHROPIC_API_KEY                (for affirmation generation)
+  #      SENTRY_DSN                       (optional — crash reporting)
   #    - Mark all as "Secure" so they're encrypted
+  #
+  # If OPENAI_API_KEY is missing, the app builds successfully but cannot
+  # render any personalized audio at runtime. Alarms will fire with the
+  # bundled tone and the `AlarmAudioPlayer` fallback paths hit `noFiles`
+  # because no MP3s were ever synthesized. The "Inject secrets" step
+  # below prints the length of each value so you can spot a missing key
+  # in the build log.
   # ============================================================
   ios-testflight:
     name: iOS TestFlight Build
@@ -160,21 +170,42 @@ workflows:
           # `appstore_credentials` group; if the var isn't set, the key is
           # written as an empty string and the runtime nil-checks fall
           # through to either a keychain lookup or (for Sentry) a no-op.
+          #
+          # We report the VALUE LENGTH for each key so a missing/empty
+          # secret shows up as "EMPTY" in the build log rather than the
+          # previously-misleading "present". Don't echo the value itself.
           cd AffirmationAlarm
           PLIST=AffirmationAlarm/Info.generated.plist
+          MISSING_CRITICAL=0
           for KEY in ANTHROPIC_API_KEY OPENAI_API_KEY SENTRY_DSN; do
             VALUE="${!KEY:-}"
             # PlistBuddy Add fails if the key exists; Set fails if missing.
             # Try Add first; if it fails, fall back to Set.
             /usr/libexec/PlistBuddy -c "Add :$KEY string $VALUE" "$PLIST" 2>/dev/null \
               || /usr/libexec/PlistBuddy -c "Set :$KEY $VALUE" "$PLIST"
-            # Don't echo the value — these are secrets. Just confirm it's set.
-            if /usr/libexec/PlistBuddy -c "Print :$KEY" "$PLIST" >/dev/null 2>&1; then
-              echo "  $KEY: present"
+            if [ -n "$VALUE" ]; then
+              echo "  $KEY: present (${#VALUE} chars)"
             else
-              echo "  $KEY: MISSING (runtime will fall back)"
+              echo "  $KEY: !!! EMPTY !!! runtime will fall back (no value in Codemagic env)"
+              # OPENAI and ANTHROPIC keys are critical for the affirmation
+              # rendering pipeline. An empty string here silently disables
+              # every TTS call and the app ships with no audio. Don't fail
+              # the build (allows CI of UI-only changes), but flag loudly.
+              if [ "$KEY" = "OPENAI_API_KEY" ] || [ "$KEY" = "ANTHROPIC_API_KEY" ]; then
+                MISSING_CRITICAL=$((MISSING_CRITICAL + 1))
+              fi
             fi
           done
+          if [ "$MISSING_CRITICAL" -gt 0 ]; then
+            echo ""
+            echo "========================================================"
+            echo "WARNING: $MISSING_CRITICAL critical API key(s) are empty."
+            echo "The built app will NOT render personalized affirmations."
+            echo "Add them to codemagic.io → Environment variables →"
+            echo "  appstore_credentials group, marked as Secure."
+            echo "========================================================"
+            echo ""
+          fi
       - name: Set up API key
         script: |
           # Write the App Store Connect API key to a file
