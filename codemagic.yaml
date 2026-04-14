@@ -67,16 +67,15 @@ workflows:
   #    - Save the Issuer ID, Key ID, and download the .p8 file
   #
   # 4. Codemagic Dashboard Setup:
-  #    - Go to your app settings in codemagic.io
-  #    - Under Environment Variables (group: appstore_credentials), add:
-  #      APP_STORE_CONNECT_ISSUER_ID      (from step 3)
-  #      APP_STORE_CONNECT_KEY_IDENTIFIER (Key ID from step 3)
-  #      APP_STORE_CONNECT_PRIVATE_KEY    (contents of .p8 file)
-  #      CERTIFICATE_PRIVATE_KEY          (code signing private key)
-  #      OPENAI_API_KEY                   (for Nova-voice TTS rendering)
-  #      ANTHROPIC_API_KEY                (for affirmation generation)
-  #      SENTRY_DSN                       (optional — crash reporting)
-  #    - Mark all as "Secure" so they're encrypted
+  #    Go to codemagic.io → your app → Environment variables (app-level).
+  #    Add each of the following, marked "Secure":
+  #      OPENAI_API_KEY      (for Nova-voice TTS rendering)
+  #      ANTHROPIC_API_KEY   (for affirmation generation)
+  #      SENTRY_DSN          (optional — crash reporting)
+  #    App Store Connect auth is handled by the `integrations` block in
+  #    the workflow, so you do NOT need to add
+  #    APP_STORE_CONNECT_ISSUER_ID / KEY_IDENTIFIER / PRIVATE_KEY manually
+  #    if you've wired up the Codemagic CI integration in the dashboard.
   #
   # If OPENAI_API_KEY is missing, the app builds successfully but cannot
   # render any personalized audio at runtime. Alarms will fire with the
@@ -93,8 +92,14 @@ workflows:
       app_store_connect: Codemagic CI
     environment:
       xcode: latest
-      groups:
-        - appstore_credentials
+      # Env vars are pulled from app-level Environment variables in the
+      # Codemagic dashboard (not a shared group). Required:
+      #   OPENAI_API_KEY      — Nova-voice TTS
+      #   ANTHROPIC_API_KEY   — affirmation generation
+      # Optional:
+      #   SENTRY_DSN          — crash reporting
+      # App Store Connect auth comes from the `integrations` block above
+      # (Codemagic CI integration), not from env vars.
       vars:
         BUNDLE_ID: "com.cgibson.affirmationalarm"
         XCODE_SCHEME: "AffirmationAlarm"
