@@ -116,7 +116,14 @@ final class BackgroundKeepAlive {
                 object: session,
                 queue: .main
             ) { [weak self] note in
-                Task { @MainActor in self?.handleInterruption(note) }
+                // Extract Sendable primitives while we're still on the
+                // posting queue; `Notification` itself isn't Sendable and
+                // can't cross into the MainActor Task under Swift 6.
+                let rawType = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+                let rawOptions = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt
+                Task { @MainActor in
+                    self?.handleInterruption(rawType: rawType, rawOptions: rawOptions)
+                }
             }
         }
 
@@ -136,7 +143,8 @@ final class BackgroundKeepAlive {
                 object: nil,
                 queue: .main
             ) { [weak self] note in
-                Task { @MainActor in self?.logRouteChange(note) }
+                let rawReason = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
+                Task { @MainActor in self?.logRouteChange(rawReason: rawReason) }
             }
         }
     }
@@ -161,19 +169,16 @@ final class BackgroundKeepAlive {
     /// We resume regardless of `.shouldResume` because our audio is
     /// silent at volume 0: there's no user-audible consequence to
     /// resuming "too eagerly" and the keep-alive purpose requires it.
-    private func handleInterruption(_ notification: Notification) {
-        guard
-            let userInfo = notification.userInfo,
-            let rawType = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
-            let type = AVAudioSession.InterruptionType(rawValue: rawType)
-        else { return }
+    private func handleInterruption(rawType: UInt?, rawOptions: UInt?) {
+        guard let rawType, let type = AVAudioSession.InterruptionType(rawValue: rawType) else {
+            return
+        }
 
         switch type {
         case .began:
             AppLogger.alarm.info("BackgroundKeepAlive: interruption began")
         case .ended:
-            let rawOptions = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
-            let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
+            let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions ?? 0)
             AppLogger.alarm.info(
                 "BackgroundKeepAlive: interruption ended, shouldResume=\(options.contains(.shouldResume), privacy: .public)"
             )
@@ -197,12 +202,10 @@ final class BackgroundKeepAlive {
     /// Diagnostic only. Route changes (headphones in/out, AirPods
     /// connect, etc.) can sometimes pause audio indirectly; logging lets
     /// us correlate with a failed wake-up in Console.app.
-    private func logRouteChange(_ notification: Notification) {
-        guard
-            let userInfo = notification.userInfo,
-            let rawReason = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
-            let reason = AVAudioSession.RouteChangeReason(rawValue: rawReason)
-        else { return }
+    private func logRouteChange(rawReason: UInt?) {
+        guard let rawReason, let reason = AVAudioSession.RouteChangeReason(rawValue: rawReason) else {
+            return
+        }
         AppLogger.alarm.info("BackgroundKeepAlive: route change reason=\(String(describing: reason), privacy: .public)")
     }
 
