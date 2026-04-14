@@ -92,10 +92,10 @@ struct RootView: View {
     /// Fallback playback path: if the Stop-slide intent set a pending
     /// playback flag and the app opened, play from the foreground.
     private func checkPendingMorningPlayback() {
-        guard let idString = UserDefaults.standard.string(forKey: "pendingMorningPlayback"),
+        guard let idString = UserDefaults.standard.string(forKey: PendingPlayback.userDefaultsKey),
               let alarmID = UUID(uuidString: idString) else { return }
 
-        UserDefaults.standard.removeObject(forKey: "pendingMorningPlayback")
+        UserDefaults.standard.removeObject(forKey: PendingPlayback.userDefaultsKey)
 
         Task {
             _ = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)

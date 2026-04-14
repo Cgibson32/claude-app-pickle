@@ -1,93 +1,118 @@
 import ActivityKit
-// `@preconcurrency` silences Swift 6's region-based isolation errors for
-// AlarmKit's async APIs (`requestAuthorization()`, `schedule(id:configuration:)`).
-// Those methods are declared nonisolated and take an `AlarmConfiguration`
-// that contains `(any LiveActivityIntent)?` — a non-Sendable protocol
-// existential — so the strict Swift 6 region check flags the main-actor
-// isolated `self.manager` and `configuration` values as "sending ... risks
-// causing data races" when they cross the await boundary. AlarmKit wasn't
-// annotated for Swift 6 strict concurrency; `@preconcurrency import` is
-// Apple's sanctioned escape hatch for exactly this case until the framework
-// ships proper `sending` / `Sendable` annotations in a future SDK.
+// `@preconcurrency` silences Swift 6 region-based isolation errors for
+// AlarmKit's async APIs. `requestAuthorization()` and `schedule(id:_:)`
+// are declared nonisolated and take an `AlarmConfiguration` containing
+// a `(any LiveActivityIntent)?` existential — not yet `Sendable` in the
+// AlarmKit SDK. This `@preconcurrency` import is Apple's sanctioned
+// escape hatch until AlarmKit ships proper `sending` annotations.
 @preconcurrency import AlarmKit
 import AppIntents
 import SwiftUI
 
 // MARK: - Metadata
 
-/// Custom metadata payload attached to every AlarmKit alarm we schedule.
-/// `AlarmMetadata` inherits `Decodable`, `Encodable`, `Hashable`, and
-/// `Sendable`; all four conformances auto-synthesize here because `UUID`
-/// and `String` are themselves Codable/Hashable/Sendable.
+/// Per-alarm metadata attached to every AlarmKit entry. Conformances
+/// (Codable/Hashable/Sendable) auto-synthesize because every stored
+/// property is itself Codable/Hashable/Sendable.
 struct AffirmationAlarmMetadata: AlarmMetadata {
     let alarmID: UUID
     let label: String
-
-    init(alarmID: UUID, label: String) {
-        self.alarmID = alarmID
-        self.label = label
-    }
 }
 
 // MARK: - Scheduler
 
-/// Thin wrapper around `AlarmManager.shared` that schedules alarms and
-/// plays the user's personalized Nova-voice affirmations.
+/// Central coordinator for the app's alarm pipeline. Owns three concerns,
+/// each isolated behind a clear internal interface:
 ///
-/// **Three playback paths, tried in order of preference:**
+/// - **Permission** (`requestPermission`, `permissionDenied`): authorization
+///   state machine mirroring `AlarmManager.authorizationState` as an
+///   observable Swift property.
+/// - **Scheduling** (`scheduleAlarm`, `cancelAlarm`, `reconcile`,
+///   `scheduleSnoozeFollowUp`): idempotent CRUD over AlarmKit entries.
+/// - **Auto-play routing** (private): observes `alarmUpdates` and, when
+///   an alarm fires while the app is foregrounded, cancels the system
+///   alert and hands control to `AlarmAudioPlayer`.
 ///
-/// 1. **Runtime CAF via `.named()` (iOS 26.3+ hands-free):** If the
-///    `alarm-<id>.caf` file exists in Library/Sounds, we pass its stem
-///    (no extension) to `AlertConfiguration.AlertSound.named(_:)`.
-///    mobiletimerd plays it as the alarm sound itself — user wakes to
-///    personalized affirmations with zero interaction.
+/// ## Why three playback paths (defense in depth)
 ///
-///    Historically broken by FB19779004 (filed Aug 2025). iOS 26.3 (Feb
-///    2026) may or may not have fixed it — Apple hasn't confirmed in the
-///    public forum thread. If it's still broken, AlarmKit silently falls
-///    back to `.default` internally, so the alarm still rings loud and
-///    the Stop-slide fallback takes over.
+/// On iOS 26.3.1, two framework bugs can silence an alarm:
 ///
-/// 2. **Stop slide (always-working interactive):** `StopAndPlayClosingIntent`
-///    runs when user slides Stop. Plays `morning-<id>.mp3` + `closing-<id>.mp3`
-///    via `AlarmAudioPlayer` + `AVAudioPlayer`. User hears the affirmation
-///    sequence immediately on interaction.
+/// - **FB19779004** (filed Aug 2025, unverified as of Apr 2026): `.named()`
+///   with a file in `Library/Sounds` silently falls back to `.default`.
+/// - **26.3.1 silent-alarm regression** (user reports, Apr 2026): some
+///   alarms ring silently with no audio and no haptics.
 ///
-/// 3. **Sleep Mode observer (opt-in hands-free):** While the app is
-///    foregrounded (bedside clock with `isIdleTimerDisabled = true`), the
-///    `alarmUpdates` observer catches `.alerting`, cancels the alarm
-///    sound, and plays the morning + closing MP3s — no user interaction.
+/// Neither bug prevents AlarmKit from emitting a `.alerting` state update,
+/// so we detect the fire event regardless and take over audio ourselves:
 ///
-/// AlarmKit advantages over UNUserNotificationCenter: rings through silent
-/// mode, Focus, and DND; persisted by the system daemon (mobiletimerd)
-/// so we only store one configuration per Alarm row regardless of
-/// weekday repetition.
-@MainActor @Observable
-class AlarmKitScheduler {
-    typealias ScheduleConfiguration = AlarmManager.AlarmConfiguration<AffirmationAlarmMetadata>
+/// 1. **`.named(CAF)` primary** — if iOS 26.3.1 fixed FB19779004, the
+///    system daemon plays `alarm-<id>.caf` as the alarm sound and the
+///    user wakes hands-free to their personalized Nova affirmations.
+/// 2. **Foreground observer** — if the app is foregrounded (Sleep Mode
+///    bedside clock, `isIdleTimerDisabled = true`), `alarmUpdates`
+///    catches `.alerting` and `AlarmAudioPlayer` plays the rendered
+///    MP3 sequence via AVAudioPlayer. Works even if `.default` is silent.
+/// 3. **Stop-slide intent** — if the app is backgrounded and the observer
+///    can't fire, the user's slide-to-stop triggers
+///    `StopAndPlayClosingIntent` which plays the same MP3 sequence.
+///
+/// Any single path succeeding delivers the user's affirmations.
+@MainActor
+@Observable
+final class AlarmKitScheduler {
+
+    // MARK: - Singleton
 
     static let shared = AlarmKitScheduler()
 
-    /// Mirrors the old `AlarmSchedulingService.permissionDenied`. `AlarmListView`
-    /// observes this to show its banner and deep-link to Settings.
-    var permissionDenied = false
+    // MARK: - Observable state
 
-    /// Set to `true` while the morning affirmation sequence is actively
-    /// playing through the auto-play observer. `SleepModeView` observes
-    /// this to show a "Playing your affirmations..." state.
-    var isPlayingMorningAudio = false
+    /// `true` when the user has explicitly denied AlarmKit authorization.
+    /// `AlarmListView` observes this to show a deep-link banner.
+    var permissionDenied: Bool = false
+
+    /// `true` while the morning affirmation sequence is playing via the
+    /// foreground observer. `SleepModeView` observes this to render a
+    /// "Playing your affirmations..." state.
+    var isPlayingMorningAudio: Bool = false
+
+    // MARK: - Private state
 
     private let manager = AlarmManager.shared
 
-    /// Alarm IDs we've detected as `.alerting` and are handling (or have
-    /// handled). Prevents duplicate auto-play when `alarmUpdates` emits
-    /// the same `.alerting` state multiple times.
-    private var currentlyAlerting: Set<UUID> = []
-    private var alarmObserverTask: Task<Void, Never>?
+    /// Alarm IDs currently being auto-played (or recently auto-played).
+    /// Prevents the observer from re-firing on duplicate `.alerting`
+    /// updates for the same alarm.
+    private var activeFireHandling: Set<UUID> = []
+
+    /// Background task for the `authorizationUpdates` stream. Stored so
+    /// we could cancel it for teardown (we don't today, but the lifecycle
+    /// is explicit rather than fire-and-forget).
+    private var authorizationObserverTask: Task<Void, Never>?
+
+    /// Background task for the `alarmUpdates` stream.
+    private var fireObserverTask: Task<Void, Never>?
+
+    // MARK: - Lifecycle
 
     private init() {
-        observeAuthorizationUpdates()
-        observeAlarmFireUpdates()
+        startObserving()
+    }
+
+    private func startObserving() {
+        authorizationObserverTask = Task { [weak self] in
+            guard let self else { return }
+            for await _ in self.manager.authorizationUpdates {
+                await self.refreshPermissionStatus()
+            }
+        }
+
+        fireObserverTask = Task { [weak self] in
+            guard let self else { return }
+            for await alarms in self.manager.alarmUpdates {
+                self.route(alarms: alarms)
+            }
+        }
     }
 
     // MARK: - Permission
@@ -96,10 +121,11 @@ class AlarmKitScheduler {
     func requestPermission() async -> Bool {
         do {
             let state = try await manager.requestAuthorization()
-            let authorized = (state == .authorized)
-            permissionDenied = !authorized
-            return authorized
+            let granted = (state == .authorized)
+            permissionDenied = !granted
+            return granted
         } catch {
+            AppLogger.alarm.error("requestAuthorization failed: \(error.localizedDescription, privacy: .public)")
             permissionDenied = true
             return false
         }
@@ -118,190 +144,188 @@ class AlarmKitScheduler {
         }
     }
 
-    private func observeAuthorizationUpdates() {
-        Task { @MainActor [weak self] in
+    // MARK: - Scheduling
+
+    /// Schedule (or reschedule) the given alarm. Idempotent: any existing
+    /// AlarmKit entry with the same id is cancelled before the new entry
+    /// is installed.
+    ///
+    /// If authorization is `.notDetermined`, we request it first. If the
+    /// user denies, we set `permissionDenied = true` and return without
+    /// scheduling.
+    func scheduleAlarm(_ alarm: Alarm) {
+        Task { [weak self] in
             guard let self else { return }
-            for await _ in self.manager.authorizationUpdates {
-                await self.refreshPermissionStatus()
-            }
+            await self.performSchedule(alarm)
         }
     }
 
-    // MARK: - Auto-play observer
-    //
-    // Observes `AlarmManager.alarmUpdates` — an async sequence that emits
-    // the full `[Alarm]` array whenever any alarm's state changes. When an
-    // alarm transitions to `.alerting`, we immediately cancel the system
-    // alarm (stopping `.default`) and play the pre-rendered morning
-    // affirmation audio via `AlarmAudioPlayer`.
-    //
-    // IMPORTANT: This observer only fires while the app is in the foreground.
-    // Sleep Mode (`SleepModeView`) keeps the app foregrounded overnight with
-    // `isIdleTimerDisabled = true` so the observer stays alive. If the user
-    // didn't enter Sleep Mode, `StopAndPlayClosingIntent` serves as the
-    // fallback when they slide Stop. Both paths route through
-    // `AlarmAudioPlayer` which deduplicates, so there's never double audio.
+    private func performSchedule(_ alarm: Alarm) async {
+        try? manager.cancel(id: alarm.id)
+        guard alarm.isEnabled else { return }
 
-    private func observeAlarmFireUpdates() {
-        alarmObserverTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            for await alarms in self.manager.alarmUpdates {
-                self.handleAlarmUpdate(alarms)
-            }
+        if manager.authorizationState == .notDetermined {
+            _ = await requestPermission()
         }
-    }
 
-    private func handleAlarmUpdate(_ alarms: [AlarmKit.Alarm]) {
-        let alertingIDs = Set(alarms.filter { $0.state == .alerting }.map(\.id))
-
-        // Clean up IDs that are no longer alerting (user tapped Stop/Snooze).
-        currentlyAlerting = currentlyAlerting.intersection(alertingIDs)
-
-        // Start auto-play for newly-alerting alarms.
-        for alarm in alarms where alarm.state == .alerting {
-            let id = alarm.id
-            guard !currentlyAlerting.contains(id) else { continue }
-            currentlyAlerting.insert(id)
-
-            Task { @MainActor [weak self] in
-                await self?.handleFire(alarmID: id)
-            }
-        }
-    }
-
-    private func handleFire(alarmID: UUID) async {
-        // Check that pre-rendered files exist. If missing, let .default
-        // keep ringing as a safety net.
-        let soundsDir = MorningAudioRenderer.soundsDirectory()
-        let morningExists = FileManager.default.fileExists(
-            atPath: soundsDir.appendingPathComponent("morning-\(alarmID.uuidString).mp3").path
-        )
-        guard morningExists else {
-            AppLogger.alarm.info("auto-play: no morning file for \(alarmID.uuidString.prefix(8), privacy: .public), letting .default ring")
+        switch manager.authorizationState {
+        case .authorized:
+            permissionDenied = false
+        case .denied:
+            permissionDenied = true
+            return
+        case .notDetermined:
+            return
+        @unknown default:
             return
         }
 
-        // Cancel the alarm immediately — no delay. This stops .default
-        // and we take over audio entirely with the affirmation sequence.
-        // NOTE: cancel(id:) removes the alarm from the system daemon.
-        // For repeating alarms we re-schedule via the reconcile
-        // notification posted below.
-        try? manager.cancel(id: alarmID)
-
-        // Play the morning affirmation sequence + closing via the shared actor.
-        isPlayingMorningAudio = true
-        let outcome = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
-        isPlayingMorningAudio = false
-        AppLogger.alarm.info("auto-play: \(alarmID.uuidString.prefix(8), privacy: .public) outcome=\(String(describing: outcome), privacy: .public)")
-
-        currentlyAlerting.remove(alarmID)
-
-        // Tell the app to reconcile — this re-schedules repeating alarms
-        // that were removed by cancel(id:) above.
-        NotificationCenter.default.post(name: .didCompleteMorningPlayback, object: nil)
-    }
-
-    // MARK: - Scheduling
-
-    /// Schedule (or reschedule) a single `Alarm` row. Idempotent: always
-    /// cancels any existing AlarmKit entry with the same id before scheduling.
-    func scheduleAlarm(_ alarm: Alarm) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-
-            // Always cancel the existing entry first so edits replace cleanly.
-            try? self.manager.cancel(id: alarm.id)
-
-            guard alarm.isEnabled else { return }
-
-            // Request authorization if we haven't asked yet.
-            if self.manager.authorizationState == .notDetermined {
-                _ = await self.requestPermission()
-            }
-
-            switch self.manager.authorizationState {
-            case .authorized:
-                self.permissionDenied = false
-            case .denied:
-                self.permissionDenied = true
-                return
-            case .notDetermined:
-                return
-            @unknown default:
-                return
-            }
-
-            do {
-                let configuration = self.makeConfiguration(for: alarm)
-                _ = try await self.manager.schedule(id: alarm.id, configuration: configuration)
-                AppLogger.alarm.info("scheduled alarm \(alarm.id, privacy: .public)")
-            } catch {
-                AppLogger.alarm.error("schedule failed for \(alarm.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
-            }
+        do {
+            let configuration = makeConfiguration(for: alarm)
+            _ = try await manager.schedule(id: alarm.id, configuration: configuration)
+            AppLogger.alarm.info("scheduled alarm \(alarm.id, privacy: .public)")
+        } catch {
+            AppLogger.alarm.error("schedule failed for \(alarm.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
         }
     }
 
-    /// Stop / cancel an alarm. Safe to call on alarms that are not currently
-    /// scheduled — errors from `AlarmManager.cancel` are swallowed.
+    /// Cancel an alarm. Safe to call even if the alarm isn't currently
+    /// scheduled — the underlying `cancel(id:)` errors are ignored.
     ///
-    /// Uses `cancel` (not `stop`) because the ItsukiAlarm sample notes that
-    /// `stop` does not reliably delete one-shot alarms; `cancel` removes the
-    /// alarm from the system daemon unconditionally.
+    /// We use `cancel` rather than `stop` because `stop` does not reliably
+    /// delete one-shot alarms on iOS 26 (documented in the ItsukiAlarm
+    /// sample). `cancel` removes the entry from the system daemon
+    /// unconditionally.
     func cancelAlarm(_ alarm: Alarm) {
-        let id = alarm.id
-        // `cancel(id:)` is sync and non-isolated; we can call it directly
-        // without spawning a Task.
-        try? manager.cancel(id: id)
+        try? manager.cancel(id: alarm.id)
     }
 
-    /// Cross-reference SwiftData `Alarm` rows with the system's live
-    /// AlarmKit alarms and self-heal any drift on launch. This replaces the
-    /// old `rescheduleAll(_:)` / `rehydrateAlarms()` loop.
+    /// Cross-reference SwiftData rows with the live AlarmKit registry and
+    /// heal any drift on launch.
     ///
-    /// - One-shot rows (`repeatDays.isEmpty`) whose AlarmKit entry is gone
-    ///   have already fired, so we flip `isEnabled = false` to match the
-    ///   pre-migration "auto-disable after fire" contract.
-    /// - Repeating rows simply get re-scheduled if their AlarmKit entry is
-    ///   missing (first-run rehydration after an app update).
-    /// - Enabled rows that ARE present in AlarmKit are left alone.
+    /// - One-shot rows whose AlarmKit entry has disappeared already fired,
+    ///   so we flip `isEnabled = false`.
+    /// - Repeating rows missing from AlarmKit (e.g. after an app update
+    ///   that cleared state) get re-scheduled.
+    /// - Rows still live in AlarmKit are left alone.
     func reconcile(alarms: [Alarm]) {
-        let enabled = alarms.filter { $0.isEnabled }
+        let enabled = alarms.filter(\.isEnabled)
         guard !enabled.isEmpty else { return }
 
-        // `manager.alarms` is a sync `throws` property; wrap in try? and
-        // default to [] so a first-launch auth-not-yet-granted error is
-        // silently ignored.
         let live = (try? manager.alarms) ?? []
         let liveIDs = Set(live.map(\.id))
 
         for alarm in enabled {
-            if liveIDs.contains(alarm.id) {
-                continue  // Already scheduled in the system.
-            }
+            if liveIDs.contains(alarm.id) { continue }
 
             if alarm.repeatDays.isEmpty {
-                // One-shot that's no longer present = already fired.
                 alarm.isEnabled = false
             } else {
-                // Repeating alarm missing from the system (e.g. first
-                // launch after update) — re-arm it.
                 scheduleAlarm(alarm)
             }
         }
     }
 
+    // MARK: - Snooze follow-up
+
+    /// Schedule a one-shot follow-up 10 minutes from now, invoked by
+    /// `SnoozeMorningIntent` when the user taps Snooze.
+    ///
+    /// The follow-up has no snooze button (one snooze per ring) and uses
+    /// `.default` for its sound because we don't render audio for fresh
+    /// follow-up UUIDs. If the user slides Stop on the follow-up, the
+    /// Stop intent's `AlarmAudioPlayer` returns `.noFiles` and dismisses
+    /// silently — which is the intended behavior.
+    func scheduleSnoozeFollowUp(originalAlarmID: UUID) {
+        let followUpID = UUID()
+        let fireDate = Date().addingTimeInterval(10 * 60)
+
+        let presentation = AlarmPresentation(
+            alert: AlarmPresentation.Alert(
+                title: LocalizedStringResource(stringLiteral: "Time to get up")
+            )
+        )
+        let attributes = AlarmAttributes(
+            presentation: presentation,
+            metadata: AffirmationAlarmMetadata(alarmID: followUpID, label: "Snooze follow-up"),
+            tintColor: Color.orange
+        )
+
+        let configuration = ScheduleConfiguration.alarm(
+            schedule: AlarmKit.Alarm.Schedule.fixed(fireDate),
+            attributes: attributes,
+            stopIntent: StopAndPlayClosingIntent(alarmID: followUpID),
+            secondaryIntent: nil,
+            sound: .default
+        )
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                _ = try await self.manager.schedule(id: followUpID, configuration: configuration)
+                AppLogger.alarm.info("scheduled snooze follow-up \(followUpID, privacy: .public)")
+            } catch {
+                AppLogger.alarm.error("snooze follow-up schedule failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
+    // MARK: - Auto-play routing
+
+    /// Called from the `alarmUpdates` stream for every state transition.
+    /// Emits a `handleFire` task for each newly-alerting alarm and prunes
+    /// our in-memory tracking set once the alarm leaves `.alerting`.
+    private func route(alarms: [AlarmKit.Alarm]) {
+        let alerting = Set(alarms.filter { $0.state == .alerting }.map(\.id))
+        activeFireHandling.formIntersection(alerting)
+
+        let newlyAlerting = alerting.subtracting(activeFireHandling)
+        for alarmID in newlyAlerting {
+            activeFireHandling.insert(alarmID)
+            Task { [weak self] in
+                await self?.handleFire(alarmID: alarmID)
+            }
+        }
+    }
+
+    /// Cancel the system alert (stopping whatever `.default`/`.named()`
+    /// sound was playing — or not playing, on 26.3.1's silent-alarm bug)
+    /// and play the pre-rendered MP3 sequence via `AlarmAudioPlayer`.
+    ///
+    /// After playback, post `.didCompleteMorningPlayback` so the app can
+    /// re-schedule any repeating alarm we just cancelled.
+    private func handleFire(alarmID: UUID) async {
+        defer { activeFireHandling.remove(alarmID) }
+
+        let soundsDir = MorningAudioRenderer.soundsDirectory()
+        let morningURL = soundsDir.appendingPathComponent("morning-\(alarmID.uuidString).mp3")
+        guard FileManager.default.fileExists(atPath: morningURL.path) else {
+            AppLogger.alarm.info("observer: no morning render for \(alarmID.uuidString.prefix(8), privacy: .public); letting system sound continue")
+            return
+        }
+
+        try? manager.cancel(id: alarmID)
+
+        isPlayingMorningAudio = true
+        let outcome = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
+        isPlayingMorningAudio = false
+
+        AppLogger.alarm.info("observer: \(alarmID.uuidString.prefix(8), privacy: .public) outcome=\(String(describing: outcome), privacy: .public)")
+
+        NotificationCenter.default.post(name: .didCompleteMorningPlayback, object: nil)
+    }
+
     // MARK: - Configuration builder
+
+    private typealias ScheduleConfiguration = AlarmManager.AlarmConfiguration<AffirmationAlarmMetadata>
 
     private func makeConfiguration(for alarm: Alarm) -> ScheduleConfiguration {
         let title = LocalizedStringResource(
             stringLiteral: alarm.label.isEmpty ? "Morning Affirmations" : alarm.label
         )
 
-        // The iOS 26 release of `AlarmPresentation.Alert` dropped the
-        // `stopButton:` parameter — AlarmKit provides the stop button
-        // automatically and we wire its tap behavior via `stopIntent:` on
-        // the `AlarmConfiguration` below. The secondary (snooze) button
-        // IS customizable via `secondaryButton:` + `.custom` behavior.
+        // AlarmKit provides the Stop button automatically in iOS 26.
+        // We customize the Snooze (secondary) button only.
         let snoozeButton = AlarmButton(
             text: "Snooze",
             textColor: .white,
@@ -313,7 +337,6 @@ class AlarmKitScheduler {
             secondaryButton: snoozeButton,
             secondaryButtonBehavior: .custom
         )
-
         let presentation = AlarmPresentation(alert: alertPresentation)
 
         let attributes = AlarmAttributes(
@@ -322,8 +345,8 @@ class AlarmKitScheduler {
             tintColor: Color.orange
         )
 
-        // Fully qualify AlarmKit's `Alarm` type — our SwiftData model is
-        // also named `Alarm` and shadows the framework type at this scope.
+        // Fully qualify `AlarmKit.Alarm` — our SwiftData model is also
+        // named `Alarm` and shadows the framework type at this scope.
         let time = AlarmKit.Alarm.Schedule.Relative.Time(hour: alarm.hour, minute: alarm.minute)
 
         let recurrence: AlarmKit.Alarm.Schedule.Relative.Recurrence
@@ -338,91 +361,38 @@ class AlarmKitScheduler {
             AlarmKit.Alarm.Schedule.Relative(time: time, repeats: recurrence)
         )
 
-        let stopIntent = StopAndPlayClosingIntent(alarmID: alarm.id)
-        let snoozeIntent = SnoozeMorningIntent(alarmID: alarm.id)
-
-        // Try the runtime CAF path first. On iOS 26.3+ (if Apple fixed
-        // FB19779004), mobiletimerd should read `alarm-<id>.caf` from
-        // Library/Sounds and play the personalized Nova affirmations as
-        // the alarm sound itself — user wakes hands-free.
-        //
-        // If 26.3 didn't fix it, AlarmKit silently falls back to `.default`
-        // internally, so the alarm still rings loud. The Stop-slide
-        // intent and Sleep Mode observer still play the affirmation
-        // sequence from the `morning-<id>.mp3` + `closing-<id>.mp3`
-        // fallback files — zero regression vs. the pure-`.default` build.
-        //
-        // If CAF wasn't rendered yet (first schedule, render failed),
-        // use `.default` explicitly so we don't send a dangling name.
-        let sound: AlertConfiguration.AlertSound
-        if MorningAudioRenderer.hasAlarmCAF(for: alarm) {
-            let stem = MorningAudioRenderer.alarmCAFStem(for: alarm)
-            sound = .named(stem)
-            AppLogger.alarm.info("using .named(\(stem, privacy: .public)) for alarm \(alarm.id.uuidString.prefix(8), privacy: .public) — will log whether 26.3 plays it")
-        } else {
-            sound = .default
-            AppLogger.alarm.info("using .default for alarm \(alarm.id.uuidString.prefix(8), privacy: .public) — CAF not rendered")
-        }
-
         return ScheduleConfiguration.alarm(
             schedule: schedule,
             attributes: attributes,
-            stopIntent: stopIntent,
-            secondaryIntent: snoozeIntent,
-            sound: sound
+            stopIntent: StopAndPlayClosingIntent(alarmID: alarm.id),
+            secondaryIntent: SnoozeMorningIntent(alarmID: alarm.id),
+            sound: resolveSound(for: alarm)
         )
     }
 
-    // MARK: - Snooze follow-up
-
-    /// Schedule a one-off follow-up alarm 10 minutes from now, called from
-    /// `SnoozeMorningIntent.perform()` when the user taps Snooze on the
-    /// main alarm. Its presentation has NO secondary button — the user gets
-    /// one snooze per ring, then must tap Stop on the follow-up to dismiss.
+    /// Pick the AlarmKit sound for this alarm. Prefer the runtime CAF
+    /// (hands-free personalized audio on iOS 26.3.1 *if* FB19779004 is
+    /// fixed); fall back to `.default` otherwise.
     ///
-    /// The follow-up's stopIntent is `StopAndPlayClosingIntent`, but since
-    /// no `morning-<followUpID>.mp3` was rendered for this fresh UUID, the
-    /// intent's `AlarmAudioPlayer` returns `.noFiles` and the alarm just
-    /// dismisses silently. That's the intended behavior.
-    func scheduleSnoozeFollowUp(originalAlarmID: UUID) {
-        let followUpID = UUID()
-        let fireDate = Date().addingTimeInterval(10 * 60)
-
-        let title = LocalizedStringResource(stringLiteral: "Time to get up")
-        let presentation = AlarmPresentation(
-            alert: AlarmPresentation.Alert(title: title)
-        )
-        let attributes = AlarmAttributes(
-            presentation: presentation,
-            metadata: AffirmationAlarmMetadata(alarmID: followUpID, label: "Snooze follow-up"),
-            tintColor: Color.orange
-        )
-
-        let schedule = AlarmKit.Alarm.Schedule.fixed(fireDate)
-        let stopIntent = StopAndPlayClosingIntent(alarmID: followUpID)
-
-        // .default because .named() is broken on iOS 26.1 (FB19779004).
-        let config = ScheduleConfiguration.alarm(
-            schedule: schedule,
-            attributes: attributes,
-            stopIntent: stopIntent,
-            secondaryIntent: nil,
-            sound: .default
-        )
-
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            do {
-                _ = try await self.manager.schedule(id: followUpID, configuration: config)
-                AppLogger.alarm.info("scheduled snooze follow-up \(followUpID, privacy: .public)")
-            } catch {
-                AppLogger.alarm.error("snooze follow-up schedule failed: \(error.localizedDescription, privacy: .public)")
-            }
+    /// Either choice is safe: on silent-alarm 26.3.1 hardware, the
+    /// observer and Stop-slide paths still deliver affirmations via
+    /// `AlarmAudioPlayer`. The sound choice only affects the first
+    /// few seconds before the observer fires or the user interacts.
+    private func resolveSound(for alarm: Alarm) -> AlertConfiguration.AlertSound {
+        if MorningAudioRenderer.hasAlarmCAF(for: alarm) {
+            let stem = MorningAudioRenderer.alarmCAFStem(for: alarm)
+            AppLogger.alarm.info("sound: .named(\(stem, privacy: .public)) for \(alarm.id.uuidString.prefix(8), privacy: .public)")
+            return .named(stem)
         }
+        AppLogger.alarm.info("sound: .default for \(alarm.id.uuidString.prefix(8), privacy: .public) (CAF not rendered)")
+        return .default
     }
+
+    // MARK: - Weekday mapping
 
     /// Map Apple `Calendar.weekday` (1 = Sunday ... 7 = Saturday) to
-    /// AlarmKit's `Locale.Weekday`. Returns `nil` for out-of-range input.
+    /// `Locale.Weekday`. Returns `nil` for out-of-range input so the
+    /// caller can filter garbage values with `compactMap`.
     private static func weekday(fromAppleWeekday apple: Int) -> Locale.Weekday? {
         switch apple {
         case 1: return .sunday

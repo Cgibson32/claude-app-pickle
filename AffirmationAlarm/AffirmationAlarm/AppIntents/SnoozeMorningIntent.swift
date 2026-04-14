@@ -2,49 +2,50 @@ import AlarmKit
 import AppIntents
 import Foundation
 
-/// Runs when the user taps the Snooze button on the AlarmKit alarm UI.
+/// Handles the "Snooze" button on the AlarmKit ringing UI.
 ///
-/// `openAppWhenRun = false` keeps the app in the background — snoozing
-/// should feel exactly like tapping snooze on a real alarm clock: the
-/// ringing stops, nothing opens, and 10 minutes later a follow-up alarm
-/// rings with different audio to get you out of bed.
+/// Exactly like snoozing a physical alarm clock: the current ring stops,
+/// the app doesn't open (`openAppWhenRun = false`), and a fresh follow-up
+/// alarm is scheduled 10 minutes from now with no further snooze option.
 ///
-/// The intent:
-///
-/// 1. Cancels the currently ringing alarm via `AlarmManager.cancel(id:)`.
-/// 2. Calls back into `AlarmKitScheduler.shared.scheduleSnoozeFollowUp(...)`
-///    on the main actor to schedule a new one-shot alarm 10 minutes from now.
-///    That follow-up uses the pre-rendered `snooze-<originalAlarmID>.wav`
-///    as its alarm sound — the user's selected tone briefly beeping, then
-///    the voice saying *"Time to get up, [Name]. Let's have a great day."*
-///
-/// The follow-up alarm has only a Stop button — no further snoozing.
+/// The follow-up uses `.default` for its alarm sound because we haven't
+/// pre-rendered audio for the fresh follow-up UUID. When the user slides
+/// Stop on the follow-up, `StopAndPlayClosingIntent` runs,
+/// `AlarmAudioPlayer` finds no rendered files for that UUID and returns
+/// `.noFiles`, and the alarm dismisses silently. That's intentional —
+/// users don't want a full affirmation sequence from the snooze follow-up.
 struct SnoozeMorningIntent: LiveActivityIntent {
-    // These are protocol requirements declared as `{ get }`, so a `let`
-    // satisfies them. Using `let` (not `var`) keeps them immutable static
-    // shared state, which Swift 6 strict concurrency requires — otherwise
-    // the compiler errors with "not concurrency-safe because it is
-    // nonisolated global shared mutable state".
+
+    // MARK: - Intent metadata
+
     static let title: LocalizedStringResource = "Snooze"
     static let description = IntentDescription("Snooze for 10 minutes.")
     static let openAppWhenRun: Bool = false
 
+    // MARK: - Parameters
+
     @Parameter(title: "alarmID")
     var alarmID: String
+
+    // MARK: - Init
+
+    init() {
+        self.alarmID = ""
+    }
 
     init(alarmID: UUID) {
         self.alarmID = alarmID.uuidString
     }
 
-    init() {
-        self.alarmID = ""
-    }
+    // MARK: - Perform
 
     func perform() async throws -> some IntentResult {
         guard let uuid = UUID(uuidString: alarmID) else { return .result() }
 
         try? AlarmManager.shared.cancel(id: uuid)
 
+        // Scheduling touches `@MainActor` state on the scheduler, so hop
+        // over before invoking it.
         await MainActor.run {
             AlarmKitScheduler.shared.scheduleSnoozeFollowUp(originalAlarmID: uuid)
         }
