@@ -93,6 +93,65 @@ final class AlarmKitScheduler {
     /// Background task for the `alarmUpdates` stream.
     private var fireObserverTask: Task<Void, Never>?
 
+    // MARK: - Diagnostics state (for DiagnosticsView)
+
+    /// Timestamp of the most recent `alarmUpdates` emission. `nil` if
+    /// the observer has never received an event this session.
+    private(set) var lastUpdateReceived: Date?
+
+    /// The most recent alarm ID observed transitioning to `.alerting`,
+    /// plus when. `nil` if no alarm has fired this session.
+    private(set) var lastAlertingAlarm: AlertingEvent?
+
+    /// The most recent `handleFire` invocation's outcome string + when.
+    /// `nil` if no alarm has completed a fire handler this session.
+    private(set) var lastHandleFireOutcome: FireOutcome?
+
+    /// The alarm ID + timestamp of the most recent `.alerting` emission.
+    struct AlertingEvent: Sendable {
+        let alarmID: UUID
+        let date: Date
+    }
+
+    /// The outcome string (from `AlarmAudioPlayer.PlaybackOutcome`) and
+    /// timestamp of the most recent `handleFire` completion.
+    struct FireOutcome: Sendable {
+        let outcome: String
+        let date: Date
+    }
+
+    /// Snapshot of state currently tracked by the scheduler — read by
+    /// the Diagnostics view.
+    struct DiagnosticsSnapshot: Sendable {
+        let permissionDenied: Bool
+        let isPlayingMorningAudio: Bool
+        let activeFireHandlingCount: Int
+        let lastUpdateReceived: Date?
+        let lastAlertingAlarm: AlertingEvent?
+        let lastHandleFireOutcome: FireOutcome?
+
+        /// Placeholder for the Diagnostics view's `@State` default.
+        static let empty = DiagnosticsSnapshot(
+            permissionDenied: false,
+            isPlayingMorningAudio: false,
+            activeFireHandlingCount: 0,
+            lastUpdateReceived: nil,
+            lastAlertingAlarm: nil,
+            lastHandleFireOutcome: nil
+        )
+    }
+
+    func diagnosticsSnapshot() -> DiagnosticsSnapshot {
+        DiagnosticsSnapshot(
+            permissionDenied: permissionDenied,
+            isPlayingMorningAudio: isPlayingMorningAudio,
+            activeFireHandlingCount: activeFireHandling.count,
+            lastUpdateReceived: lastUpdateReceived,
+            lastAlertingAlarm: lastAlertingAlarm,
+            lastHandleFireOutcome: lastHandleFireOutcome
+        )
+    }
+
     // MARK: - Lifecycle
 
     private init() {
@@ -180,12 +239,20 @@ final class AlarmKitScheduler {
             return
         }
 
+        // Guarantee keep-alive is active BEFORE handing the alarm to the
+        // system daemon. If the observer Task has no audio session when
+        // it starts awaiting `alarmUpdates`, iOS can suspend the process
+        // before the first `.alerting` event is delivered.
+        BackgroundKeepAlive.shared.start()
+
         do {
             let configuration = makeConfiguration(for: alarm)
             _ = try await manager.schedule(id: alarm.id, configuration: configuration)
             AppLogger.alarm.info("scheduled alarm \(alarm.id, privacy: .public)")
+            DiagnosticsLog.shared.log("scheduler", "scheduled \(alarm.id.uuidString.prefix(8)) sound=\(alarm.soundName)")
         } catch {
             AppLogger.alarm.error("schedule failed for \(alarm.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            DiagnosticsLog.shared.log("scheduler", "schedule failed: \(error.localizedDescription)")
         }
     }
 
@@ -276,12 +343,16 @@ final class AlarmKitScheduler {
     /// Emits a `handleFire` task for each newly-alerting alarm and prunes
     /// our in-memory tracking set once the alarm leaves `.alerting`.
     private func route(alarms: [AlarmKit.Alarm]) {
+        lastUpdateReceived = Date()
+
         let alerting = Set(alarms.filter { $0.state == .alerting }.map(\.id))
         activeFireHandling.formIntersection(alerting)
 
         let newlyAlerting = alerting.subtracting(activeFireHandling)
         for alarmID in newlyAlerting {
             activeFireHandling.insert(alarmID)
+            lastAlertingAlarm = AlertingEvent(alarmID: alarmID, date: Date())
+            DiagnosticsLog.shared.log("observer", "alerting \(alarmID.uuidString.prefix(8))")
             Task { [weak self] in
                 await self?.handleFire(alarmID: alarmID)
             }
@@ -297,10 +368,14 @@ final class AlarmKitScheduler {
     private func handleFire(alarmID: UUID) async {
         defer { activeFireHandling.remove(alarmID) }
 
+        DiagnosticsLog.shared.log("observer", "handleFire start \(alarmID.uuidString.prefix(8))")
+
         let soundsDir = MorningAudioRenderer.soundsDirectory()
         let morningURL = soundsDir.appendingPathComponent("morning-\(alarmID.uuidString).mp3")
         guard FileManager.default.fileExists(atPath: morningURL.path) else {
             AppLogger.alarm.info("observer: no morning render for \(alarmID.uuidString.prefix(8), privacy: .public); letting system sound continue")
+            lastHandleFireOutcome = FireOutcome(outcome: "noMorningRender", date: Date())
+            DiagnosticsLog.shared.log("observer", "no morning render — leaving system sound")
             return
         }
 
@@ -311,6 +386,8 @@ final class AlarmKitScheduler {
         isPlayingMorningAudio = false
 
         AppLogger.alarm.info("observer: \(alarmID.uuidString.prefix(8), privacy: .public) outcome=\(String(describing: outcome), privacy: .public)")
+        lastHandleFireOutcome = FireOutcome(outcome: String(describing: outcome), date: Date())
+        DiagnosticsLog.shared.log("observer", "handleFire outcome=\(outcome)")
 
         // AlarmAudioPlayer deactivates the audio session when it finishes.
         // For repeating alarms (and any one-shot followed by a reschedule),
@@ -378,13 +455,21 @@ final class AlarmKitScheduler {
         )
     }
 
-    /// Pick the AlarmKit sound for this alarm. We trust iOS 26.3.1 to
-    /// have fixed FB19779004 and pass the runtime CAF stem to `.named()`.
-    /// If the CAF hasn't been rendered yet (fresh schedule, render
-    /// failure), AlarmKit falls back to `.default` internally.
+    /// Pick the AlarmKit sound for this alarm.
+    ///
+    /// We pass `.named(alarm.soundName)` pointing to a CAF in the **app
+    /// bundle** (e.g. `alarm_gentle.caf`, `alarm_sunrise.caf`). Research
+    /// (Apr 2026) confirms bundle-resident audio is the one `.named()`
+    /// location that reliably works under the open FB19779004 bug —
+    /// `Library/Sounds` silently falls back to `.default`.
+    ///
+    /// Per-user personalized affirmations are layered on top by the
+    /// `alarmUpdates` observer and the Stop-slide intent, which play
+    /// `morning-<id>.mp3` and `closing-<id>.mp3` via `AlarmAudioPlayer`
+    /// after the system daemon has started the bundled alarm tone.
     private func resolveSound(for alarm: Alarm) -> AlertConfiguration.AlertSound {
-        let stem = MorningAudioRenderer.alarmCAFStem(for: alarm)
-        AppLogger.alarm.info("sound: .named(\(stem, privacy: .public)) for \(alarm.id.uuidString.prefix(8), privacy: .public)")
+        let stem = alarm.soundName
+        AppLogger.alarm.info("sound: .named(\(stem, privacy: .public)) [bundle] for \(alarm.id.uuidString.prefix(8), privacy: .public)")
         return .named(stem)
     }
 

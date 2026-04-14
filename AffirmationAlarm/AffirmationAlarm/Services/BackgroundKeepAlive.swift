@@ -36,6 +36,63 @@ final class BackgroundKeepAlive {
 
     static let shared = BackgroundKeepAlive()
 
+    // MARK: - Diagnostics snapshot
+
+    /// Immutable snapshot of keep-alive state for display in the
+    /// on-device Diagnostics view.
+    struct SessionSnapshot: Sendable {
+        let isRunning: Bool
+        let playerExists: Bool
+        let playerIsPlaying: Bool
+        let sessionCategory: String
+        let sessionMode: String
+        let sessionOptionsRaw: UInt
+        let sessionIsOtherAudioPlaying: Bool
+        let lastInterruption: TimestampedNote?
+        let lastRouteChange: TimestampedNote?
+
+        /// Placeholder shown in the view before the first `refresh()`
+        /// call — matches the "never this session" display state.
+        static let empty = SessionSnapshot(
+            isRunning: false,
+            playerExists: false,
+            playerIsPlaying: false,
+            sessionCategory: "(unknown)",
+            sessionMode: "(unknown)",
+            sessionOptionsRaw: 0,
+            sessionIsOtherAudioPlaying: false,
+            lastInterruption: nil,
+            lastRouteChange: nil
+        )
+    }
+
+    /// Small Sendable pair used by both `lastInterruption` and
+    /// `lastRouteChange`. Introduced instead of labeled tuples so the
+    /// Sendable conformance of `SessionSnapshot` is unambiguous under
+    /// Swift 6 strict concurrency.
+    struct TimestampedNote: Sendable {
+        let date: Date
+        let detail: String
+    }
+
+    /// Observable for Diagnostics view. Uses a simple closure-based
+    /// accessor rather than `@Observable` so the file keeps its
+    /// singleton+state design without pulling in SwiftUI imports.
+    func sessionSnapshot() -> SessionSnapshot {
+        let session = AVAudioSession.sharedInstance()
+        return SessionSnapshot(
+            isRunning: isRunning,
+            playerExists: player != nil,
+            playerIsPlaying: player?.isPlaying ?? false,
+            sessionCategory: session.category.rawValue,
+            sessionMode: session.mode.rawValue,
+            sessionOptionsRaw: session.categoryOptions.rawValue,
+            sessionIsOtherAudioPlaying: session.isOtherAudioPlaying,
+            lastInterruption: lastInterruption,
+            lastRouteChange: lastRouteChange
+        )
+    }
+
     // MARK: - State
 
     private var player: AVAudioPlayer?
@@ -44,6 +101,9 @@ final class BackgroundKeepAlive {
     private var interruptionObserver: NSObjectProtocol?
     private var mediaServicesResetObserver: NSObjectProtocol?
     private var routeChangeObserver: NSObjectProtocol?
+
+    private var lastInterruption: TimestampedNote?
+    private var lastRouteChange: TimestampedNote?
 
     private init() {
         silenceURL = FileManager.default.temporaryDirectory
@@ -68,8 +128,10 @@ final class BackgroundKeepAlive {
             try activateSession()
             try startSilentPlayback()
             AppLogger.alarm.info("BackgroundKeepAlive: started")
+            DiagnosticsLog.shared.log("keep-alive", "started")
         } catch {
             AppLogger.alarm.error("BackgroundKeepAlive: start failed: \(error.localizedDescription, privacy: .public)")
+            DiagnosticsLog.shared.log("keep-alive", "start failed: \(error.localizedDescription)")
         }
     }
 
@@ -82,6 +144,7 @@ final class BackgroundKeepAlive {
         removeSessionObservers()
         try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
         AppLogger.alarm.info("BackgroundKeepAlive: stopped")
+        DiagnosticsLog.shared.log("keep-alive", "stopped")
     }
 
     // MARK: - Session + playback primitives
@@ -177,11 +240,19 @@ final class BackgroundKeepAlive {
         switch type {
         case .began:
             AppLogger.alarm.info("BackgroundKeepAlive: interruption began")
+            lastInterruption = TimestampedNote(date: Date(), detail: "began")
+            DiagnosticsLog.shared.log("keep-alive", "interruption began")
         case .ended:
-            let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions ?? 0)
+            let rawOpts = rawOptions ?? 0
+            let options = AVAudioSession.InterruptionOptions(rawValue: rawOpts)
             AppLogger.alarm.info(
                 "BackgroundKeepAlive: interruption ended, shouldResume=\(options.contains(.shouldResume), privacy: .public)"
             )
+            lastInterruption = TimestampedNote(
+                date: Date(),
+                detail: "ended (shouldResume=\(options.contains(.shouldResume)))"
+            )
+            DiagnosticsLog.shared.log("keep-alive", "interruption ended shouldResume=\(options.contains(.shouldResume))")
             resumeSilence()
         @unknown default:
             break
@@ -193,6 +264,7 @@ final class BackgroundKeepAlive {
     /// rebuilt from scratch.
     private func rebuildAfterMediaServicesReset() {
         AppLogger.alarm.error("BackgroundKeepAlive: media services reset, rebuilding")
+        DiagnosticsLog.shared.log("keep-alive", "media services reset — rebuilding")
         player?.stop()
         player = nil
         // `start()` will re-activate the session and re-install observers.
@@ -206,7 +278,10 @@ final class BackgroundKeepAlive {
         guard let rawReason, let reason = AVAudioSession.RouteChangeReason(rawValue: rawReason) else {
             return
         }
-        AppLogger.alarm.info("BackgroundKeepAlive: route change reason=\(String(describing: reason), privacy: .public)")
+        let reasonLabel = String(describing: reason)
+        AppLogger.alarm.info("BackgroundKeepAlive: route change reason=\(reasonLabel, privacy: .public)")
+        lastRouteChange = TimestampedNote(date: Date(), detail: reasonLabel)
+        DiagnosticsLog.shared.log("keep-alive", "route change reason=\(reasonLabel)")
     }
 
     /// Re-activate the session and resume silent playback. Called both
@@ -223,6 +298,7 @@ final class BackgroundKeepAlive {
             }
         } catch {
             AppLogger.alarm.error("BackgroundKeepAlive: resume failed: \(error.localizedDescription, privacy: .public)")
+            DiagnosticsLog.shared.log("keep-alive", "resume failed: \(error.localizedDescription)")
         }
     }
 

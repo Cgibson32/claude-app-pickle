@@ -6,18 +6,23 @@ import Foundation
 ///
 /// ## Behavior on iOS 26.3.1
 ///
-/// On iOS 26.1+, sliding Stop reopens the app *even when*
-/// `openAppWhenRun = false` — this is an AlarmKit framework behavior, not
-/// something we can disable. We take advantage of it:
+/// We set `openAppWhenRun = true` so tapping Stop **deterministically**
+/// foregrounds the app. This guarantees that the foreground retry in
+/// `AffirmationAlarmApp.checkPendingMorningPlayback` always runs, where
+/// audio session activation is reliable. The user ends up looking at
+/// the app post-alarm anyway — that's the desired morning experience —
+/// so there's no UX cost to flipping this on.
 ///
-/// 1. The intent cancels the alarm and writes the alarm ID to a
-///    `UserDefaults` handoff key.
-/// 2. The intent attempts background playback via `AlarmAudioPlayer`.
-///    If the intent's sandboxed audio session can't start (which happens
-///    intermittently on 26.3.1), the playback call returns
-///    `.audioSessionUnavailable` and we exit quietly.
-/// 3. When the app finishes launching, `AffirmationAlarmApp.checkPending…`
-///    sees the handoff key and calls `AlarmAudioPlayer.playMorningAndClosing`
+/// Pipeline:
+///
+/// 1. Intent cancels the AlarmKit alarm (silences the system tone).
+/// 2. Intent writes the alarm ID to `UserDefaults` as a handoff key.
+/// 3. Intent attempts background playback via `AlarmAudioPlayer`. If
+///    the sandboxed audio session can't start (common on 26.3.1),
+///    playback returns `.audioSessionUnavailable` and we exit quietly.
+/// 4. iOS foregrounds the app because `openAppWhenRun = true`.
+/// 5. `AffirmationAlarmApp.checkPendingMorningPlayback` sees the
+///    handoff key and calls `AlarmAudioPlayer.playMorningAndClosing`
 ///    again from the foreground — where audio sessions always work.
 ///
 /// The `AlarmAudioPlayer` actor deduplicates: whichever path activated
@@ -32,7 +37,12 @@ struct StopAndPlayClosingIntent: LiveActivityIntent {
 
     static let title: LocalizedStringResource = "Stop"
     static let description = IntentDescription("Stop the alarm and play the closing message.")
-    static let openAppWhenRun: Bool = false
+
+    /// `true` on purpose: iOS 26.1's "open the app anyway" side-effect
+    /// is unreliable on 26.3.1, and the foreground retry is the only
+    /// path proven to always have a working audio session. Opening the
+    /// app is the desired morning experience anyway.
+    static let openAppWhenRun: Bool = true
 
     // MARK: - Parameters
 
@@ -54,6 +64,8 @@ struct StopAndPlayClosingIntent: LiveActivityIntent {
     func perform() async throws -> some IntentResult {
         guard let uuid = UUID(uuidString: alarmID) else { return .result() }
 
+        DiagnosticsLog.shared.log("intent", "stop perform start \(uuid.uuidString.prefix(8))")
+
         // Silence the system alert immediately.
         try? AlarmManager.shared.cancel(id: uuid)
 
@@ -63,8 +75,10 @@ struct StopAndPlayClosingIntent: LiveActivityIntent {
         UserDefaults.standard.set(uuid.uuidString, forKey: PendingPlayback.userDefaultsKey)
 
         // Best-effort background playback. If the sandbox blocks the
-        // audio session, foreground picks it up.
-        _ = await AlarmAudioPlayer.shared.playMorningAndClosing(for: uuid)
+        // audio session, `openAppWhenRun = true` guarantees the app
+        // foregrounds and the `checkPendingMorningPlayback` retry runs.
+        let outcome = await AlarmAudioPlayer.shared.playMorningAndClosing(for: uuid)
+        DiagnosticsLog.shared.log("intent", "stop perform done outcome=\(outcome)")
 
         return .result()
     }

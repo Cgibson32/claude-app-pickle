@@ -49,6 +49,13 @@ struct SettingsView: View {
                         SettingsRow(icon: "moon.stars.fill", title: "Evening Reflection", color: AppTheme.deepPlum)
                     }
 
+                    // Diagnostics — on-device view of alarm pipeline state
+                    NavigationLink {
+                        DiagnosticsView()
+                    } label: {
+                        SettingsRow(icon: "stethoscope", title: "Diagnostics", color: AppTheme.textSecondary)
+                    }
+
                     // Restore purchases
                     Button {
                         Task { await SubscriptionManager.shared.restorePurchases() }

@@ -73,6 +73,29 @@ actor AlarmAudioPlayer {
     /// rather than re-triggering a second playback.
     private let purgatoryWindow: Duration = .seconds(60)
 
+    /// Last playback outcome + timestamp + alarm ID, for the on-device
+    /// Diagnostics view. Published via `lastPlaybackSummary()`.
+    private var lastOutcome: (outcome: PlaybackOutcome, date: Date, alarmID: UUID)?
+
+    // MARK: - Diagnostics
+
+    struct PlaybackSummary: Sendable {
+        let outcome: String
+        let date: Date
+        let alarmID: UUID
+    }
+
+    /// Snapshot of the most recent `playMorningAndClosing` call — used
+    /// by the Diagnostics view to show what happened last time.
+    func lastPlaybackSummary() -> PlaybackSummary? {
+        guard let last = lastOutcome else { return nil }
+        return PlaybackSummary(
+            outcome: last.outcome.description,
+            date: last.date,
+            alarmID: last.alarmID
+        )
+    }
+
     // MARK: - Public API
 
     /// Play `morning-<id>.mp3` followed by `closing-<id>.mp3`. Either
@@ -86,11 +109,19 @@ actor AlarmAudioPlayer {
     /// want the foreground retry from `checkPendingMorningPlayback` to
     /// succeed rather than get short-circuited by purgatory.
     func playMorningAndClosing(for alarmID: UUID) async -> PlaybackOutcome {
-        if playing.contains(alarmID) { return .alreadyPlaying }
-        if recentlyCompleted.contains(alarmID) { return .alreadyPlayed }
+        DiagnosticsLog.shared.log("player", "start \(alarmID.uuidString.prefix(8))")
+
+        if playing.contains(alarmID) {
+            return record(outcome: .alreadyPlaying, alarmID: alarmID)
+        }
+        if recentlyCompleted.contains(alarmID) {
+            return record(outcome: .alreadyPlayed, alarmID: alarmID)
+        }
 
         let (morning, closing) = filesFor(alarmID: alarmID)
-        guard morning != nil || closing != nil else { return .noFiles }
+        guard morning != nil || closing != nil else {
+            return record(outcome: .noFiles, alarmID: alarmID)
+        }
 
         playing.insert(alarmID)
         // Release the `playing` slot no matter how we exit. Purgatory is
@@ -98,7 +129,7 @@ actor AlarmAudioPlayer {
         defer { playing.remove(alarmID) }
 
         guard activateAudioSession() else {
-            return .audioSessionUnavailable
+            return record(outcome: .audioSessionUnavailable, alarmID: alarmID)
         }
 
         if let morning { await playFile(at: morning) }
@@ -106,7 +137,16 @@ actor AlarmAudioPlayer {
 
         deactivateAudioSession()
         markCompleted(alarmID: alarmID)
-        return .played
+        return record(outcome: .played, alarmID: alarmID)
+    }
+
+    /// Record the outcome on the shared diagnostics log and the actor's
+    /// `lastOutcome` slot in one place. Returns the outcome for the
+    /// caller so call sites can be a single-line `return record(...)`.
+    private func record(outcome: PlaybackOutcome, alarmID: UUID) -> PlaybackOutcome {
+        lastOutcome = (outcome, Date(), alarmID)
+        DiagnosticsLog.shared.log("player", "\(alarmID.uuidString.prefix(8)) outcome=\(outcome)")
+        return outcome
     }
 
     /// Whether playback is currently in progress for the given alarm.

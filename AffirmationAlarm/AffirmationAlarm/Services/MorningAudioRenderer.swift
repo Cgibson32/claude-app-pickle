@@ -211,9 +211,12 @@ final class MorningAudioRenderer {
         do {
             let data = try await tts.synthesize(text: script, voice: voice, format: .mp3)
             try data.write(to: url, options: .atomic)
+            guard verifyPlayable(at: url, label: "main MP3") else { return false }
+            DiagnosticsLog.shared.log("render", "main MP3 rendered \(url.lastPathComponent) size=\(data.count)")
             return true
         } catch {
             AppLogger.audio.error("main MP3 render failed: \(error.localizedDescription, privacy: .public)")
+            DiagnosticsLog.shared.log("render", "main MP3 failed: \(error.localizedDescription)")
             return false
         }
     }
@@ -227,8 +230,12 @@ final class MorningAudioRenderer {
         do {
             let data = try await tts.synthesize(text: script, voice: voice, format: .mp3)
             try data.write(to: url, options: .atomic)
+            if verifyPlayable(at: url, label: "\(label) MP3") {
+                DiagnosticsLog.shared.log("render", "\(label) MP3 rendered \(url.lastPathComponent) size=\(data.count)")
+            }
         } catch {
             AppLogger.audio.error("\(label, privacy: .public) MP3 render failed: \(error.localizedDescription, privacy: .public)")
+            DiagnosticsLog.shared.log("render", "\(label) MP3 failed: \(error.localizedDescription)")
         }
     }
 
@@ -236,9 +243,41 @@ final class MorningAudioRenderer {
         do {
             let wav = try await tts.synthesize(text: script, voice: voice, format: .wav)
             try Self.rewrapWAVAsCAF(wav, to: url)
-            AppLogger.audio.info("rendered alarm CAF for \(alarmID.uuidString.prefix(8), privacy: .public)")
+            if verifyPlayable(at: url, label: "alarm CAF") {
+                AppLogger.audio.info("rendered alarm CAF for \(alarmID.uuidString.prefix(8), privacy: .public)")
+                DiagnosticsLog.shared.log("render", "alarm CAF \(alarmID.uuidString.prefix(8)) ok")
+            }
         } catch {
             AppLogger.audio.error("alarm CAF render failed for \(alarmID.uuidString.prefix(8), privacy: .public): \(error.localizedDescription, privacy: .public)")
+            DiagnosticsLog.shared.log("render", "alarm CAF failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// After a file is written to disk, confirm `AVAudioPlayer` can open
+    /// it. Catches silent failures where the bytes exist but the
+    /// container/encoding is malformed — most likely cause of "file on
+    /// disk but alarm plays default anyway."
+    ///
+    /// On failure, deletes the file so the next `refresh` attempts a
+    /// fresh render instead of considering the alarm "fresh" via the
+    /// `isFresh` short-circuit.
+    @discardableResult
+    private func verifyPlayable(at url: URL, label: String) -> Bool {
+        do {
+            let player = try AVAudioPlayer(contentsOf: url)
+            if player.duration <= 0 {
+                AppLogger.audio.error("\(label, privacy: .public) verify: zero-duration file at \(url.lastPathComponent, privacy: .public)")
+                DiagnosticsLog.shared.log("render", "\(label) zero-duration — deleting")
+                try? FileManager.default.removeItem(at: url)
+                return false
+            }
+            AppLogger.audio.info("\(label, privacy: .public) verify: duration=\(player.duration, privacy: .public)s")
+            return true
+        } catch {
+            AppLogger.audio.error("\(label, privacy: .public) verify failed: \(error.localizedDescription, privacy: .public)")
+            DiagnosticsLog.shared.log("render", "\(label) verify failed: \(error.localizedDescription) — deleting")
+            try? FileManager.default.removeItem(at: url)
+            return false
         }
     }
 

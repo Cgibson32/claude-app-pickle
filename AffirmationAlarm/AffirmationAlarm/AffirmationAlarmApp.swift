@@ -31,6 +31,13 @@ struct AffirmationAlarmApp: App {
         // Force the AlarmKitScheduler singleton to materialize at launch so
         // its alarmUpdates observer is running before the first alarm fires.
         _ = AlarmKitScheduler.shared
+
+        // Start the keep-alive unconditionally at process launch. If no
+        // alarms are enabled this is idempotent/harmless. If one IS
+        // enabled, we close the race where the observer Task awaits
+        // `alarmUpdates` with no audio session and iOS suspends us before
+        // the first `.alerting` event arrives.
+        Task { @MainActor in BackgroundKeepAlive.shared.start() }
     }
 
     var body: some Scene {
@@ -65,10 +72,12 @@ struct RootView: View {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 checkPendingMorningPlayback()
-                // Re-start keep-alive if it was interrupted (e.g. phone call)
-                if alarms.contains(where: \.isEnabled) {
-                    BackgroundKeepAlive.shared.start()
-                }
+                // Always restart keep-alive on return-to-active. Idempotent
+                // when already running; cheap to call when no alarms are
+                // enabled (silent audio, volume 0, no DAC work). Closes
+                // the window where an overnight interruption left us dead
+                // and the user tapped to re-open.
+                BackgroundKeepAlive.shared.start()
             }
         }
         .sheet(isPresented: $showEveningReflection) {
@@ -96,6 +105,7 @@ struct RootView: View {
               let alarmID = UUID(uuidString: idString) else { return }
 
         UserDefaults.standard.removeObject(forKey: PendingPlayback.userDefaultsKey)
+        DiagnosticsLog.shared.log("intent", "foreground retry triggered for \(alarmID.uuidString.prefix(8))")
 
         Task {
             _ = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
