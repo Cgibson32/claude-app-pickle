@@ -380,6 +380,15 @@ final class AlarmKitScheduler {
         }
 
         try? manager.cancel(id: alarmID)
+        DiagnosticsLog.shared.log("observer", "cancelled system alarm; waiting for handoff")
+
+        // Give the system daemon a moment to release its audio session
+        // priority. Without this, our .playback activation races the
+        // system alarm's still-active session and the MP3 plays
+        // inaudibly or gets cut off after a second. 400ms is long
+        // enough for iOS to complete the handoff, short enough that
+        // the user doesn't perceive a gap.
+        try? await Task.sleep(for: .milliseconds(400))
 
         isPlayingMorningAudio = true
         let outcome = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)

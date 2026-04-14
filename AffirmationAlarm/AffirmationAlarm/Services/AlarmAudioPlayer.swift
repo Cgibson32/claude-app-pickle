@@ -175,10 +175,33 @@ actor AlarmAudioPlayer {
     /// NOTE: do NOT call `overrideOutputAudioPort(.speaker)` — it throws
     /// OSStatus -50 on iOS 26.1+ and takes the whole session down with it.
     /// `.playback` already routes through the speaker by default.
+    ///
+    /// ## iOS 26.3.1 session-priority handoff
+    ///
+    /// When the observer fires during an active AlarmKit alarm, the
+    /// system daemon's audio session has priority. Simply calling
+    /// `setCategory(.playback)` on top of our keep-alive (which used
+    /// `.mixWithOthers`) doesn't reliably take over — our AVAudioPlayer
+    /// starts but its first ~1-2 seconds play inaudibly while iOS
+    /// completes the session handoff.
+    ///
+    /// The fix is a three-step forceful takeover:
+    ///   1. `setActive(false, .notifyOthersOnDeactivation)` — signals
+    ///      every other audio session (including the just-cancelled
+    ///      alarm) that we're about to take over.
+    ///   2. `setCategory(.playback, [.duckOthers])` — asks iOS to lower
+    ///      any competing audio priority rather than mix.
+    ///   3. `setActive(true)` — activate with exclusive priority.
     private func activateAudioSession() -> Bool {
+        let session = AVAudioSession.sharedInstance()
+        // Step 1: deactivate any existing session (keep-alive's
+        // .mixWithOthers). `try?` because we expect this to be a no-op
+        // on fresh launches where no session was ever active.
+        try? session.setActive(false, options: [.notifyOthersOnDeactivation])
+
         do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [])
+            // Step 2 + 3.
+            try session.setCategory(.playback, mode: .default, options: [.duckOthers])
             try session.setActive(true, options: [])
             return true
         } catch {
@@ -201,18 +224,32 @@ actor AlarmAudioPlayer {
             player = try AVAudioPlayer(contentsOf: url)
         } catch {
             AppLogger.alarm.error("AlarmAudioPlayer: init failed for \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            DiagnosticsLog.shared.log("player", "init failed \(url.lastPathComponent): \(error.localizedDescription)")
             return
         }
 
         player.volume = 1.0
         player.prepareToPlay()
 
+        DiagnosticsLog.shared.log("player", "playing \(url.lastPathComponent) duration=\(String(format: "%.2f", player.duration))s")
+
         guard player.play() else {
             AppLogger.alarm.error("AlarmAudioPlayer: play() returned false for \(url.lastPathComponent, privacy: .public)")
+            DiagnosticsLog.shared.log("player", "play() returned false for \(url.lastPathComponent)")
             return
         }
 
         try? await Task.sleep(for: .seconds(player.duration + 0.3))
+        // If the session was preempted mid-playback, `isPlaying` will
+        // already be false and `currentTime` won't have reached
+        // `duration`. Logging the gap lets Diagnostics show exactly
+        // how much audio the user actually heard.
+        let finished = !player.isPlaying
+        let played = player.currentTime
+        DiagnosticsLog.shared.log(
+            "player",
+            "done \(url.lastPathComponent) played=\(String(format: "%.2f", played))s finished=\(finished)"
+        )
         withExtendedLifetime(player) {}
     }
 
