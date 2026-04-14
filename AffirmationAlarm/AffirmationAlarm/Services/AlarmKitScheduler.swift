@@ -33,30 +33,38 @@ struct AffirmationAlarmMetadata: AlarmMetadata {
 ///   an alarm fires while the app is foregrounded, cancels the system
 ///   alert and hands control to `AlarmAudioPlayer`.
 ///
-/// ## Why three playback paths (defense in depth)
+/// ## Two-layer alarm audio
 ///
-/// On iOS 26.3.1, two framework bugs can silence an alarm:
+/// The alarm **sound** and the affirmation **sequence** are separate
+/// audio because iOS 26.3.1's `.named()` cannot play runtime-generated
+/// audio reliably (FB19779004, unresolved as of Apr 2026 — reading a
+/// CAF from `Library/Sounds` silently falls back to `.default`). Only
+/// bundle-resident CAFs work.
 ///
-/// - **FB19779004** (filed Aug 2025, unverified as of Apr 2026): `.named()`
-///   with a file in `Library/Sounds` silently falls back to `.default`.
-/// - **26.3.1 silent-alarm regression** (user reports, Apr 2026): some
-///   alarms ring silently with no audio and no haptics.
+/// Layer 1 — the alarm **sound** (briefly, from the system daemon):
+///   `.named(alarm.soundName)` points to a bundled CAF the user picked
+///   in the sound picker (`alarm_gentle`, `alarm_sunrise`, etc.). Plays
+///   for ~1 second until the observer cancels.
 ///
-/// Neither bug prevents AlarmKit from emitting a `.alerting` state update,
-/// so we detect the fire event regardless and take over audio ourselves:
+/// Layer 2 — the personalized **sequence** (from the app's own
+/// AVAudioPlayer, via two entry points that share `AlarmAudioPlayer`):
 ///
-/// 1. **`.named(CAF)` primary** — if iOS 26.3.1 fixed FB19779004, the
-///    system daemon plays `alarm-<id>.caf` as the alarm sound and the
-///    user wakes hands-free to their personalized Nova affirmations.
-/// 2. **Foreground observer** — if the app is foregrounded (Sleep Mode
-///    bedside clock, `isIdleTimerDisabled = true`), `alarmUpdates`
-///    catches `.alerting` and `AlarmAudioPlayer` plays the rendered
-///    MP3 sequence via AVAudioPlayer. Works even if `.default` is silent.
-/// 3. **Stop-slide intent** — if the app is backgrounded and the observer
-///    can't fire, the user's slide-to-stop triggers
-///    `StopAndPlayClosingIntent` which plays the same MP3 sequence.
+/// a. `alarmUpdates` observer (primary, hands-free path): the app
+///    process is alive overnight via `BackgroundKeepAlive`'s silent
+///    audio session. When AlarmKit emits `.alerting`, `handleFire`
+///    cancels the alarm, waits 400ms for the system to release its
+///    audio session, then plays morning + closing MP3s. Works with
+///    the phone locked and the screen off.
 ///
-/// Any single path succeeding delivers the user's affirmations.
+/// b. `StopAndPlayClosingIntent` (fallback): if the observer didn't
+///    play the full sequence — e.g. the process was killed from the
+///    app switcher — sliding Stop runs the intent, which foregrounds
+///    the app (`openAppWhenRun = true`). `checkPendingMorningPlayback`
+///    then plays the same MP3s from the foreground where audio
+///    session activation is never contested.
+///
+/// `AlarmAudioPlayer` is an actor so both entry points serialize — the
+/// user hears the sequence exactly once even if both paths execute.
 @MainActor
 @Observable
 final class AlarmKitScheduler {

@@ -145,7 +145,6 @@ struct DiagnosticsView: View {
         let shortID = alarm.id.uuidString.prefix(8)
         let dir = MorningAudioRenderer.soundsDirectory()
         let files: [(label: String, filename: String)] = [
-            ("alarm CAF", "alarm-\(alarm.id.uuidString).caf"),
             ("morning MP3", "morning-\(alarm.id.uuidString).mp3"),
             ("closing MP3", "closing-\(alarm.id.uuidString).mp3")
         ]
