@@ -128,7 +128,7 @@ actor AlarmAudioPlayer {
         // set explicitly on success paths below.
         defer { playing.remove(alarmID) }
 
-        guard activateAudioSession() else {
+        guard await activateAudioSession() else {
             return record(outcome: .audioSessionUnavailable, alarmID: alarmID)
         }
 
@@ -180,37 +180,49 @@ actor AlarmAudioPlayer {
     /// OSStatus -50 on iOS 26.1+ and takes the whole session down with it.
     /// `.playback` already routes through the speaker by default.
     ///
-    /// ## iOS 26.3.1 session-priority handoff
+    /// ## iOS 26.3.1 session activation retry
     ///
-    /// The observer path fires during an active AlarmKit alarm; the
-    /// system daemon holds an exclusive audio priority for ~1 second
-    /// after `manager.cancel(id:)` returns. Earlier attempts to take
-    /// that priority forcefully (setActive(false) → `.duckOthers` →
-    /// setActive(true)) were observed to block for ~800ms and then
-    /// throw — the AlarmKit priority wins the contention and our
-    /// activation fails with `audioSessionUnavailable`.
+    /// From device logs: when the observer fires during an active
+    /// AlarmKit alarm, iOS sends an audio session interruption
+    /// notification for ~1.3 seconds around the alarm's audio release.
+    /// `setActive(true)` called during that window throws
+    /// `"Session activation failed"`. Crucially the interruption ends
+    /// naturally after the handoff — we just have to retry past it.
     ///
-    /// The working approach is to **match the keep-alive's category**
-    /// (`.playback + .mixWithOthers`, already active) so we don't
-    /// trigger any session transition. Our `AVAudioPlayer` at volume
-    /// 1.0 plays over the keep-alive's silent 0.0 loop; `.mixWithOthers`
-    /// lets any residual system audio coexist for the brief handoff
-    /// window. No ownership battle, no -50, and the MP3 plays from
-    /// sample 0.
-    private func activateAudioSession() -> Bool {
+    /// We retry up to 3 times with 300ms backoff. Total worst case is
+    /// ~1 second of extra delay on top of the 400ms we already wait
+    /// after `manager.cancel(id:)`, which is enough headroom to cover
+    /// the observed interruption window.
+    ///
+    /// We match the keep-alive's category (`.playback + .mixWithOthers`)
+    /// so the activation is a near-noop when it works on the first
+    /// try — no transition, no ownership contention.
+    private func activateAudioSession() async -> Bool {
         let session = AVAudioSession.sharedInstance()
-        do {
-            // Match keep-alive. If session is already set up this way,
-            // setCategory/setActive are near-noops.
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try session.setActive(true, options: [])
-            return true
-        } catch {
-            let msg = error.localizedDescription
-            AppLogger.alarm.error("AlarmAudioPlayer: audio session failed: \(msg, privacy: .public)")
-            DiagnosticsLog.shared.log("player", "session activation failed: \(msg)")
-            return false
+        let attempts = 4
+        let backoff: Duration = .milliseconds(300)
+
+        for attempt in 1...attempts {
+            do {
+                try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+                try session.setActive(true, options: [])
+                if attempt > 1 {
+                    DiagnosticsLog.shared.log("player", "session activated on attempt \(attempt)")
+                }
+                return true
+            } catch {
+                let msg = error.localizedDescription
+                if attempt < attempts {
+                    DiagnosticsLog.shared.log("player", "session attempt \(attempt) failed: \(msg); retry in 300ms")
+                    try? await Task.sleep(for: backoff)
+                } else {
+                    AppLogger.alarm.error("AlarmAudioPlayer: session failed after \(attempts) attempts: \(msg, privacy: .public)")
+                    DiagnosticsLog.shared.log("player", "session failed after \(attempts) attempts: \(msg)")
+                    return false
+                }
+            }
         }
+        return false
     }
 
     /// Play a single audio file and await its completion. Uses
