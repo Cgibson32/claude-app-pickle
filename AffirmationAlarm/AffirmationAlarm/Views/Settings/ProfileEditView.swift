@@ -3,6 +3,8 @@ import SwiftData
 
 struct ProfileEditView: View {
     @Query private var profiles: [UserProfile]
+    @Query private var alarms: [Alarm]
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     private var profile: UserProfile? { profiles.first }
 
@@ -72,9 +74,31 @@ struct ProfileEditView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Save") {
                     if let profile {
+                        let newGoals = goals
+                        let newCategories = selectedCategories.map(\.rawValue).sorted()
+                        let goalsChanged = profile.freeformGoals != newGoals
+                            || profile.selectedCategories.sorted() != newCategories
+
                         profile.name = name.trimmingCharacters(in: .whitespaces)
-                        profile.freeformGoals = goals
+                        profile.freeformGoals = newGoals
                         profile.selectedCategories = selectedCategories.map(\.rawValue)
+
+                        // Goals drive affirmation generation. When they
+                        // change, invalidate today's cached affirmations
+                        // and rendered MP3s so the next render rebuilds
+                        // with the new goals — otherwise the user waits
+                        // until tomorrow to hear the update.
+                        if goalsChanged {
+                            invalidateTodaysAffirmations()
+                            MorningAudioRenderer.shared.invalidateAll()
+                            Task { @MainActor [alarms, profile, modelContext] in
+                                await MorningAudioRenderer.shared.refreshAll(
+                                    alarms: alarms,
+                                    profile: profile,
+                                    modelContext: modelContext
+                                )
+                            }
+                        }
                     }
                     dismiss()
                 }
@@ -90,6 +114,35 @@ struct ProfileEditView: View {
                     profile.selectedCategories.compactMap { GoalCategory(rawValue: $0) }
                 )
             }
+        }
+    }
+
+    /// Delete today's generated affirmations + closing so the next
+    /// `AffirmationCacheService.fetchOrGenerate` call treats it as a
+    /// cache miss and regenerates against the new goals. Favorites
+    /// (`favoriteType != 0`) and user-typed custom affirmations are
+    /// preserved.
+    private func invalidateTodaysAffirmations() {
+        let today = Calendar.current.startOfDay(for: Date())
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today) ?? today
+
+        let affDescriptor = FetchDescriptor<Affirmation>(
+            predicate: #Predicate {
+                $0.generatedFor >= today
+                    && $0.generatedFor < tomorrow
+                    && $0.isCustom == false
+                    && $0.favoriteType == 0
+            }
+        )
+        if let todays = try? modelContext.fetch(affDescriptor) {
+            for a in todays { modelContext.delete(a) }
+        }
+
+        let closingDescriptor = FetchDescriptor<DailyClosingMessage>(
+            predicate: #Predicate { $0.generatedFor >= today && $0.generatedFor < tomorrow }
+        )
+        if let closings = try? modelContext.fetch(closingDescriptor) {
+            for c in closings { modelContext.delete(c) }
         }
     }
 }

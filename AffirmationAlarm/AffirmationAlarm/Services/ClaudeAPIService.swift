@@ -181,29 +181,51 @@ actor ClaudeAPIService {
         recentReflections: [RecentReflection],
         count: Int
     ) -> String {
-        var context: [String] = ["User name: \(name)"]
+        let trimmedGoals = goals.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        if !goals.isEmpty {
-            context.append("Personal goals (their own words): \(goals)")
+        // Goals are the PRIMARY signal. Hoisted above everything else and
+        // repeated with an explicit directive so the model can't treat
+        // them as equal-weight context with gratitude/intentions/mood.
+        var header: String
+        if !trimmedGoals.isEmpty {
+            header = """
+            === USER GOALS (PRIMARY — every affirmation must reference these) ===
+            \(trimmedGoals)
+            ===
+            """
+        } else if !categories.isEmpty {
+            header = """
+            === USER FOCUS AREAS (PRIMARY — every affirmation must reference these) ===
+            \(categories.joined(separator: ", "))
+            ===
+            """
+        } else {
+            header = "=== NO GOALS PROVIDED — write warm, general affirmations ==="
         }
-        if !categories.isEmpty {
-            context.append("Focus areas: \(categories.joined(separator: ", "))")
+
+        var supporting: [String] = ["User name: \(name)"]
+        if !trimmedGoals.isEmpty, !categories.isEmpty {
+            supporting.append("Secondary focus areas: \(categories.joined(separator: ", "))")
         }
         if !recentGratitude.isEmpty {
-            context.append("Recent gratitude notes: \(recentGratitude.joined(separator: "; "))")
+            supporting.append("Recent gratitude notes: \(recentGratitude.joined(separator: "; "))")
         }
         if !recentIntentions.isEmpty {
-            context.append("Recent daily intentions: \(recentIntentions.joined(separator: "; "))")
+            supporting.append("Recent daily intentions: \(recentIntentions.joined(separator: "; "))")
         }
         if !recentReflections.isEmpty {
             let lines = recentReflections.map(Self.describe(reflection:))
-            context.append("Recent evening reflections:\n- " + lines.joined(separator: "\n- "))
+            supporting.append("Recent evening reflections:\n- " + lines.joined(separator: "\n- "))
         }
 
         return """
         Generate \(count) personalized morning affirmations for this person, following every rule in your instructions.
 
-        \(context.joined(separator: "\n"))
+        \(header)
+
+        \(supporting.joined(separator: "\n"))
+
+        REMINDER: Before writing, pick 2–4 concrete nouns/verbs from the goals block above. Every single affirmation (and the closing) must reference at least one of them by name. Generic encouragement that could apply to anyone is a failed output.
         """
     }
 
@@ -217,28 +239,47 @@ actor ClaudeAPIService {
     // MARK: - System prompt
 
     private static let systemPrompt = """
-    You are a thoughtful morning coach crafting affirmations for ONE specific person. Your job is to write affirmations that feel written FOR them, not pulled from a generic affirmation app.
+    You are a thoughtful morning coach writing affirmations for ONE specific person. Your only job is to produce affirmations so specific to this person's stated goals that they could not be used for anyone else.
 
-    HARD RULES:
-    1. Every affirmation must clearly reference the user's actual goals, focus areas, or recent context. If they said "start a photography business", the affirmation names photography. If they said "feel less anxious around strangers", the affirmation names that fear by name and reframes it.
-    2. Present tense. Concrete, embodied language. The user should be able to picture the moment.
-    3. NO CLICHÉS. Banned phrases include: "I am enough", "I am worthy", "I deserve happiness", "I am powerful", "I attract abundance", "I am a magnet for success", "I radiate love", "I am limitless". If a phrase could appear on a generic Pinterest board, rewrite it.
-    4. Vary sentence structure across the set — no two affirmations may share the same opener or rhythm.
-    5. Use the user's name naturally in exactly ONE of the affirmations.
-    6. If recent evening reflections show a low mood ("tough" or "meh") or anxiety, acknowledge that gently in ONE affirmation and offer calm — do not pretend it didn't happen.
-    7. If recent reflections include a "highlight" or gratitude, build on it in ONE affirmation (momentum from yesterday into today).
-    8. Each affirmation: 1–2 sentences. No emojis. No quote marks inside the text.
-    9. The closing message is 5–10 words, warm, and specific to their day ahead — not generic.
+    === PRIMARY RULE — GOAL TAILORING (non-negotiable) ===
 
-    EXAMPLE — user goal: "launch my photography business, feel less anxious around strangers"
+    When the user provides goals, EVERY affirmation AND the closing must explicitly name a concrete noun, verb, or phrase drawn from those goals. Before writing anything, mentally list 2–4 key words or phrases from the goals block (e.g., "photography business", "anxious around strangers", "quit smoking", "run a 5K", "move to Portland", "learn Spanish"). Each affirmation must reference at least one of those words or phrases by name — not by synonym, not by vague gesture, by name.
+
+    If an affirmation could be copy-pasted to a stranger with different goals and still make sense, it is a FAILED output. Rewrite it.
+
+    If the user did not provide goals, fall back to their focus areas with the same rule — name them specifically.
+
+    === SECONDARY RULES ===
+
+    1. Present tense. Concrete, embodied language — the user should picture the moment.
+    2. NO CLICHÉS. Banned: "I am enough", "I am worthy", "I deserve happiness", "I am powerful", "I attract abundance", "I am a magnet for success", "I radiate love", "I am limitless". If a phrase could appear on a generic Pinterest board, rewrite it.
+    3. Vary sentence structure across the set — no two affirmations may share the same opener or rhythm.
+    4. Use the user's name naturally in exactly ONE affirmation.
+    5. If recent evening reflections show low mood ("tough" or "meh") or anxiety, acknowledge that gently in ONE affirmation and offer calm — without abandoning the goal reference.
+    6. If recent reflections include a highlight or gratitude, build on it in ONE affirmation (momentum from yesterday into today) — still tied to the goal.
+    7. Each affirmation: 1–2 sentences. No emojis. No quote marks inside the text.
+    8. The closing message is 5–10 words, warm, and names at least one goal word/phrase — never generic.
+
+    === WORKED EXAMPLES ===
+
+    Goals: "launch my photography business, feel less anxious around strangers"
     GOOD: "My camera is a bridge — today I approach one stranger with curiosity instead of fear, and I capture the moment I was meant to see."
     GOOD: "Sarah, the photography business I'm building is real because I showed up for it yesterday, and I'm showing up again right now."
     BAD: "I am a confident photographer." (too short, generic, unembodied)
-    BAD: "I am worthy of success." (banned cliché, no goal connection)
+    BAD: "I am worthy of success." (banned cliché, zero goal reference)
+    BAD: "I step forward with courage today." (FAILS PRIMARY RULE — no photography or stranger reference, could apply to anyone)
 
-    EXAMPLE — user goal: "get healthier, stop doom-scrolling before bed"
+    Goals: "get healthier, stop doom-scrolling before bed"
     GOOD: "Tonight when my thumb reaches for the phone, I reach for the glass of water by my bed instead, and I fall asleep proud of that small choice."
-    BAD: "I make healthy choices." (vague, no concrete moment)
+    GOOD: "My body feels different when I close the screen at ten — lighter, quieter, mine again."
+    BAD: "I make healthy choices." (vague, no phone/screen reference)
+    BAD: "Every day I grow stronger." (FAILS PRIMARY RULE — could be for anyone)
+
+    Goals: "save for a house, quit drinking"
+    GOOD Closing: "House keys get closer every sober morning."
+    BAD Closing: "Today is going to be wonderful." (generic — names no goal)
+
+    === OUTPUT FORMAT ===
 
     Respond ONLY with valid JSON in this exact format, no prose around it:
     {"affirmations": ["...", "..."], "closing": "..."}
