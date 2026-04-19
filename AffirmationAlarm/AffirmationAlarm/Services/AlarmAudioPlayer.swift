@@ -20,6 +20,27 @@ import Foundation
 ///
 /// The class is an `actor` so callers don't need explicit locks — every
 /// state mutation happens inside the actor's serial execution.
+
+/// Tunable constants for the pre-affirmation bird-chirp intro. Kept in
+/// one place so swapping the file or retuning the duration/volume is a
+/// one-line change.
+private enum AlarmIntro {
+    /// Bundle resource name (without extension) of the intro audio.
+    /// Must exist as `<stem>.caf` in the app bundle.
+    static let soundStem = "alarm_birds"
+
+    /// Total intro length in milliseconds — hold + fade combined.
+    static let totalMs: Int = 2000
+
+    /// Trailing fade-out so the cut into "Good morning, <name>" doesn't
+    /// feel abrupt. Must be less than `totalMs`.
+    static let fadeMs: Int = 300
+
+    /// Softer than the spoken affirmations (which play at volume 1.0)
+    /// so the birds feel like a gentle lead-in, not a second alarm.
+    static let volume: Float = 0.6
+}
+
 actor AlarmAudioPlayer {
 
     // MARK: - Singleton
@@ -132,6 +153,7 @@ actor AlarmAudioPlayer {
             return record(outcome: .audioSessionUnavailable, alarmID: alarmID)
         }
 
+        await playIntro()
         if let morning { await playFile(at: morning) }
         if let closing { await playFile(at: closing) }
 
@@ -223,6 +245,40 @@ actor AlarmAudioPlayer {
             }
         }
         return false
+    }
+
+    /// Calming 2-second bird-chirp intro before the affirmations. Uses
+    /// the bundled `alarm_birds.caf` (same asset backing the "Birds"
+    /// alarm sound option, so we don't ship a duplicate), played softer
+    /// than the spoken content and fading out over the last 300ms so
+    /// the cut into "Good morning, <name>" doesn't feel abrupt.
+    ///
+    /// Silently skipped if the file is missing or won't open — the
+    /// intro is a nicety, not a requirement, and a failure here must
+    /// not block the affirmation playback.
+    private func playIntro() async {
+        let stem = AlarmIntro.soundStem
+        guard let url = Bundle.main.url(forResource: stem, withExtension: "caf"),
+              let player = try? AVAudioPlayer(contentsOf: url) else {
+            DiagnosticsLog.shared.log("player", "intro skipped — \(stem).caf missing")
+            return
+        }
+        player.volume = AlarmIntro.volume
+        player.prepareToPlay()
+        guard player.play() else {
+            DiagnosticsLog.shared.log("player", "intro play() returned false")
+            return
+        }
+        DiagnosticsLog.shared.log("player", "intro playing \(url.lastPathComponent) for \(AlarmIntro.totalMs)ms")
+
+        let fadeMs = AlarmIntro.fadeMs
+        let holdMs = AlarmIntro.totalMs - fadeMs
+        try? await Task.sleep(for: .milliseconds(holdMs))
+        player.setVolume(0.0, fadeDuration: Double(fadeMs) / 1000.0)
+        try? await Task.sleep(for: .milliseconds(fadeMs))
+        player.stop()
+        withExtendedLifetime(player) {}
+        DiagnosticsLog.shared.log("player", "intro done")
     }
 
     /// Play a single audio file and await its completion. Uses
