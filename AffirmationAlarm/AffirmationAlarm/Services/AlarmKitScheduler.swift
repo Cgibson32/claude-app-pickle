@@ -417,6 +417,14 @@ final class AlarmKitScheduler {
         lastHandleFireOutcome = FireOutcome(outcome: String(describing: outcome), date: Date())
         DiagnosticsLog.shared.log("observer", "handleFire outcome=\(outcome)")
 
+        // Invalidate the rendered MP3s so the NEXT fire generates fresh
+        // affirmations. Only do this on success outcomes — if playback
+        // failed for a transient reason, we want the files to remain for
+        // the `checkPendingMorningPlayback` foreground retry.
+        if case .played = outcome {
+            MorningAudioRenderer.shared.removeFiles(alarmID: alarmID)
+        }
+
         // AlarmAudioPlayer deactivates the audio session when it finishes.
         // For repeating alarms (and any one-shot followed by a reschedule),
         // we need the keep-alive session live again so tomorrow's observer

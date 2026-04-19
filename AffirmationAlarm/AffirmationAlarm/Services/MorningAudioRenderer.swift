@@ -122,10 +122,20 @@ final class MorningAudioRenderer {
 
     /// Remove every file for a specific alarm. Called from alarm delete.
     func removeFiles(for alarm: Alarm) {
-        let paths = RenderPaths(alarmID: alarm.id)
+        removeFiles(alarmID: alarm.id)
+    }
+
+    /// UUID variant for callers that don't hold the `Alarm` object —
+    /// notably `AlarmKitScheduler.handleFire`, which invalidates the MP3
+    /// right after playback so the next render generates a fresh set of
+    /// affirmations for tomorrow (or for the next fire on a repeating
+    /// alarm later today).
+    func removeFiles(alarmID: UUID) {
+        let paths = RenderPaths(alarmID: alarmID)
         for url in paths.all {
             try? FileManager.default.removeItem(at: url)
         }
+        DiagnosticsLog.shared.log("render", "removed files for \(alarmID.uuidString.prefix(8))")
     }
 
     // MARK: - Public paths

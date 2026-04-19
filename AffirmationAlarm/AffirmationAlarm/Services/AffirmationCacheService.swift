@@ -1,6 +1,18 @@
 import Foundation
 import SwiftData
 
+/// Assembles the affirmation set for a single alarm fire.
+///
+/// Contract:
+/// - Returns **exactly** `profile.affirmationCount` affirmations.
+/// - Favorited affirmations (priority + rotation) fill slots first and are
+///   NOT regenerated — they're the user's curated set.
+/// - Remaining slots are freshly generated from Claude on every call, so
+///   two alarms on the same day get different non-favorite lines.
+/// - The closing message is also freshly generated on every call.
+///
+/// Old persisted generated affirmations (non-favorite, non-custom) are
+/// garbage-collected on each call to keep SwiftData from growing unbounded.
 @MainActor
 class AffirmationCacheService {
     private let apiService = ClaudeAPIService()
@@ -9,111 +21,115 @@ class AffirmationCacheService {
         for profile: UserProfile,
         modelContext: ModelContext
     ) async throws -> ([Affirmation], DailyClosingMessage?) {
-        let today = Calendar.current.startOfDay(for: Date())
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today)!
+        let requestedCount = max(1, profile.affirmationCount)
 
-        // Check if we already have today's GENERATED affirmations. Custom
-        // affirmations the user typed on the home screen also live under
-        // today's generatedFor date but must not count as a cache hit —
-        // otherwise the first custom affirmation would short-circuit
-        // generation and the user would only hear that one line.
-        let descriptor = FetchDescriptor<Affirmation>(
-            predicate: #Predicate { $0.generatedFor >= today && $0.generatedFor < tomorrow && $0.isCustom == false }
-        )
-        let existingGenerated = (try? modelContext.fetch(descriptor)) ?? []
-        if !existingGenerated.isEmpty {
-            // Also include any custom affirmations the user added today so
-            // they get spoken alongside the cached generated ones.
-            let customDescriptor = FetchDescriptor<Affirmation>(
-                predicate: #Predicate { $0.generatedFor >= today && $0.generatedFor < tomorrow && $0.isCustom == true }
-            )
-            let todayCustoms = (try? modelContext.fetch(customDescriptor)) ?? []
-            let closingDescriptor = FetchDescriptor<DailyClosingMessage>(
-                predicate: #Predicate { $0.generatedFor >= today && $0.generatedFor < tomorrow }
-            )
-            let closingMessage = (try? modelContext.fetch(closingDescriptor))?.first
-            return (existingGenerated + todayCustoms, closingMessage)
+        // Step 1: pick favorites that will occupy slots in this fire.
+        let selectedFavorites = selectFavorites(count: requestedCount, modelContext: modelContext)
+        let favoriteSlots = selectedFavorites.count
+        let needed = max(0, requestedCount - favoriteSlots)
+
+        // Step 2: if all slots are filled by favorites (including any
+        // user-typed custom lines — they're stored as priority favorites),
+        // skip Claude generation entirely. Use a bundled closing to avoid
+        // burning an API call purely for the 5–10 word tail.
+        guard needed > 0 else {
+            purgeOldGenerated(modelContext: modelContext)
+            let closing = DailyClosingMessage(message: BundledAffirmationPool.closing())
+            modelContext.insert(closing)
+            return (selectedFavorites, closing)
         }
 
-        // Fetch recent context
-        let recentGratitude = fetchRecent(GratitudeEntry.self, keyPath: \GratitudeEntry.date, modelContext: modelContext)
-            .map(\.text)
-        let recentIntentions = fetchRecent(DailyIntention.self, keyPath: \DailyIntention.date, modelContext: modelContext)
-            .map(\.text)
-        let recentReflections = fetchRecent(EveningReflection.self, keyPath: \EveningReflection.date, modelContext: modelContext)
-            .map { ClaudeAPIService.RecentReflection(mood: $0.mood, goodThing: $0.goodThing, gratitude: $0.gratitude) }
-
-        // Fetch priority favorites (always included)
-        let priorityDescriptor = FetchDescriptor<Affirmation>(
-            predicate: #Predicate { $0.favoriteType == 1 }
-        )
-        let priorityFavorites = (try? modelContext.fetch(priorityDescriptor)) ?? []
-
-        // Fetch rotation favorites (one random pick)
-        let rotationDescriptor = FetchDescriptor<Affirmation>(
-            predicate: #Predicate { $0.favoriteType == 2 }
-        )
-        let rotationFavorites = (try? modelContext.fetch(rotationDescriptor)) ?? []
-
-        // Generate new affirmations. If Claude is unreachable (offline,
-        // rate limited, API key revoked, etc.) fall back to a deterministic
-        // per-day selection from `BundledAffirmationPool` so the user still
-        // wakes up to personalized-feeling content. The pool lines are
-        // generic-positive; the greeting and delivery voice stay personal
-        // via `MorningAudioRenderer`, so the offline experience still
-        // feels like "Good morning, [Name]. [3 affirmations]. [closing]"
-        // rather than silence or an error banner.
+        // Step 3: generate the remaining `needed` affirmations fresh.
+        let recent = gatherRecentContext(modelContext: modelContext)
         let content: ClaudeAPIService.GeneratedContent
         do {
             content = try await apiService.generateAffirmations(
                 name: profile.name,
                 goals: profile.freeformGoals,
                 categories: profile.selectedCategories,
-                recentGratitude: recentGratitude,
-                recentIntentions: recentIntentions,
-                recentReflections: recentReflections,
-                count: profile.affirmationCount
+                recentGratitude: recent.gratitude,
+                recentIntentions: recent.intentions,
+                recentReflections: recent.reflections,
+                count: needed
             )
         } catch {
             AppLogger.claude.error("generateAffirmations failed, using bundled pool: \(error.localizedDescription, privacy: .public)")
-            let pooledAffirmations = BundledAffirmationPool.selection(count: profile.affirmationCount)
-            let pooledClosing = BundledAffirmationPool.closing()
+            let pooled = BundledAffirmationPool.selection(count: needed)
             content = ClaudeAPIService.GeneratedContent(
-                affirmations: pooledAffirmations,
-                closing: pooledClosing
+                affirmations: pooled,
+                closing: BundledAffirmationPool.closing()
             )
         }
 
-        // Store generated affirmations. Defensive `prefix` guard: if Claude
-        // returns more lines than the user asked for, clip to the requested
-        // count so the spoken sequence stays the configured length.
-        var affirmations: [Affirmation] = []
+        // Step 4: purge yesterday's (and earlier) leftover generated rows
+        // BEFORE inserting the new ones, so SwiftData doesn't accumulate.
+        purgeOldGenerated(modelContext: modelContext)
+
         let goalContext = ([profile.freeformGoals] + profile.selectedCategories).joined(separator: "; ")
-        for text in content.affirmations.prefix(profile.affirmationCount) {
+        var generated: [Affirmation] = []
+        for text in content.affirmations.prefix(needed) {
             let a = Affirmation(text: text, generatedFor: Date(), goalContext: goalContext)
             modelContext.insert(a)
-            affirmations.append(a)
+            generated.append(a)
         }
 
-        // Add all priority favorites
-        for fav in priorityFavorites where !affirmations.contains(where: { $0.text == fav.text }) {
-            affirmations.insert(fav, at: 0)
-        }
+        // Step 5: assemble the final ordered list. Priority favorites first
+        // (so the user hears their most important lines up top), then
+        // rotation fav, then freshly generated fill. Exactly
+        // `requestedCount` items — no more, no less.
+        let finalSet = Array((selectedFavorites + generated).prefix(requestedCount))
 
-        // Add one random rotation favorite
-        if let randomRotation = rotationFavorites.randomElement(),
-           !affirmations.contains(where: { $0.text == randomRotation.text }) {
-            affirmations.append(randomRotation)
-        }
-
-        // Store closing message
         let closing = DailyClosingMessage(message: content.closing)
         modelContext.insert(closing)
 
-        // Clean old entries (14+ days)
-        cleanOldEntries(modelContext: modelContext)
+        return (finalSet, closing)
+    }
 
-        return (affirmations, closing)
+    // MARK: - Favorite selection
+
+    /// Pick up to `count` favorites to occupy this fire's slots. Priority
+    /// favorites come first (they're the ones the user starred with
+    /// "always include"); if fewer than `count`, one random rotation fav
+    /// is added. Returns in playback order.
+    private func selectFavorites(count: Int, modelContext: ModelContext) -> [Affirmation] {
+        let priorityDescriptor = FetchDescriptor<Affirmation>(
+            predicate: #Predicate { $0.favoriteType == 1 }
+        )
+        let priority = (try? modelContext.fetch(priorityDescriptor)) ?? []
+
+        // If priority alone meets/exceeds the count, take priority and stop.
+        if priority.count >= count {
+            return Array(priority.prefix(count))
+        }
+
+        let rotationDescriptor = FetchDescriptor<Affirmation>(
+            predicate: #Predicate { $0.favoriteType == 2 }
+        )
+        let rotation = (try? modelContext.fetch(rotationDescriptor)) ?? []
+
+        var selected = priority
+        if let pick = rotation.randomElement() {
+            selected.append(pick)
+        }
+        return selected
+    }
+
+    // MARK: - Context gathering
+
+    private struct RecentContext {
+        let gratitude: [String]
+        let intentions: [String]
+        let reflections: [ClaudeAPIService.RecentReflection]
+    }
+
+    private func gatherRecentContext(modelContext: ModelContext) -> RecentContext {
+        let gratitude = fetchRecent(GratitudeEntry.self, keyPath: \GratitudeEntry.date, modelContext: modelContext)
+            .map(\.text)
+        let intentions = fetchRecent(DailyIntention.self, keyPath: \DailyIntention.date, modelContext: modelContext)
+            .map(\.text)
+        let reflections = fetchRecent(EveningReflection.self, keyPath: \EveningReflection.date, modelContext: modelContext)
+            .map { ClaudeAPIService.RecentReflection(mood: $0.mood, goodThing: $0.goodThing, gratitude: $0.gratitude) }
+        return RecentContext(gratitude: gratitude, intentions: intentions, reflections: reflections)
     }
 
     private func fetchRecent<T: PersistentModel>(
@@ -127,13 +143,34 @@ class AffirmationCacheService {
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
-    private func cleanOldEntries(modelContext: ModelContext) {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? Date()
+    // MARK: - Garbage collection
+
+    /// Now that every fire generates a fresh set, the SwiftData table
+    /// would grow without bound. Delete any generated (non-favorite,
+    /// non-custom) row older than 1 day. Favorites and customs stay —
+    /// they're the user's curated content.
+    private func purgeOldGenerated(modelContext: ModelContext) {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
         let descriptor = FetchDescriptor<Affirmation>(
-            predicate: #Predicate { $0.generatedFor < cutoff && $0.favoriteType == 0 }
+            predicate: #Predicate {
+                $0.generatedFor < cutoff
+                    && $0.favoriteType == 0
+                    && $0.isCustom == false
+            }
         )
         if let old = try? modelContext.fetch(descriptor) {
             for entry in old {
+                modelContext.delete(entry)
+            }
+        }
+
+        // Also clear stale DailyClosingMessage rows — they're 1:1 with
+        // fires now, not days, so they'd pile up similarly.
+        let closingDescriptor = FetchDescriptor<DailyClosingMessage>(
+            predicate: #Predicate { $0.generatedFor < cutoff }
+        )
+        if let oldClosings = try? modelContext.fetch(closingDescriptor) {
+            for entry in oldClosings {
                 modelContext.delete(entry)
             }
         }
