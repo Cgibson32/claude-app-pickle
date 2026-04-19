@@ -7,6 +7,7 @@ import ActivityKit
 // escape hatch until AlarmKit ships proper `sending` annotations.
 @preconcurrency import AlarmKit
 import AppIntents
+import AVFoundation
 import SwiftUI
 
 // MARK: - Metadata
@@ -388,15 +389,25 @@ final class AlarmKitScheduler {
         }
 
         try? manager.cancel(id: alarmID)
-        DiagnosticsLog.shared.log("observer", "cancelled system alarm; waiting for handoff")
+        DiagnosticsLog.shared.log("observer", "cancelled system alarm; waiting for interruption end")
 
-        // Give the system daemon a moment to release its audio session
-        // priority. Without this, our .playback activation races the
-        // system alarm's still-active session and the MP3 plays
-        // inaudibly or gets cut off after a second. 400ms is long
-        // enough for iOS to complete the handoff, short enough that
-        // the user doesn't perceive a gap.
-        try? await Task.sleep(for: .milliseconds(400))
+        // Apple's official pattern for "activate audio after another
+        // session released": register for
+        // `AVAudioSession.interruptionNotification` and wait for the
+        // `.ended` event before calling `setActive(true)`. AlarmKit's
+        // audio-release fires an interruption our keep-alive session
+        // receives; if we try to activate our own session during that
+        // window, iOS throws "Session activation failed". Waiting for
+        // the notification lets us proceed *deterministically* rather
+        // than retrying against a variable-width timing race.
+        //
+        // Timeout fallback: if iOS doesn't fire a `.began` at all
+        // (e.g. keep-alive was already deactivated for some reason),
+        // we'd wait forever. 1.5s is comfortably longer than the ~1.3s
+        // window observed in device logs; if we time out we proceed
+        // anyway and the player's internal retry covers the tail.
+        let waited = await InterruptionWaiter.awaitEnd(timeout: .milliseconds(1500))
+        DiagnosticsLog.shared.log("observer", "interruption wait returned: \(waited ? "ended" : "timeout")")
 
         isPlayingMorningAudio = true
         let outcome = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
@@ -505,6 +516,100 @@ final class AlarmKitScheduler {
         case 6: return .friday
         case 7: return .saturday
         default: return nil
+        }
+    }
+}
+
+// MARK: - Interruption waiter
+
+/// One-shot helper that awaits the next `AVAudioSession.interruptionNotification`
+/// with `.ended` type, or returns on timeout. Used by `handleFire` to
+/// synchronize with AlarmKit's audio-release interruption rather than
+/// racing against it with a fixed delay + retries.
+///
+/// Why: research (Apr 2026, Apple Developer Forums + Archive docs)
+/// confirms the official pattern for "activate audio after another
+/// session released" is to observe the interruption notification
+/// rather than poll/retry. Retrying `setActive(true)` during the
+/// interruption window throws "Session activation failed" repeatedly;
+/// waiting for `.ended` lets us activate once and succeed.
+///
+/// Usage: `let ended = await InterruptionWaiter.awaitEnd(timeout: …)`
+/// Returns `true` if we received `.ended` within the window, `false`
+/// if the timeout fired first (no interruption happened, or is still
+/// in progress).
+private enum InterruptionWaiter {
+
+    /// Register a NotificationCenter observer, await the first `.ended`
+    /// notification (ignoring `.began`), and unregister on return.
+    /// Returns `true` on notification, `false` on timeout.
+    static func awaitEnd(timeout: Duration) async -> Bool {
+        await withCheckedContinuation { continuation in
+            let box = Box(continuation: continuation)
+
+            let token = NotificationCenter.default.addObserver(
+                forName: AVAudioSession.interruptionNotification,
+                object: AVAudioSession.sharedInstance(),
+                queue: .main
+            ) { notification in
+                guard
+                    let rawType = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                    let type = AVAudioSession.InterruptionType(rawValue: rawType),
+                    type == .ended
+                else { return }
+                box.resume(value: true)
+            }
+            box.setToken(token)
+
+            // Timeout. If the .ended notification arrives first, the
+            // box.resumed guard prevents double-resume; if the timeout
+            // wins, the observer is removed in resume() before the
+            // continuation fires.
+            Task {
+                try? await Task.sleep(for: timeout)
+                box.resume(value: false)
+            }
+        }
+    }
+
+    /// Reference-wrapped state shared between the NotificationCenter
+    /// callback (@Sendable) and the timeout Task. Internal `NSLock`
+    /// serializes mutation; `@unchecked Sendable` acknowledges we're
+    /// managing the concurrency ourselves rather than via Swift's
+    /// automatic checks.
+    private final class Box: @unchecked Sendable {
+        private let lock = NSLock()
+        private let continuation: CheckedContinuation<Bool, Never>
+        private var resumed = false
+        private var token: NSObjectProtocol?
+
+        init(continuation: CheckedContinuation<Bool, Never>) {
+            self.continuation = continuation
+        }
+
+        func setToken(_ t: NSObjectProtocol) {
+            lock.lock()
+            defer { lock.unlock() }
+            if resumed {
+                // Already resumed (possible if notification fired
+                // synchronously in addObserver). Tidy up the observer
+                // that just got installed.
+                NotificationCenter.default.removeObserver(t)
+                return
+            }
+            token = t
+        }
+
+        func resume(value: Bool) {
+            lock.lock()
+            defer { lock.unlock() }
+            guard !resumed else { return }
+            resumed = true
+            if let t = token {
+                NotificationCenter.default.removeObserver(t)
+                token = nil
+            }
+            continuation.resume(returning: value)
         }
     }
 }
