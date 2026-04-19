@@ -417,12 +417,13 @@ final class AlarmKitScheduler {
         lastHandleFireOutcome = FireOutcome(outcome: String(describing: outcome), date: Date())
         DiagnosticsLog.shared.log("observer", "handleFire outcome=\(outcome)")
 
-        // Invalidate the rendered MP3s so the NEXT fire generates fresh
-        // affirmations. Only do this on success outcomes — if playback
-        // failed for a transient reason, we want the files to remain for
-        // the `checkPendingMorningPlayback` foreground retry.
+        // Invalidate ALL rendered MP3s — not just this alarm's — so the
+        // reconcile triggered by didCompleteMorningPlayback re-renders
+        // every enabled alarm with fresh Claude affirmations. Without
+        // this, alarm B would reuse stale content from the last render
+        // pass because its MP3 passed the `isFresh` check.
         if case .played = outcome {
-            MorningAudioRenderer.shared.removeFiles(alarmID: alarmID)
+            MorningAudioRenderer.shared.invalidateAll()
         }
 
         // AlarmAudioPlayer deactivates the audio session when it finishes.

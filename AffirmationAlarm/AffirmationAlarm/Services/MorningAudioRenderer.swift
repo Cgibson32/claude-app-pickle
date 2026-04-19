@@ -46,9 +46,10 @@ final class MorningAudioRenderer {
     // MARK: - Configuration
 
     /// Renders older than this are considered stale and will be regenerated
-    /// on the next refresh call. 20h means a daily refresh happens at most
-    /// once, regardless of how many times the user opens the app.
-    private let staleAfter: TimeInterval = 20 * 3600
+    /// on the next refresh call. 6h means an evening render always
+    /// refreshes by morning, and a just-fired alarm's reconcile pass
+    /// always produces a fresh render for tomorrow.
+    private let staleAfter: TimeInterval = 6 * 3600
 
     private let tts = OpenAITTSService()
 
