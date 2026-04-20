@@ -56,6 +56,7 @@ struct RootView: View {
     @Query private var profiles: [UserProfile]
     @Query private var alarms: [Alarm]
     @State private var showEveningReflection = false
+    @State private var scheduler = AlarmKitScheduler.shared
 
     var body: some View {
         Group {
@@ -87,8 +88,13 @@ struct RootView: View {
             showEveningReflection = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .didCompleteMorningPlayback)) { _ in
-            // Re-schedule repeating alarms that cancel(id:) removed.
             reconcileAlarmsWithSystem()
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { scheduler.ringingAlarmID != nil && !scheduler.isSleepModeActive },
+            set: { _ in }
+        )) {
+            AlarmRingingView()
         }
     }
 
@@ -142,6 +148,19 @@ struct RootView: View {
                 profile: profile,
                 modelContext: context
             )
+
+            let pending = AlarmKitScheduler.shared.pendingFollowUpRenders
+            if !pending.isEmpty {
+                for followUpID in pending {
+                    await MorningAudioRenderer.shared.renderForFollowUp(
+                        followUpID: followUpID,
+                        profile: profile,
+                        modelContext: context
+                    )
+                }
+                AlarmKitScheduler.shared.clearPendingFollowUpRenders()
+            }
+
             for alarm in allAlarms where alarm.isEnabled {
                 AlarmKitScheduler.shared.scheduleAlarm(alarm)
             }

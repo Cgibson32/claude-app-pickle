@@ -8,6 +8,7 @@ import ActivityKit
 @preconcurrency import AlarmKit
 import AppIntents
 import AVFoundation
+import SwiftData
 import SwiftUI
 
 // MARK: - Metadata
@@ -84,6 +85,56 @@ final class AlarmKitScheduler {
     /// foreground observer. `SleepModeView` observes this to render a
     /// "Playing your affirmations..." state.
     var isPlayingMorningAudio: Bool = false
+
+    /// Non-nil while the in-app ringing UI is showing. The observer sets
+    /// this when an alarm fires while the app is foregrounded, and clears
+    /// it when the user presses Stop or Snooze. SwiftUI views observe
+    /// this to present the ringing overlay.
+    var ringingAlarmID: UUID?
+
+    /// Label for the alarm currently ringing (shown in the ringing UI).
+    var ringingAlarmLabel: String = ""
+
+    /// Set by `SleepModeView.onAppear/onDisappear` so the scheduler knows
+    /// whether to show the in-app ringing UI or let the system alert run.
+    var isSleepModeActive: Bool = false
+
+    /// Follow-up UUIDs waiting for audio rendering. Drained by
+    /// `RootView.reconcileAlarmsWithSystem` which has the ModelContext
+    /// required for generation + TTS.
+    private(set) var pendingFollowUpRenders: Set<UUID> = []
+
+    // MARK: - Ringing state machine
+
+    enum RingingAction { case stop, snooze }
+
+    private var ringingContinuation: CheckedContinuation<RingingAction, Never>?
+    private var ringingTimeoutTask: Task<Void, Never>?
+
+    /// Alarm ID → sound name, populated at schedule time. Looked up at
+    /// fire time to loop the correct alarm tone in the ringing UI.
+    private var alarmSoundNames: [UUID: String] = [:]
+
+    /// Drain the pending follow-up render set after rendering is complete.
+    func clearPendingFollowUpRenders() {
+        pendingFollowUpRenders.removeAll()
+    }
+
+    /// Called by the ringing UI's Stop button. Resumes `handleFire`.
+    func userPressedStop() {
+        ringingContinuation?.resume(returning: .stop)
+        ringingContinuation = nil
+        ringingTimeoutTask?.cancel()
+        ringingTimeoutTask = nil
+    }
+
+    /// Called by the ringing UI's Snooze button. Resumes `handleFire`.
+    func userPressedSnooze() {
+        ringingContinuation?.resume(returning: .snooze)
+        ringingContinuation = nil
+        ringingTimeoutTask?.cancel()
+        ringingTimeoutTask = nil
+    }
 
     // MARK: - Private state
 
@@ -257,6 +308,7 @@ final class AlarmKitScheduler {
         do {
             let configuration = makeConfiguration(for: alarm)
             _ = try await manager.schedule(id: alarm.id, configuration: configuration)
+            alarmSoundNames[alarm.id] = alarm.soundName
             AppLogger.alarm.info("scheduled alarm \(alarm.id, privacy: .public)")
             DiagnosticsLog.shared.log("scheduler", "scheduled \(alarm.id.uuidString.prefix(8)) sound=\(alarm.soundName)")
         } catch {
@@ -304,21 +356,30 @@ final class AlarmKitScheduler {
 
     // MARK: - Snooze follow-up
 
-    /// Schedule a one-shot follow-up 10 minutes from now, invoked by
-    /// `SnoozeMorningIntent` when the user taps Snooze.
+    /// Schedule a one-shot follow-up alarm using the original alarm's
+    /// sound and a fresh set of affirmations. Invoked by the in-app
+    /// ringing UI's Snooze button and by `SnoozeMorningIntent`.
     ///
-    /// The follow-up has no snooze button (one snooze per ring) and uses
-    /// `.default` for its sound because we don't render audio for fresh
-    /// follow-up UUIDs. If the user slides Stop on the follow-up, the
-    /// Stop intent's `AlarmAudioPlayer` returns `.noFiles` and dismisses
-    /// silently — which is the intended behavior.
+    /// The follow-up includes a Snooze button so the user can re-snooze
+    /// indefinitely. Audio for the follow-up UUID is rendered during the
+    /// 10-minute window via `pendingFollowUpRenders`, which `RootView`
+    /// drains on the next reconcile pass.
     func scheduleSnoozeFollowUp(originalAlarmID: UUID) {
         let followUpID = UUID()
-        let fireDate = Date().addingTimeInterval(10 * 60)
+        let snoozeSec = Double(AppConstants.snoozeDurationMinutes) * 60
+        let fireDate = Date().addingTimeInterval(snoozeSec)
+        let soundName = alarmSoundNames[originalAlarmID] ?? "alarm_gentle"
 
+        let snoozeButton = AlarmButton(
+            text: "Snooze",
+            textColor: .white,
+            systemImageName: "zzz"
+        )
         let presentation = AlarmPresentation(
             alert: AlarmPresentation.Alert(
-                title: LocalizedStringResource(stringLiteral: "Time to get up")
+                title: LocalizedStringResource(stringLiteral: "Time to get up"),
+                secondaryButton: snoozeButton,
+                secondaryButtonBehavior: .custom
             )
         )
         let attributes = AlarmAttributes(
@@ -331,17 +392,48 @@ final class AlarmKitScheduler {
             schedule: AlarmKit.Alarm.Schedule.fixed(fireDate),
             attributes: attributes,
             stopIntent: StopAndPlayClosingIntent(alarmID: followUpID),
-            secondaryIntent: nil,
-            sound: .default
+            secondaryIntent: SnoozeMorningIntent(alarmID: followUpID),
+            sound: .named(soundName)
         )
+
+        alarmSoundNames[followUpID] = soundName
+        pendingFollowUpRenders.insert(followUpID)
 
         Task { [weak self] in
             guard let self else { return }
             do {
                 _ = try await self.manager.schedule(id: followUpID, configuration: configuration)
-                AppLogger.alarm.info("scheduled snooze follow-up \(followUpID, privacy: .public)")
+                AppLogger.alarm.info("scheduled snooze follow-up \(followUpID, privacy: .public) sound=\(soundName, privacy: .public)")
+                DiagnosticsLog.shared.log("scheduler", "snooze follow-up \(followUpID.uuidString.prefix(8)) in \(AppConstants.snoozeDurationMinutes)min")
             } catch {
                 AppLogger.alarm.error("snooze follow-up schedule failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+
+        // Eagerly render affirmations for the follow-up. Creates its own
+        // ModelContainer so this works even from the background intent
+        // path where RootView's reconcile may not run in time.
+        Task { @MainActor in
+            do {
+                let schema = Schema([
+                    UserProfile.self, Alarm.self, Affirmation.self,
+                    DailyClosingMessage.self, GratitudeEntry.self,
+                    DailyIntention.self, EveningReflection.self
+                ])
+                let container = try ModelContainer(for: schema)
+                let context = ModelContext(container)
+                guard let profile = try context.fetch(FetchDescriptor<UserProfile>()).first else {
+                    DiagnosticsLog.shared.log("scheduler", "snooze render: no profile found")
+                    return
+                }
+                await MorningAudioRenderer.shared.renderForFollowUp(
+                    followUpID: followUpID,
+                    profile: profile,
+                    modelContext: context
+                )
+                self.pendingFollowUpRenders.remove(followUpID)
+            } catch {
+                DiagnosticsLog.shared.log("scheduler", "snooze render failed: \(error.localizedDescription); will retry on reconcile")
             }
         }
     }
@@ -368,12 +460,16 @@ final class AlarmKitScheduler {
         }
     }
 
-    /// Cancel the system alert (stopping whatever `.default`/`.named()`
-    /// sound was playing — or not playing, on 26.3.1's silent-alarm bug)
-    /// and play the pre-rendered MP3 sequence via `AlarmAudioPlayer`.
+    /// Handle an alarm that just started alerting. Two paths:
     ///
-    /// After playback, post `.didCompleteMorningPlayback` so the app can
-    /// re-schedule any repeating alarm we just cancelled.
+    /// - **Foregrounded**: cancel system alert, show in-app ringing UI
+    ///   with Stop/Snooze, loop the alarm sound. When user presses Stop
+    ///   the affirmation sequence plays; Snooze schedules a follow-up.
+    /// - **Backgrounded**: let the system alert handle it. The existing
+    ///   Stop/Snooze intents fire when the user interacts.
+    ///
+    /// After playback/snooze, posts `.didCompleteMorningPlayback` so the
+    /// app can re-schedule repeating alarms.
     private func handleFire(alarmID: UUID) async {
         defer { activeFireHandling.remove(alarmID) }
 
@@ -388,52 +484,75 @@ final class AlarmKitScheduler {
             return
         }
 
+        guard UIApplication.shared.applicationState == .active else {
+            DiagnosticsLog.shared.log("observer", "app backgrounded — letting system alert handle \(alarmID.uuidString.prefix(8))")
+            lastHandleFireOutcome = FireOutcome(outcome: "backgrounded", date: Date())
+            return
+        }
+
+        // Look up label BEFORE cancel — cancel removes the alarm entry.
+        let label: String = {
+            if let alarms = try? manager.alarms {
+                for alarm in alarms where alarm.id == alarmID {
+                    return alarm.attributes.metadata.label
+                }
+            }
+            return "Alarm"
+        }()
+
         try? manager.cancel(id: alarmID)
         DiagnosticsLog.shared.log("observer", "cancelled system alarm; waiting for interruption end")
 
-        // Apple's official pattern for "activate audio after another
-        // session released": register for
-        // `AVAudioSession.interruptionNotification` and wait for the
-        // `.ended` event before calling `setActive(true)`. AlarmKit's
-        // audio-release fires an interruption our keep-alive session
-        // receives; if we try to activate our own session during that
-        // window, iOS throws "Session activation failed". Waiting for
-        // the notification lets us proceed *deterministically* rather
-        // than retrying against a variable-width timing race.
-        //
-        // Timeout fallback: if iOS doesn't fire a `.began` at all
-        // (e.g. keep-alive was already deactivated for some reason),
-        // we'd wait forever. 1.5s is comfortably longer than the ~1.3s
-        // window observed in device logs; if we time out we proceed
-        // anyway and the player's internal retry covers the tail.
         let waited = await InterruptionWaiter.awaitEnd(timeout: .milliseconds(1500))
         DiagnosticsLog.shared.log("observer", "interruption wait returned: \(waited ? "ended" : "timeout")")
 
-        isPlayingMorningAudio = true
-        let outcome = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
-        isPlayingMorningAudio = false
+        // Start looping the alarm sound while the ringing UI is shown.
+        let soundName = alarmSoundNames[alarmID] ?? "alarm_gentle"
+        await AlarmAudioPlayer.shared.startAlarmLoop(soundName: soundName)
 
-        AppLogger.alarm.info("observer: \(alarmID.uuidString.prefix(8), privacy: .public) outcome=\(String(describing: outcome), privacy: .public)")
-        lastHandleFireOutcome = FireOutcome(outcome: String(describing: outcome), date: Date())
-        DiagnosticsLog.shared.log("observer", "handleFire outcome=\(outcome)")
+        ringingAlarmID = alarmID
+        ringingAlarmLabel = label
+        DiagnosticsLog.shared.log("observer", "ringing UI shown for \(alarmID.uuidString.prefix(8))")
 
-        // Invalidate ALL rendered MP3s — not just this alarm's — so the
-        // reconcile triggered by didCompleteMorningPlayback re-renders
-        // every enabled alarm with fresh Claude affirmations. Without
-        // this, alarm B would reuse stale content from the last render
-        // pass because its MP3 passed the `isFresh` check.
-        if case .played = outcome {
-            MorningAudioRenderer.shared.invalidateAll()
+        // Suspend until the user presses Stop or Snooze (or timeout).
+        let action: RingingAction = await withCheckedContinuation { continuation in
+            ringingContinuation = continuation
+
+            ringingTimeoutTask = Task { [weak self] in
+                try? await Task.sleep(for: .minutes(5))
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    self?.ringingContinuation?.resume(returning: .stop)
+                    self?.ringingContinuation = nil
+                }
+            }
         }
 
-        // AlarmAudioPlayer deactivates the audio session when it finishes.
-        // For repeating alarms (and any one-shot followed by a reschedule),
-        // we need the keep-alive session live again so tomorrow's observer
-        // is still running. Restart immediately rather than waiting for the
-        // reconcile-via-notification detour to do it — minimizes the window
-        // where iOS could suspend the process.
-        BackgroundKeepAlive.shared.start()
+        await AlarmAudioPlayer.shared.stopAlarmLoop()
+        ringingAlarmID = nil
+        DiagnosticsLog.shared.log("observer", "ringing dismissed action=\(action)")
 
+        switch action {
+        case .stop:
+            isPlayingMorningAudio = true
+            let outcome = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
+            isPlayingMorningAudio = false
+
+            AppLogger.alarm.info("observer: \(alarmID.uuidString.prefix(8), privacy: .public) outcome=\(String(describing: outcome), privacy: .public)")
+            lastHandleFireOutcome = FireOutcome(outcome: String(describing: outcome), date: Date())
+            DiagnosticsLog.shared.log("observer", "handleFire outcome=\(outcome)")
+
+            if case .played = outcome {
+                MorningAudioRenderer.shared.invalidateAll()
+            }
+
+        case .snooze:
+            scheduleSnoozeFollowUp(originalAlarmID: alarmID)
+            lastHandleFireOutcome = FireOutcome(outcome: "snoozed", date: Date())
+            DiagnosticsLog.shared.log("observer", "snoozed \(alarmID.uuidString.prefix(8))")
+        }
+
+        BackgroundKeepAlive.shared.start()
         NotificationCenter.default.post(name: .didCompleteMorningPlayback, object: nil)
     }
 

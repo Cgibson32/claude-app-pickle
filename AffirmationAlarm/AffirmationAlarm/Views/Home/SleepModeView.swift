@@ -49,7 +49,9 @@ struct SleepModeView: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                if scheduler.isPlayingMorningAudio {
+                if scheduler.ringingAlarmID != nil {
+                    ringingState
+                } else if scheduler.isPlayingMorningAudio {
                     playingState
                 } else {
                     clockState
@@ -57,8 +59,10 @@ struct SleepModeView: View {
 
                 Spacer()
 
-                exitButton
-                    .padding(.bottom, AppTheme.spacing3xl)
+                if scheduler.ringingAlarmID == nil {
+                    exitButton
+                        .padding(.bottom, AppTheme.spacing3xl)
+                }
             }
         }
         .persistentSystemOverlays(.hidden)
@@ -68,10 +72,19 @@ struct SleepModeView: View {
             previousBrightness = UIScreen.main.brightness
             UIScreen.main.brightness = 0.05
             UIApplication.shared.isIdleTimerDisabled = true
+            scheduler.isSleepModeActive = true
         }
         .onDisappear {
             UIScreen.main.brightness = previousBrightness
             UIApplication.shared.isIdleTimerDisabled = false
+            scheduler.isSleepModeActive = false
+        }
+        .onChange(of: scheduler.ringingAlarmID) { oldValue, newValue in
+            if oldValue == nil, newValue != nil {
+                UIScreen.main.brightness = max(previousBrightness, 0.5)
+            } else if oldValue != nil, newValue == nil, !scheduler.isPlayingMorningAudio {
+                UIScreen.main.brightness = 0.05
+            }
         }
         .onReceive(timer) { _ in
             currentTime = Date()
@@ -86,6 +99,23 @@ struct SleepModeView: View {
         } message: {
             Text("Your alarm needs Sleep Mode to play your personalized affirmations when it rings.")
         }
+    }
+
+    // MARK: - Ringing state (alarm fired, waiting for user)
+
+    private var ringingState: some View {
+        AlarmRingingContent(
+            time: currentTime,
+            label: scheduler.ringingAlarmLabel,
+            onStop: {
+                HapticService.medium()
+                scheduler.userPressedStop()
+            },
+            onSnooze: {
+                HapticService.light()
+                scheduler.userPressedSnooze()
+            }
+        )
     }
 
     // MARK: - Clock state (waiting for alarm)

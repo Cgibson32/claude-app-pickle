@@ -83,6 +83,12 @@ actor AlarmAudioPlayer {
         }
     }
 
+    // MARK: - Alarm loop state
+
+    /// The player driving the looping alarm sound while the ringing UI is
+    /// on screen. `nil` when no alarm is actively ringing.
+    private var loopingPlayer: AVAudioPlayer?
+
     // MARK: - State
 
     /// Alarms whose playback is currently in progress.
@@ -195,6 +201,45 @@ actor AlarmAudioPlayer {
     /// Useful for UI that wants to reflect "Playing..." state.
     func isPlaying(alarmID: UUID) -> Bool {
         playing.contains(alarmID)
+    }
+
+    // MARK: - Alarm sound looping
+
+    /// Start looping a bundled alarm sound at full volume. Called by
+    /// `handleFire` when the app is foregrounded to drive the ringing UI.
+    /// The loop continues until `stopAlarmLoop()` is called (when user
+    /// presses Stop or Snooze).
+    func startAlarmLoop(soundName: String) async {
+        await MainActor.run { VolumeBooster.boostToMax() }
+
+        guard await activateAudioSession() else {
+            DiagnosticsLog.shared.log("player", "alarm loop: session unavailable")
+            return
+        }
+
+        guard let url = Bundle.main.url(forResource: soundName, withExtension: "caf"),
+              let player = try? AVAudioPlayer(contentsOf: url) else {
+            DiagnosticsLog.shared.log("player", "alarm loop: \(soundName).caf missing or unreadable")
+            return
+        }
+
+        player.numberOfLoops = -1
+        player.volume = 1.0
+        player.prepareToPlay()
+        guard player.play() else {
+            DiagnosticsLog.shared.log("player", "alarm loop: play() returned false")
+            return
+        }
+        loopingPlayer = player
+        DiagnosticsLog.shared.log("player", "alarm loop started: \(soundName)")
+    }
+
+    /// Stop the looping alarm sound. Safe to call even if no loop is
+    /// active (idempotent).
+    func stopAlarmLoop() {
+        loopingPlayer?.stop()
+        loopingPlayer = nil
+        DiagnosticsLog.shared.log("player", "alarm loop stopped")
     }
 
     // MARK: - Private

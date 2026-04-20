@@ -114,6 +114,51 @@ final class MorningAudioRenderer {
         }
     }
 
+    /// Render morning + closing MP3s for a snooze follow-up UUID that has
+    /// no corresponding `Alarm` SwiftData object. Called from
+    /// `RootView.reconcileAlarmsWithSystem` which drains
+    /// `AlarmKitScheduler.pendingFollowUpRenders` during the 10-minute
+    /// snooze window.
+    func renderForFollowUp(
+        followUpID: UUID,
+        profile: UserProfile,
+        modelContext: ModelContext
+    ) async {
+        let paths = RenderPaths(alarmID: followUpID)
+
+        guard ensureSoundsDirectoryExists() else { return }
+
+        let cache = AffirmationCacheService()
+        let voice = OpenAITTSService.Voice(rawValue: profile.ttsVoice) ?? .nova
+        let count = profile.affirmationCount
+
+        do {
+            let (affirmations, closing) = try await cache.fetchOrGenerate(
+                for: profile,
+                modelContext: modelContext
+            )
+
+            let budget = wordBudget(for: count)
+            let composer = ScriptComposer(
+                name: profile.name,
+                affirmations: affirmations,
+                affirmationCount: count,
+                closingMessage: closing?.message,
+                wordBudget: budget
+            )
+
+            guard await renderMainMP3(to: paths.morning, script: composer.main(), voice: voice) else {
+                return
+            }
+            await renderSupportingMP3(to: paths.closing, script: composer.closing(), voice: voice, label: "closing")
+
+            DiagnosticsLog.shared.log("render", "follow-up \(followUpID.uuidString.prefix(8)) rendered")
+        } catch {
+            AppLogger.audio.error("follow-up render failed: \(error.localizedDescription, privacy: .public)")
+            DiagnosticsLog.shared.log("render", "follow-up render failed: \(error.localizedDescription)")
+        }
+    }
+
     /// Wipe every rendered file (any alarm ID, any stem). Called when the
     /// user changes their TTS voice in Settings so the next refresh
     /// definitely regenerates rather than reusing yesterday's voice.
