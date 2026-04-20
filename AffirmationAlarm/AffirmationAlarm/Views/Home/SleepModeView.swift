@@ -46,12 +46,13 @@ struct SleepModeView: View {
             // Pure black for OLED power savings.
             Color.black.ignoresSafeArea()
 
+            // Ringing is handled by RootView's fullScreenCover showing
+            // `AlarmRingingView` on top of us. We only render the clock
+            // and playing states here.
             VStack(spacing: 0) {
                 Spacer()
 
-                if scheduler.ringingAlarmID != nil {
-                    ringingState
-                } else if scheduler.isPlayingMorningAudio {
+                if scheduler.isPlayingMorningAudio {
                     playingState
                 } else {
                     clockState
@@ -59,10 +60,8 @@ struct SleepModeView: View {
 
                 Spacer()
 
-                if scheduler.ringingAlarmID == nil {
-                    exitButton
-                        .padding(.bottom, AppTheme.spacing3xl)
-                }
+                exitButton
+                    .padding(.bottom, AppTheme.spacing3xl)
             }
         }
         .persistentSystemOverlays(.hidden)
@@ -99,23 +98,6 @@ struct SleepModeView: View {
         } message: {
             Text("Your alarm needs Sleep Mode to play your personalized affirmations when it rings.")
         }
-    }
-
-    // MARK: - Ringing state (alarm fired, waiting for user)
-
-    private var ringingState: some View {
-        AlarmRingingContent(
-            time: currentTime,
-            label: scheduler.ringingAlarmLabel,
-            onStop: {
-                HapticService.medium()
-                scheduler.userPressedStop()
-            },
-            onSnooze: {
-                HapticService.light()
-                scheduler.userPressedSnooze()
-            }
-        )
     }
 
     // MARK: - Clock state (waiting for alarm)

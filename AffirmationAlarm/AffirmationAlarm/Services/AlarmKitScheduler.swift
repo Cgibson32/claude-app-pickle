@@ -106,10 +106,21 @@ final class AlarmKitScheduler {
 
     // MARK: - Ringing state machine
 
-    enum RingingAction { case stop, snooze }
+    enum RingingAction: Sendable { case stop, snooze }
 
-    private var ringingContinuation: CheckedContinuation<RingingAction, Never>?
-    private var ringingTimeoutTask: Task<Void, Never>?
+    /// Continuation for the currently-active ringing stream. `nil` when no
+    /// alarm is ringing. Yielding an action (Stop/Snooze/timeout) unblocks
+    /// `handleFire`'s `for await` loop.
+    ///
+    /// We moved off `CheckedContinuation` to `AsyncStream.Continuation` for
+    /// one reason: `AsyncStream.Continuation.yield` is idempotent — a second
+    /// yield with the same or a different value is a no-op once we've
+    /// `finish()`ed. The previous `CheckedContinuation.resume(returning:)`
+    /// pattern traps on a double-resume, which is easy to hit if a user
+    /// taps Stop while the 5-minute timeout is already resuming. The
+    /// AsyncStream shape lets us collapse stop/snooze/timeout into a single
+    /// "first yield wins" protocol without defensive nil-checks everywhere.
+    private var ringingContinuation: AsyncStream<RingingAction>.Continuation?
 
     /// Alarm ID → sound name, populated at schedule time. Looked up at
     /// fire time to loop the correct alarm tone in the ringing UI.
@@ -128,22 +139,21 @@ final class AlarmKitScheduler {
         pendingFollowUpRenders.removeAll()
     }
 
-    /// Called by the ringing UI's Stop button. Resumes `handleFire`.
+    /// Called by the ringing UI's Stop button. Yields to `handleFire`'s
+    /// for-await loop. Idempotent: subsequent presses are absorbed by the
+    /// finished stream.
     func userPressedStop() {
         AlarmTelemetry.eventSync(.stopPressed, alarmID: ringingAlarmID)
-        ringingContinuation?.resume(returning: .stop)
-        ringingContinuation = nil
-        ringingTimeoutTask?.cancel()
-        ringingTimeoutTask = nil
+        ringingContinuation?.yield(.stop)
+        ringingContinuation?.finish()
     }
 
-    /// Called by the ringing UI's Snooze button. Resumes `handleFire`.
+    /// Called by the ringing UI's Snooze button. Same yield-then-finish
+    /// pattern as Stop.
     func userPressedSnooze() {
         AlarmTelemetry.eventSync(.snoozePressed, alarmID: ringingAlarmID)
-        ringingContinuation?.resume(returning: .snooze)
-        ringingContinuation = nil
-        ringingTimeoutTask?.cancel()
-        ringingTimeoutTask = nil
+        ringingContinuation?.yield(.snooze)
+        ringingContinuation?.finish()
     }
 
     // MARK: - Private state
@@ -629,34 +639,7 @@ final class AlarmKitScheduler {
         // While waiting, escalate volume every 60s and re-boost system
         // volume in case the user lowered it. After 5 minutes total,
         // schedule a fallback system alert and auto-stop.
-        let action: RingingAction = await withCheckedContinuation { continuation in
-            ringingContinuation = continuation
-
-            ringingTimeoutTask = Task { [weak self] in
-                for minute in 1...5 {
-                    try? await Task.sleep(for: .seconds(60))
-                    guard !Task.isCancelled else { return }
-                    await MainActor.run {
-                        guard let self, self.ringingContinuation != nil else { return }
-                        VolumeBooster.boostToMax()
-                        AlarmTelemetry.eventSync(
-                            .escalation,
-                            alarmID: self.ringingAlarmID,
-                            extra: "minute=\(minute)"
-                        )
-                    }
-                }
-                guard !Task.isCancelled else { return }
-                await MainActor.run {
-                    guard let self, self.ringingContinuation != nil else { return }
-                    let sn = self.alarmSoundNames[alarmID] ?? "alarm_gentle"
-                    self.scheduleFallbackAlert(alarmID: alarmID, soundName: sn)
-                    AlarmTelemetry.eventSync(.ringingTimeout, alarmID: self.ringingAlarmID)
-                    self.ringingContinuation?.resume(returning: .stop)
-                    self.ringingContinuation = nil
-                }
-            }
-        }
+        let action = await awaitRingingAction(alarmID: alarmID)
 
         await AlarmAudioPlayer.shared.stopAlarmLoop()
         VolumeBooster.stopMonitoring()
@@ -705,6 +688,66 @@ final class AlarmKitScheduler {
 
         BackgroundKeepAlive.shared.start()
         NotificationCenter.default.post(name: .didCompleteMorningPlayback, object: nil)
+    }
+
+    // MARK: - Ringing action stream
+
+    /// Build the per-ring `AsyncStream<RingingAction>`, install its
+    /// continuation on `self.ringingContinuation`, and suspend until the
+    /// first yielded action arrives. A sibling task escalates volume every
+    /// 60 seconds; at t+5min it schedules a fallback AlarmKit alert (so the
+    /// user still wakes up if auto-play subsequently fails) and yields
+    /// `.stop` itself.
+    ///
+    /// The `finish()` at the top of the user Stop/Snooze paths closes the
+    /// stream, which terminates the `for await` loop here immediately
+    /// regardless of how many yields arrive in the interim. That's the
+    /// property we want: the first yield wins, all other signals are
+    /// silently absorbed.
+    private func awaitRingingAction(alarmID: UUID) async -> RingingAction {
+        let (stream, continuation) = AsyncStream<RingingAction>.makeStream()
+        ringingContinuation = continuation
+
+        let timeoutTask = Task { [weak self] in
+            for minute in 1...5 {
+                try? await Task.sleep(for: .seconds(60))
+                if Task.isCancelled { return }
+                await MainActor.run {
+                    // `ringingContinuation == nil` means awaitRingingAction
+                    // already broke out of its for-await (user pressed Stop
+                    // or Snooze). Don't perform escalation side effects
+                    // after that point.
+                    guard let self, self.ringingContinuation != nil else { return }
+                    VolumeBooster.boostToMax()
+                    AlarmTelemetry.eventSync(
+                        .escalation,
+                        alarmID: self.ringingAlarmID,
+                        extra: "minute=\(minute)"
+                    )
+                }
+            }
+            if Task.isCancelled { return }
+            await MainActor.run {
+                // Same guard as the escalation loop: if the user raced
+                // us to Stop in the final MainActor hop, don't schedule a
+                // fallback alert they no longer need.
+                guard let self, self.ringingContinuation != nil else { return }
+                let sn = self.alarmSoundNames[alarmID] ?? "alarm_gentle"
+                self.scheduleFallbackAlert(alarmID: alarmID, soundName: sn)
+                AlarmTelemetry.eventSync(.ringingTimeout, alarmID: self.ringingAlarmID)
+                self.ringingContinuation?.yield(.stop)
+                self.ringingContinuation?.finish()
+            }
+        }
+
+        var result: RingingAction = .stop
+        for await action in stream {
+            result = action
+            break
+        }
+        timeoutTask.cancel()
+        ringingContinuation = nil
+        return result
     }
 
     // MARK: - Fallback alert

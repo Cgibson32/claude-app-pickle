@@ -115,7 +115,7 @@ struct RootView: View {
             missedAlarms = []
         }
         .fullScreenCover(isPresented: Binding(
-            get: { scheduler.ringingAlarmID != nil && !scheduler.isSleepModeActive },
+            get: { scheduler.ringingAlarmID != nil },
             set: { _ in }
         )) {
             AlarmRingingView()
