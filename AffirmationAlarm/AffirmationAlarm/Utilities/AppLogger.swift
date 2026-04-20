@@ -13,7 +13,7 @@ import os
 /// ```
 ///
 /// The categories roughly map to the services they live in:
-/// - `audio` — MorningAudioRenderer, SpeechService, AVAudioSession
+/// - `audio` — MorningAudioRenderer, AlarmAudioPlayer, AVAudioSession
 /// - `alarm` — AlarmKitScheduler, AlarmManager interactions
 /// - `intent` — StopAndPlayClosingIntent, SnoozeMorningIntent
 /// - `tts` — OpenAITTSService

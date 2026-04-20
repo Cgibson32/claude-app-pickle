@@ -17,7 +17,7 @@ struct SpeechSettingsView: View {
     /// Held as `@State` rather than instantiating fresh each tap, so the
     /// underlying OpenAI cache persists across previews — a second tap on
     /// the same voice plays instantly.
-    @State private var previewSpeech = SpeechService()
+    @State private var previewSpeech = VoicePreviewService()
 
     var body: some View {
         ZStack {
@@ -180,7 +180,7 @@ struct SpeechSettingsView: View {
         previewSpeech.voice = voice
 
         Task { @MainActor in
-            await previewSpeech.speakAndWait(text: sample)
+            await previewSpeech.preview(text: sample)
             if previewingVoice == voice {
                 previewingVoice = nil
             }
