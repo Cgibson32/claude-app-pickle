@@ -7,15 +7,10 @@ final class UserProfile {
     var freeformGoals: String = ""
     var hasCompletedOnboarding: Bool = false
     var selectedCategoriesData: String = "[]"
-    // TODO(v1.1): Remove alongside a proper VersionedSchema migration.
-    // Vestigial — never read. Kept to avoid SwiftData schema change.
-    var speechRate: Float = 0.42
-    var speechPitch: Float = 0.85
     var ttsEnabled: Bool = true
     /// OpenAI TTS voice name — raw value of `OpenAITTSService.Voice`. Default
     /// `nova` is warm and conversational; users can preview + switch in
-    /// Voice Settings. The field has a default value so existing SwiftData
-    /// stores migrate without touching the schema.
+    /// Voice Settings.
     var ttsVoice: String = "nova"
     var affirmationCount: Int = 3
     /// Raw value of `AffirmationBudget`. Stored as `String` (rather than

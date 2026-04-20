@@ -44,8 +44,6 @@ actor ClaudeAPIService {
         name: String,
         goals: String,
         categories: [String],
-        recentGratitude: [String],
-        recentIntentions: [String],
         recentReflections: [RecentReflection],
         count: Int,
         exclude: [String] = [],
@@ -62,8 +60,6 @@ actor ClaudeAPIService {
             name: name,
             goals: goals,
             categories: categories,
-            recentGratitude: recentGratitude,
-            recentIntentions: recentIntentions,
             recentReflections: recentReflections,
             count: count,
             exclude: exclude
@@ -179,8 +175,6 @@ actor ClaudeAPIService {
         name: String,
         goals: String,
         categories: [String],
-        recentGratitude: [String],
-        recentIntentions: [String],
         recentReflections: [RecentReflection],
         count: Int,
         exclude: [String]
@@ -189,7 +183,7 @@ actor ClaudeAPIService {
 
         // Goals are the PRIMARY signal. Hoisted above everything else and
         // repeated with an explicit directive so the model can't treat
-        // them as equal-weight context with gratitude/intentions/mood.
+        // them as equal-weight context with mood/reflections.
         var header: String
         if !trimmedGoals.isEmpty {
             header = """
@@ -210,12 +204,6 @@ actor ClaudeAPIService {
         var supporting: [String] = ["User name: \(name)"]
         if !trimmedGoals.isEmpty, !categories.isEmpty {
             supporting.append("Secondary focus areas: \(categories.joined(separator: ", "))")
-        }
-        if !recentGratitude.isEmpty {
-            supporting.append("Recent gratitude notes: \(recentGratitude.joined(separator: "; "))")
-        }
-        if !recentIntentions.isEmpty {
-            supporting.append("Recent daily intentions: \(recentIntentions.joined(separator: "; "))")
         }
         if !recentReflections.isEmpty {
             let lines = recentReflections.map(Self.describe(reflection:))

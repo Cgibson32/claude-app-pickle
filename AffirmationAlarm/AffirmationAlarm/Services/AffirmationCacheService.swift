@@ -41,16 +41,14 @@ class AffirmationCacheService {
         }
 
         // Step 3: generate the remaining `needed` affirmations fresh.
-        let recent = gatherRecentContext(modelContext: modelContext)
+        let recentReflections = fetchRecentReflections(modelContext: modelContext)
         let content: ClaudeAPIService.GeneratedContent
         do {
             content = try await apiService.generateAffirmations(
                 name: profile.name,
                 goals: profile.freeformGoals,
                 categories: profile.selectedCategories,
-                recentGratitude: recent.gratitude,
-                recentIntentions: recent.intentions,
-                recentReflections: recent.reflections,
+                recentReflections: recentReflections,
                 count: needed,
                 exclude: exclude,
                 maxTokens: profile.budget.claudeMaxTokens
@@ -119,31 +117,13 @@ class AffirmationCacheService {
 
     // MARK: - Context gathering
 
-    private struct RecentContext {
-        let gratitude: [String]
-        let intentions: [String]
-        let reflections: [ClaudeAPIService.RecentReflection]
-    }
-
-    private func gatherRecentContext(modelContext: ModelContext) -> RecentContext {
-        let gratitude = fetchRecent(GratitudeEntry.self, keyPath: \GratitudeEntry.date, modelContext: modelContext)
-            .map(\.text)
-        let intentions = fetchRecent(DailyIntention.self, keyPath: \DailyIntention.date, modelContext: modelContext)
-            .map(\.text)
-        let reflections = fetchRecent(EveningReflection.self, keyPath: \EveningReflection.date, modelContext: modelContext)
-            .map { ClaudeAPIService.RecentReflection(mood: $0.mood, goodThing: $0.goodThing, gratitude: $0.gratitude) }
-        return RecentContext(gratitude: gratitude, intentions: intentions, reflections: reflections)
-    }
-
-    private func fetchRecent<T: PersistentModel>(
-        _ type: T.Type,
-        keyPath: KeyPath<T, Date>,
-        modelContext: ModelContext,
-        limit: Int = 3
-    ) -> [T] {
-        var descriptor = FetchDescriptor<T>()
-        descriptor.fetchLimit = limit
-        return (try? modelContext.fetch(descriptor)) ?? []
+    private func fetchRecentReflections(modelContext: ModelContext) -> [ClaudeAPIService.RecentReflection] {
+        var descriptor = FetchDescriptor<EveningReflection>()
+        descriptor.fetchLimit = 3
+        let rows = (try? modelContext.fetch(descriptor)) ?? []
+        return rows.map {
+            ClaudeAPIService.RecentReflection(mood: $0.mood, goodThing: $0.goodThing, gratitude: $0.gratitude)
+        }
     }
 
     // MARK: - Garbage collection

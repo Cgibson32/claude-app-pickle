@@ -15,23 +15,50 @@ struct AffirmationAlarmApp: App {
         Alarm.self,
         Affirmation.self,
         DailyClosingMessage.self,
-        GratitudeEntry.self,
-        DailyIntention.self,
         EveningReflection.self
     ])
 
-    init() {
-        do {
-            let config = ModelConfiguration(isStoredInMemoryOnly: false)
-            modelContainer = try ModelContainer(for: Self.appSchema, configurations: [config])
-        } catch {
-            do {
-                let fallback = ModelConfiguration(isStoredInMemoryOnly: true)
-                modelContainer = try ModelContainer(for: Self.appSchema, configurations: [fallback])
-            } catch {
-                fatalError("Failed to create ModelContainer: \(error)")
-            }
+    /// Build the persistent `ModelContainer`, recovering from an
+    /// incompatible on-disk store by wiping it and trying again. Only the
+    /// second attempt uses an in-memory fallback — if disk persistence
+    /// itself is broken (rare) we at least stay launchable until the next
+    /// update.
+    private static func makeContainer() -> ModelContainer {
+        let config = ModelConfiguration(isStoredInMemoryOnly: false)
+        if let container = try? ModelContainer(for: appSchema, configurations: [config]) {
+            return container
         }
+
+        // Schema mismatch or corruption — delete the default store and
+        // retry with fresh persistent storage so the user keeps a working
+        // app and data persists across subsequent launches.
+        wipeDefaultStore()
+        if let container = try? ModelContainer(for: appSchema, configurations: [config]) {
+            return container
+        }
+
+        do {
+            let fallback = ModelConfiguration(isStoredInMemoryOnly: true)
+            return try ModelContainer(for: appSchema, configurations: [fallback])
+        } catch {
+            fatalError("Failed to create ModelContainer: \(error)")
+        }
+    }
+
+    private static func wipeDefaultStore() {
+        guard let appSupport = try? FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: false
+        ) else { return }
+        for name in ["default.store", "default.store-shm", "default.store-wal"] {
+            try? FileManager.default.removeItem(at: appSupport.appendingPathComponent(name))
+        }
+    }
+
+    init() {
+        modelContainer = Self.makeContainer()
 
         // Force the AlarmKitScheduler singleton to materialize at launch so
         // its alarmUpdates observer is running before the first alarm fires.
@@ -48,7 +75,6 @@ struct AffirmationAlarmApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environment(SubscriptionManager.shared)
         }
         .modelContainer(modelContainer)
     }
@@ -57,7 +83,6 @@ struct AffirmationAlarmApp: App {
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(SubscriptionManager.self) private var subscriptionManager
     @Query private var profiles: [UserProfile]
     @Query private var alarms: [Alarm]
     @State private var showEveningReflection = false

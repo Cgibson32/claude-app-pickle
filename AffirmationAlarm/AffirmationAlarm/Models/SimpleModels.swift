@@ -14,30 +14,6 @@ final class DailyClosingMessage {
 }
 
 @Model
-final class GratitudeEntry {
-    var id: UUID = UUID()
-    var text: String = ""
-    var date: Date = Date.now
-
-    init(text: String = "", date: Date = .now) {
-        self.text = text
-        self.date = date
-    }
-}
-
-@Model
-final class DailyIntention {
-    var id: UUID = UUID()
-    var text: String = ""
-    var date: Date = Date.now
-
-    init(text: String = "", date: Date = .now) {
-        self.text = text
-        self.date = date
-    }
-}
-
-@Model
 final class EveningReflection {
     var id: UUID = UUID()
     var mood: Int = 2

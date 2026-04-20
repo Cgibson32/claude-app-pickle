@@ -1,8 +1,6 @@
 import Foundation
 
 enum AppConstants {
-    static let subscriptionProductID = "com.cgibson.affirmationalarm.monthly"
-
     static let apiURL = "https://api.anthropic.com/v1/messages"
     static let apiModel = "claude-opus-4-6"
     static let apiVersion = "2023-06-01"
@@ -11,8 +9,6 @@ enum AppConstants {
     // OpenAI TTS — used for the nurturing cloud voice in the morning sequence.
     static let openAITTSURL = "https://api.openai.com/v1/audio/speech"
 
-    static let defaultSpeechRate: Float = 0.42
-    static let defaultSpeechPitch: Float = 0.85
     static let snoozeDurationMinutes = 9
 
     static let moodEmojis = ["\u{1F614}", "\u{1F610}", "\u{1F642}", "\u{1F60A}", "\u{1F929}"]

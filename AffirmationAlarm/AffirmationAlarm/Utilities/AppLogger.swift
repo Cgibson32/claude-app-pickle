@@ -18,7 +18,6 @@ import os
 /// - `intent` — StopAndPlayClosingIntent, SnoozeMorningIntent
 /// - `tts` — OpenAITTSService
 /// - `claude` — ClaudeAPIService, AffirmationCacheService
-/// - `subscription` — SubscriptionManager, StoreKit
 enum AppLogger {
     private static let subsystem = "com.cgibson.affirmationalarm"
 
@@ -27,7 +26,6 @@ enum AppLogger {
     static let intent = Logger(subsystem: subsystem, category: "intent")
     static let tts = Logger(subsystem: subsystem, category: "tts")
     static let claude = Logger(subsystem: subsystem, category: "claude")
-    static let subscription = Logger(subsystem: subsystem, category: "subscription")
 }
 
 // MARK: - In-memory diagnostics log
