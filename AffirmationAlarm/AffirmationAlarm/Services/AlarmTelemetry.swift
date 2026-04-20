@@ -40,6 +40,9 @@ enum AlarmTelemetry {
         case playComplete = "play-complete"
         case loopStart = "loop-start"
         case loopStop = "loop-stop"
+        case escalation = "escalation"
+        case fallbackScheduled = "fallback-scheduled"
+        case volumeReboosted = "volume-reboosted"
         case missedAlarmDetected = "missed-alarm-detected"
         case lastFireRecorded = "last-fire-recorded"
     }

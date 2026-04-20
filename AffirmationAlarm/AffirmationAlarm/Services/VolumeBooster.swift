@@ -1,5 +1,6 @@
 import MediaPlayer
 import UIKit
+import AVFoundation
 
 /// Forces the system **media** volume to its maximum before the alarm
 /// audio plays, so a user who went to bed with media at 10% still hears
@@ -23,14 +24,34 @@ import UIKit
 /// deprecated it through iOS 26. We briefly attach the view to a
 /// window off-screen, flip the slider to 1.0, and tear it down.
 ///
-/// The double-`DispatchQueue.main.asyncAfter` is not overkill: iOS
-/// wires the hidden slider to the real volume state on the next
-/// runloop tick, and needs another tick after assignment before the
-/// volume change commits — removing the view too early sometimes drops
-/// the write on the floor. 50ms + 100ms is the shortest pair that
-/// reliably commits across devices.
+/// ## Volume monitoring
+///
+/// When an alarm loop is active, the user might press the physical
+/// volume-down button. `startMonitoring()` uses KVO on
+/// `AVAudioSession.outputVolume` to detect this and re-boost within
+/// a few hundred milliseconds. A 500ms cooldown after each boost
+/// prevents the KVO callback from re-triggering on our own write.
 @MainActor
 enum VolumeBooster {
+
+    /// Whether we're actively monitoring for volume changes.
+    private(set) static var isMonitoring = false
+
+    /// KVO observation token. Retained while monitoring is active.
+    private static var volumeObservation: NSKeyValueObservation?
+
+    /// Timestamp of the last boost — used to suppress the KVO feedback
+    /// loop when our own write fires the observer.
+    private static var lastBoostTime: Date = .distantPast
+
+    /// Cooldown after a boost before the observer re-boosts. The
+    /// MPVolumeView slider write propagates asynchronously; 500ms
+    /// absorbs the KVO echo without feeling sluggish on a real
+    /// hardware-button press.
+    private static let boostCooldown: TimeInterval = 0.5
+
+    // MARK: - Boost
+
     /// Set the system media volume to 1.0. Silently no-ops if we can't
     /// find a window to attach the helper view to — better to fail
     /// quietly than crash the alarm path over a UI edge case.
@@ -39,6 +60,8 @@ enum VolumeBooster {
             DiagnosticsLog.shared.log("volume", "no window — skipping boost")
             return
         }
+
+        lastBoostTime = Date()
 
         let helper = MPVolumeView(frame: CGRect(x: -1000, y: -1000, width: 1, height: 1))
         helper.alpha = 0.001
@@ -55,6 +78,46 @@ enum VolumeBooster {
             }
         }
     }
+
+    // MARK: - Monitoring
+
+    /// Begin KVO monitoring of `AVAudioSession.outputVolume`. If the
+    /// volume drops below 0.95 while monitoring is active (e.g. the
+    /// user pressed the hardware volume-down button during ringing),
+    /// automatically re-boost to max.
+    ///
+    /// Call `stopMonitoring()` when the alarm loop stops.
+    static func startMonitoring() {
+        guard !isMonitoring else { return }
+        isMonitoring = true
+
+        let session = AVAudioSession.sharedInstance()
+        volumeObservation = session.observe(\.outputVolume, options: [.new]) { _, change in
+            guard let newVolume = change.newValue else { return }
+            Task { @MainActor in
+                guard VolumeBooster.isMonitoring else { return }
+                guard Date().timeIntervalSince(VolumeBooster.lastBoostTime) > VolumeBooster.boostCooldown else { return }
+                if newVolume < 0.95 {
+                    DiagnosticsLog.shared.log("volume", "volume dropped to \(String(format: "%.2f", newVolume)) — re-boosting")
+                    AlarmTelemetry.eventSync(.volumeReboosted, extra: "from=\(String(format: "%.2f", newVolume))")
+                    VolumeBooster.boostToMax()
+                }
+            }
+        }
+        DiagnosticsLog.shared.log("volume", "monitoring started")
+    }
+
+    /// Stop monitoring volume changes. Safe to call even if monitoring
+    /// is not active (idempotent).
+    static func stopMonitoring() {
+        guard isMonitoring else { return }
+        isMonitoring = false
+        volumeObservation?.invalidate()
+        volumeObservation = nil
+        DiagnosticsLog.shared.log("volume", "monitoring stopped")
+    }
+
+    // MARK: - Private
 
     /// An `MPVolumeView` only controls system volume once it's in a live
     /// window hierarchy. Walk every connected scene's windows — when the

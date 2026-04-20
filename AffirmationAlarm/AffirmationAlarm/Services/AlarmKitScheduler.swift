@@ -115,6 +115,14 @@ final class AlarmKitScheduler {
     /// fire time to loop the correct alarm tone in the ringing UI.
     private var alarmSoundNames: [UUID: String] = [:]
 
+    /// Timestamps of recent eager-render attempts per follow-up UUID.
+    /// Prevents re-snooze spam from triggering N Claude + N TTS renders
+    /// back-to-back. Cleared after `settlingSeconds` by the Task itself.
+    private var lastRenderAttempt: [UUID: Date] = [:]
+
+    /// Minimum seconds between eager-render attempts for the same UUID.
+    private let renderDebounceSeconds: TimeInterval = 15
+
     /// Drain the pending follow-up render set after rendering is complete.
     func clearPendingFollowUpRenders() {
         pendingFollowUpRenders.removeAll()
@@ -435,36 +443,97 @@ final class AlarmKitScheduler {
             }
         }
 
-        // Eagerly render affirmations for the follow-up. Creates its own
-        // ModelContainer so this works even from the background intent
-        // path where RootView's reconcile may not run in time.
+        eagerRenderFollowUp(followUpID: followUpID)
+    }
+
+    /// Eagerly render affirmations for a snooze follow-up with a retry
+    /// budget: up to 3 attempts with 1s/2s/4s exponential backoff and a
+    /// 30s per-attempt timeout. On total failure, the UUID stays in
+    /// `pendingFollowUpRenders` so `RootView.reconcileAlarmsWithSystem`
+    /// retries on the next active-scene pass.
+    ///
+    /// Debounced: if a render for this UUID was attempted within the last
+    /// `renderDebounceSeconds`, the call is silently skipped. Prevents
+    /// re-snooze spam from burning Claude + TTS credits.
+    private func eagerRenderFollowUp(followUpID: UUID) {
+        if let last = lastRenderAttempt[followUpID],
+           Date().timeIntervalSince(last) < renderDebounceSeconds {
+            DiagnosticsLog.shared.log("scheduler", "render debounced for \(followUpID.uuidString.prefix(8))")
+            return
+        }
+        lastRenderAttempt[followUpID] = Date()
+
         Task { @MainActor in
             AlarmTelemetry.eventSync(.snoozeRenderStart, alarmID: followUpID)
             let renderStart = Date()
+            let maxAttempts = 3
+            let backoffs: [Duration] = [.seconds(1), .seconds(2), .seconds(4)]
+
+            for attempt in 1...maxAttempts {
+                let success = await self.attemptRender(followUpID: followUpID, attempt: attempt, timeout: .seconds(30))
+
+                if success {
+                    self.pendingFollowUpRenders.remove(followUpID)
+                    AlarmTelemetry.eventSync(
+                        .snoozeRenderComplete,
+                        alarmID: followUpID,
+                        elapsedMs: Int(Date().timeIntervalSince(renderStart) * 1000),
+                        extra: "attempt=\(attempt)"
+                    )
+                    return
+                }
+
+                if attempt < maxAttempts {
+                    let delay = backoffs[attempt - 1]
+                    DiagnosticsLog.shared.log("scheduler", "snooze render attempt \(attempt) failed; retry in \(delay)")
+                    try? await Task.sleep(for: delay)
+                }
+            }
+
+            DiagnosticsLog.shared.log("scheduler", "snooze render exhausted \(maxAttempts) attempts; will retry on reconcile")
+            AlarmTelemetry.eventSync(
+                .snoozeRenderFailed,
+                alarmID: followUpID,
+                elapsedMs: Int(Date().timeIntervalSince(renderStart) * 1000),
+                extra: "exhausted=\(maxAttempts)"
+            )
+        }
+    }
+
+    /// Single render attempt with a per-attempt timeout. Returns `true`
+    /// on success. Creates a transient ModelContainer since this may run
+    /// from a background intent path.
+    private func attemptRender(followUpID: UUID, attempt: Int, timeout: Duration) async -> Bool {
+        let renderTask = Task { @MainActor () -> Bool in
             do {
                 let container = try ModelContainer(for: AffirmationAlarmApp.appSchema)
                 let context = ModelContext(container)
                 guard let profile = try context.fetch(FetchDescriptor<UserProfile>()).first else {
-                    DiagnosticsLog.shared.log("scheduler", "snooze render: no profile found")
-                    AlarmTelemetry.eventSync(.snoozeRenderFailed, alarmID: followUpID, extra: "no-profile")
-                    return
+                    DiagnosticsLog.shared.log("scheduler", "snooze render attempt \(attempt): no profile found")
+                    AlarmTelemetry.eventSync(.snoozeRenderFailed, alarmID: followUpID, extra: "no-profile attempt=\(attempt)")
+                    return false
                 }
                 await MorningAudioRenderer.shared.renderForFollowUp(
                     followUpID: followUpID,
                     profile: profile,
                     modelContext: context
                 )
-                self.pendingFollowUpRenders.remove(followUpID)
-                AlarmTelemetry.eventSync(
-                    .snoozeRenderComplete,
-                    alarmID: followUpID,
-                    elapsedMs: Int(Date().timeIntervalSince(renderStart) * 1000)
-                )
+                return true
             } catch {
-                DiagnosticsLog.shared.log("scheduler", "snooze render failed: \(error.localizedDescription); will retry on reconcile")
-                AlarmTelemetry.eventSync(.snoozeRenderFailed, alarmID: followUpID, extra: "err=\(error.localizedDescription)")
+                DiagnosticsLog.shared.log("scheduler", "snooze render attempt \(attempt) failed: \(error.localizedDescription)")
+                AlarmTelemetry.eventSync(.snoozeRenderFailed, alarmID: followUpID, extra: "err=\(error.localizedDescription) attempt=\(attempt)")
+                return false
             }
         }
+
+        let timeoutTask = Task {
+            try? await Task.sleep(for: timeout)
+            renderTask.cancel()
+        }
+
+        let result = await renderTask.value
+        timeoutTask.cancel()
+        return result
     }
 
     // MARK: - Auto-play routing
@@ -540,8 +609,11 @@ final class AlarmKitScheduler {
         DiagnosticsLog.shared.log("observer", "interruption wait returned: \(waited ? "ended" : "timeout")")
 
         // Start looping the alarm sound while the ringing UI is shown.
+        // Also begin monitoring system volume so we re-boost if the user
+        // presses the hardware volume-down button during ringing.
         let soundName = alarmSoundNames[alarmID] ?? "alarm_gentle"
         await AlarmAudioPlayer.shared.startAlarmLoop(soundName: soundName)
+        VolumeBooster.startMonitoring()
 
         ringingAlarmID = alarmID
         ringingAlarmLabel = label
@@ -554,14 +626,31 @@ final class AlarmKitScheduler {
         )
 
         // Suspend until the user presses Stop or Snooze (or timeout).
+        // While waiting, escalate volume every 60s and re-boost system
+        // volume in case the user lowered it. After 5 minutes total,
+        // schedule a fallback system alert and auto-stop.
         let action: RingingAction = await withCheckedContinuation { continuation in
             ringingContinuation = continuation
 
             ringingTimeoutTask = Task { [weak self] in
-                try? await Task.sleep(for: .minutes(5))
+                for minute in 1...5 {
+                    try? await Task.sleep(for: .seconds(60))
+                    guard !Task.isCancelled else { return }
+                    await MainActor.run {
+                        guard let self, self.ringingContinuation != nil else { return }
+                        VolumeBooster.boostToMax()
+                        AlarmTelemetry.eventSync(
+                            .escalation,
+                            alarmID: self.ringingAlarmID,
+                            extra: "minute=\(minute)"
+                        )
+                    }
+                }
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     guard let self, self.ringingContinuation != nil else { return }
+                    let sn = self.alarmSoundNames[alarmID] ?? "alarm_gentle"
+                    self.scheduleFallbackAlert(alarmID: alarmID, soundName: sn)
                     AlarmTelemetry.eventSync(.ringingTimeout, alarmID: self.ringingAlarmID)
                     self.ringingContinuation?.resume(returning: .stop)
                     self.ringingContinuation = nil
@@ -570,6 +659,7 @@ final class AlarmKitScheduler {
         }
 
         await AlarmAudioPlayer.shared.stopAlarmLoop()
+        VolumeBooster.stopMonitoring()
         ringingAlarmID = nil
         DiagnosticsLog.shared.log("observer", "ringing dismissed action=\(action)")
         AlarmTelemetry.eventSync(
@@ -615,6 +705,48 @@ final class AlarmKitScheduler {
 
         BackgroundKeepAlive.shared.start()
         NotificationCenter.default.post(name: .didCompleteMorningPlayback, object: nil)
+    }
+
+    // MARK: - Fallback alert
+
+    /// Schedule a lightweight system-level alarm 60 seconds from now as a
+    /// safety net when the in-app ringing timed out after 5 minutes with
+    /// no user interaction. If the affirmation playback that follows the
+    /// auto-stop fails for any reason, the user still gets a system alert
+    /// and has a second chance to wake up.
+    private func scheduleFallbackAlert(alarmID: UUID, soundName: String) {
+        let fallbackID = UUID()
+        let fireDate = Date().addingTimeInterval(60)
+
+        let presentation = AlarmPresentation(
+            alert: AlarmPresentation.Alert(
+                title: LocalizedStringResource(stringLiteral: "Wake up!")
+            )
+        )
+        let attributes = AlarmAttributes(
+            presentation: presentation,
+            metadata: AffirmationAlarmMetadata(alarmID: fallbackID, label: "Fallback"),
+            tintColor: Color.orange
+        )
+        let configuration = ScheduleConfiguration.alarm(
+            schedule: AlarmKit.Alarm.Schedule.fixed(fireDate),
+            attributes: attributes,
+            stopIntent: StopAndPlayClosingIntent(alarmID: alarmID),
+            sound: .named(soundName)
+        )
+
+        alarmSoundNames[fallbackID] = soundName
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                _ = try await self.manager.schedule(id: fallbackID, configuration: configuration)
+                DiagnosticsLog.shared.log("scheduler", "fallback alert \(fallbackID.uuidString.prefix(8)) in 60s")
+                AlarmTelemetry.eventSync(.fallbackScheduled, alarmID: fallbackID, extra: "for=\(alarmID.uuidString.prefix(8))")
+            } catch {
+                DiagnosticsLog.shared.log("scheduler", "fallback schedule failed: \(error.localizedDescription)")
+            }
+        }
     }
 
     // MARK: - Configuration builder
