@@ -158,6 +158,13 @@ actor AlarmAudioPlayer {
         // set explicitly on success paths below.
         defer { playing.remove(alarmID) }
 
+        // Slam system media volume to max BEFORE activating the session,
+        // so the alarm plays loudly regardless of what the user left the
+        // media slider at overnight. The actual volume write lands a
+        // couple runloop ticks later; that's fine — session activation
+        // and intro playback comfortably absorb that latency.
+        await MainActor.run { VolumeBooster.boostToMax() }
+
         guard await activateAudioSession() else {
             return record(outcome: .audioSessionUnavailable, alarmID: alarmID)
         }
