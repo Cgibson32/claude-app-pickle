@@ -90,7 +90,12 @@ final class MorningAudioRenderer {
         guard await renderMainMP3(to: paths.morning, script: content.mainScript, voice: content.voice) else {
             return (nil, [])
         }
-        await renderSupportingMP3(to: paths.closing, script: content.closingScript, voice: content.voice, label: "closing")
+        await renderClosing(
+            to: paths.closing,
+            script: content.closingScript,
+            voice: content.voice,
+            alarmID: alarm.id
+        )
 
         return (paths.morning.lastPathComponent, content.affirmationTexts)
     }
@@ -138,7 +143,7 @@ final class MorningAudioRenderer {
                 modelContext: modelContext
             )
 
-            let budget = wordBudget(for: count)
+            let budget = wordBudget(for: count, budget: profile.budget)
             let composer = ScriptComposer(
                 name: profile.name,
                 affirmations: affirmations,
@@ -150,7 +155,12 @@ final class MorningAudioRenderer {
             guard await renderMainMP3(to: paths.morning, script: composer.main(), voice: voice) else {
                 return
             }
-            await renderSupportingMP3(to: paths.closing, script: composer.closing(), voice: voice, label: "closing")
+            await renderClosing(
+                to: paths.closing,
+                script: composer.closing(),
+                voice: voice,
+                alarmID: followUpID
+            )
 
             DiagnosticsLog.shared.log("render", "follow-up \(followUpID.uuidString.prefix(8)) rendered")
         } catch {
@@ -226,7 +236,7 @@ final class MorningAudioRenderer {
 
         let voice = OpenAITTSService.Voice(rawValue: profile.ttsVoice) ?? .nova
         let count = profile.affirmationCount
-        let budget = wordBudget(for: count)
+        let budget = wordBudget(for: count, budget: profile.budget)
 
         let composer = ScriptComposer(
             name: profile.name,
@@ -247,10 +257,24 @@ final class MorningAudioRenderer {
     /// Nova at 0.95x speed runs about 2.47 wps. We play the morning MP3
     /// via `AVAudioPlayer` (no 30s cap from AlarmKit), so the budget here
     /// is for user comfort rather than a hard platform limit.
-    private func wordBudget(for affirmationCount: Int) -> Int {
+    ///
+    /// The `budget` multiplier lets the user tune length without us having
+    /// to stream a different TTS model — `short` trims to ~2/3 the default,
+    /// `long` opens the cap to ~130 words (over 50s of spoken audio at
+    /// Nova's pace, still within the window most users tolerate before
+    /// reaching for Stop).
+    private func wordBudget(for affirmationCount: Int, budget: AffirmationBudget) -> Int {
         let greeting = 3
         let perAffirmation = 15
-        return min(greeting + perAffirmation * affirmationCount + 5, 80)
+        let base = greeting + perAffirmation * affirmationCount + 5
+        let scaled = Int(Double(base) * budget.wordBudgetMultiplier)
+        let cap: Int
+        switch budget {
+        case .short: cap = 60
+        case .medium: cap = 80
+        case .long: cap = 130
+        }
+        return min(scaled, cap)
     }
 
     // MARK: - Rendering primitives
@@ -268,6 +292,54 @@ final class MorningAudioRenderer {
             return false
         }
     }
+
+    /// Render the closing MP3, short-circuiting to a bundled
+    /// `closing-default.mp3` when the script is a canonical default line
+    /// we pre-rendered at build time. Saves a TTS round-trip for the
+    /// majority of users who haven't diverged from the default.
+    ///
+    /// If the bundled asset is missing OR the script is user-personal,
+    /// falls through to the normal TTS render.
+    private func renderClosing(
+        to url: URL,
+        script: String,
+        voice: OpenAITTSService.Voice,
+        alarmID: UUID
+    ) async {
+        if copyBundledClosingIfEligible(to: url, script: script) {
+            AlarmTelemetry.event(.closingTTSSkipped, alarmID: alarmID)
+            DiagnosticsLog.shared.log("render", "closing skipped TTS — used bundled default")
+            return
+        }
+        await renderSupportingMP3(to: url, script: script, voice: voice, label: "closing")
+    }
+
+    /// Returns true if `script` matches a canonical bundled closing AND the
+    /// pre-rendered MP3 is present in the app bundle, in which case the
+    /// file is copied to `url`. A missing bundle resource is not an error
+    /// — we just fall back to TTS.
+    private func copyBundledClosingIfEligible(to url: URL, script: String) -> Bool {
+        let trimmed = script.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard Self.defaultClosings.contains(trimmed) else { return false }
+        guard let bundled = Bundle.main.url(forResource: "closing-default", withExtension: "mp3") else {
+            return false
+        }
+        do {
+            try? FileManager.default.removeItem(at: url)
+            try FileManager.default.copyItem(at: bundled, to: url)
+            return verifyPlayable(at: url, label: "closing (bundled)")
+        } catch {
+            AppLogger.audio.error("bundled closing copy failed: \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+    }
+
+    /// Canonical closing strings for which a pre-rendered MP3 is shipped
+    /// in the bundle. Must stay in sync with `BundledAffirmationPool.closings`
+    /// and the `ScriptComposer.closing()` fallback ("Have a wonderful day.").
+    private static let defaultClosings: Set<String> = Set(
+        BundledAffirmationPool.closings + ["Have a wonderful day."]
+    )
 
     private func renderSupportingMP3(
         to url: URL,

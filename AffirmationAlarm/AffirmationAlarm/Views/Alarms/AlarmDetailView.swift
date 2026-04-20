@@ -14,6 +14,8 @@ struct AlarmDetailView: View {
     @State private var soundName: AppConstants.AlarmSound
     @State private var label: String
     @State private var isEnabled: Bool
+    @State private var previewingSound: AppConstants.AlarmSound?
+    @State private var previewStopTask: Task<Void, Never>?
 
     init(alarm: Alarm?) {
         self.alarm = alarm
@@ -69,25 +71,36 @@ struct AlarmDetailView: View {
 
                             VStack(spacing: 0) {
                                 ForEach(AppConstants.AlarmSound.allCases, id: \.self) { sound in
-                                    Button {
-                                        HapticService.selection()
-                                        soundName = sound
-                                        AudioService.shared.stop()
-                                        AudioService.shared.playSound(named: sound.rawValue, duration: 3)
-                                    } label: {
-                                        HStack {
-                                            Text(sound.displayName)
-                                                .font(AppTheme.bodyFont)
-                                                .foregroundStyle(AppTheme.textPrimary)
-                                            Spacer()
-                                            if soundName == sound {
-                                                Image(systemName: "checkmark.circle.fill")
-                                                    .foregroundStyle(AppTheme.gold)
+                                    HStack(spacing: AppTheme.spacingMd) {
+                                        Button {
+                                            HapticService.selection()
+                                            soundName = sound
+                                        } label: {
+                                            HStack {
+                                                Text(sound.displayName)
+                                                    .font(AppTheme.bodyFont)
+                                                    .foregroundStyle(AppTheme.textPrimary)
+                                                Spacer()
+                                                if soundName == sound {
+                                                    Image(systemName: "checkmark.circle.fill")
+                                                        .foregroundStyle(AppTheme.gold)
+                                                }
                                             }
+                                            .contentShape(Rectangle())
                                         }
-                                        .padding(.horizontal, AppTheme.spacingLg)
-                                        .padding(.vertical, AppTheme.spacingMd)
+                                        .buttonStyle(.plain)
+
+                                        Button {
+                                            togglePreview(sound)
+                                        } label: {
+                                            Image(systemName: previewingSound == sound ? "stop.circle.fill" : "play.circle")
+                                                .font(.title2)
+                                                .foregroundStyle(previewingSound == sound ? AppTheme.gold : AppTheme.textSecondary)
+                                        }
+                                        .buttonStyle(.plain)
                                     }
+                                    .padding(.horizontal, AppTheme.spacingLg)
+                                    .padding(.vertical, AppTheme.spacingMd)
 
                                     if sound != AppConstants.AlarmSound.allCases.last {
                                         Divider().background(AppTheme.strokeLight)
@@ -122,7 +135,7 @@ struct AlarmDetailView: View {
             }
             .navigationTitle(alarm == nil ? "New Alarm" : "Edit Alarm")
             .navigationBarTitleDisplayMode(.inline)
-            .onDisappear { AudioService.shared.stop() }
+            .onDisappear { stopPreview() }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
@@ -182,5 +195,32 @@ struct AlarmDetailView: View {
             AlarmKitScheduler.shared.cancelAlarm(targetAlarm)
         }
         dismiss()
+    }
+
+    /// Play the chosen alarm sound through the real ringing audio path so
+    /// users can hear it the same way it'll sound at 6 AM. Capped at 5s so
+    /// a forgotten preview doesn't run forever.
+    private func togglePreview(_ sound: AppConstants.AlarmSound) {
+        HapticService.selection()
+        if previewingSound == sound {
+            stopPreview()
+            return
+        }
+        stopPreview()
+        previewingSound = sound
+        previewStopTask = Task { @MainActor in
+            await AlarmAudioPlayer.shared.startAlarmLoop(soundName: sound.rawValue)
+            try? await Task.sleep(for: .seconds(5))
+            if Task.isCancelled { return }
+            await AlarmAudioPlayer.shared.stopAlarmLoop()
+            if previewingSound == sound { previewingSound = nil }
+        }
+    }
+
+    private func stopPreview() {
+        previewStopTask?.cancel()
+        previewStopTask = nil
+        previewingSound = nil
+        Task { @MainActor in await AlarmAudioPlayer.shared.stopAlarmLoop() }
     }
 }

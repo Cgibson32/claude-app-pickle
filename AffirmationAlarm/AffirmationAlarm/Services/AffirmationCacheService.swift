@@ -52,7 +52,8 @@ class AffirmationCacheService {
                 recentIntentions: recent.intentions,
                 recentReflections: recent.reflections,
                 count: needed,
-                exclude: exclude
+                exclude: exclude,
+                maxTokens: profile.budget.claudeMaxTokens
             )
         } catch {
             AppLogger.claude.error("generateAffirmations failed, using bundled pool: \(error.localizedDescription, privacy: .public)")

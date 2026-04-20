@@ -48,7 +48,8 @@ actor ClaudeAPIService {
         recentIntentions: [String],
         recentReflections: [RecentReflection],
         count: Int,
-        exclude: [String] = []
+        exclude: [String] = [],
+        maxTokens: Int = AppConstants.maxTokens
     ) async throws -> GeneratedContent {
         guard let apiKey = APIKeyConfiguration.getAPIKey(), !apiKey.isEmpty else {
             throw APIError.noAPIKey
@@ -70,7 +71,7 @@ actor ClaudeAPIService {
 
         let payload = MessagesRequest(
             model: AppConstants.apiModel,
-            maxTokens: AppConstants.maxTokens,
+            maxTokens: maxTokens,
             system: Self.systemPrompt,
             messages: [.init(role: "user", content: userMessage)]
         )

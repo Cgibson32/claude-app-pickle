@@ -708,6 +708,20 @@ final class AlarmKitScheduler {
         let (stream, continuation) = AsyncStream<RingingAction>.makeStream()
         ringingContinuation = continuation
 
+        // Pre-snooze chime at t+30s: a soft double-beep overlaid on the
+        // alarm loop that gives a second, distinct cue before escalation.
+        // Runs as a sibling task so it doesn't block or delay the 5-minute
+        // timeout clock.
+        let chimeTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(30))
+            if Task.isCancelled { return }
+            await MainActor.run {
+                guard let self, self.ringingContinuation != nil else { return }
+                AlarmTelemetry.eventSync(.preSnoozeChime, alarmID: self.ringingAlarmID)
+            }
+            await AlarmAudioPlayer.shared.playChime()
+        }
+
         let timeoutTask = Task { [weak self] in
             for minute in 1...5 {
                 try? await Task.sleep(for: .seconds(60))
@@ -746,6 +760,7 @@ final class AlarmKitScheduler {
             break
         }
         timeoutTask.cancel()
+        chimeTask.cancel()
         ringingContinuation = nil
         return result
     }

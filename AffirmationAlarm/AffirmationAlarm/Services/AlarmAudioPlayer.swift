@@ -242,6 +242,37 @@ actor AlarmAudioPlayer {
         DiagnosticsLog.shared.log("player", "alarm loop stopped")
     }
 
+    /// Play a short double-beep chime overlaid on the active alarm loop.
+    /// Used as a "pre-snooze nudge" 30 seconds into the ring so a user who
+    /// didn't quite wake up at the first tone gets a second, distinct
+    /// cue before the 5-minute escalation/fallback kicks in.
+    ///
+    /// Uses a transient `AVAudioPlayer` on the shared `.mixWithOthers`
+    /// session so it plays on top of (not instead of) the loop. Silently
+    /// no-ops if the bundled `alarm_chime.caf` can't be loaded — the chime
+    /// is a nicety, not load-bearing for wake-up.
+    func playChime() async {
+        await playChimeOnce()
+        try? await Task.sleep(for: .milliseconds(200))
+        await playChimeOnce()
+    }
+
+    private func playChimeOnce() async {
+        guard let url = Bundle.main.url(forResource: "alarm_chime", withExtension: "caf"),
+              let player = try? AVAudioPlayer(contentsOf: url) else {
+            DiagnosticsLog.shared.log("player", "chime skipped — alarm_chime.caf missing")
+            return
+        }
+        // Softer than the loop (1.0) so it lands as a gentle accent,
+        // not a jarring second alarm.
+        player.volume = 0.7
+        player.prepareToPlay()
+        guard player.play() else { return }
+        try? await Task.sleep(for: .milliseconds(450))
+        player.stop()
+        withExtendedLifetime(player) {}
+    }
+
     // MARK: - Private
 
     private func filesFor(alarmID: UUID) -> (morning: URL?, closing: URL?) {

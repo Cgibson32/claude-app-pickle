@@ -45,6 +45,8 @@ enum AlarmTelemetry {
         case volumeReboosted = "volume-reboosted"
         case missedAlarmDetected = "missed-alarm-detected"
         case lastFireRecorded = "last-fire-recorded"
+        case preSnoozeChime = "pre-snooze-chime"
+        case closingTTSSkipped = "closing-tts-skipped"
     }
 
     /// Record an event. Safe to call from any isolation context — emission
