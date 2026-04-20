@@ -2,6 +2,11 @@ import SwiftUI
 
 struct NextAlarmCard: View {
     let alarms: [Alarm]
+    /// When `true`, the card replaces its relative-time badge with a small
+    /// spinner + "Preparing…" label so the first-morning render window
+    /// (~5–10s after onboarding completes) doesn't need a separate
+    /// full-width banner cluttering the home screen.
+    var isPreparing: Bool = false
 
     private var nextAlarm: Alarm? {
         alarms.filter(\.isEnabled)
@@ -32,7 +37,9 @@ struct NextAlarmCard: View {
 
                     Spacer()
 
-                    if let date = alarm.nextFireDate {
+                    if isPreparing {
+                        preparingBadge
+                    } else if let date = alarm.nextFireDate {
                         Text(AppDateFormatters.relativeAlarmTime(from: date))
                             .font(AppTheme.caption)
                             .foregroundStyle(AppTheme.gold)
@@ -55,5 +62,22 @@ struct NextAlarmCard: View {
         .padding(AppTheme.spacingXl)
         .background(AppTheme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
+        .animation(AppTheme.gentle, value: isPreparing)
+    }
+
+    private var preparingBadge: some View {
+        HStack(spacing: 6) {
+            ProgressView()
+                .controlSize(.mini)
+                .tint(AppTheme.gold)
+            Text("Preparing…")
+                .font(AppTheme.caption)
+                .foregroundStyle(AppTheme.gold)
+        }
+        .padding(.horizontal, AppTheme.spacingMd)
+        .padding(.vertical, 4)
+        .background(AppTheme.gold.opacity(0.15))
+        .clipShape(Capsule())
+        .accessibilityLabel("Preparing your first morning ritual")
     }
 }

@@ -93,7 +93,7 @@ struct RootView: View {
     var body: some View {
         Group {
             if let profile = profiles.first, profile.hasCompletedOnboarding {
-                HomeView()
+                MainTabView()
             } else {
                 OnboardingContainerView()
             }
