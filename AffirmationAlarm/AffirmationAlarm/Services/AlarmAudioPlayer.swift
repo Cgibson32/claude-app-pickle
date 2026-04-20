@@ -49,6 +49,15 @@ actor AlarmAudioPlayer {
 
     private init() {}
 
+    // MARK: - Tunables
+
+    /// dB boost applied to the spoken affirmations and closing — NOT the
+    /// birds intro. `AVAudioUnitEQ.globalGain` accepts -96…+24; +3 is a
+    /// modest bump that adds perceptible loudness headroom above the
+    /// device's media volume ceiling without risking clipping on the
+    /// TTS's louder syllables.
+    static let affirmationGainDB: Float = 3.0
+
     // MARK: - Types
 
     enum PlaybackOutcome: Sendable, CustomStringConvertible {
@@ -281,41 +290,104 @@ actor AlarmAudioPlayer {
         DiagnosticsLog.shared.log("player", "intro done")
     }
 
-    /// Play a single audio file and await its completion. Uses
-    /// `withExtendedLifetime` to keep the `AVAudioPlayer` alive across
-    /// the `sleep` — without it ARC can release the player mid-playback
-    /// while we're suspended on the sleep.
+    /// Play a single affirmation file boosted by `affirmationGainDB`.
+    ///
+    /// `AVAudioPlayer.volume` is a 0…1 multiplier and cannot exceed the
+    /// device's current media volume — setting it to 1.0 is already the
+    /// ceiling for that API. To add real headroom above the system
+    /// volume we route playback through `AVAudioEngine` with an
+    /// `AVAudioUnitEQ.globalGain` stage, which accepts dB values from
+    /// -96 to +24. +3 dB doubles perceived loudness modestly without
+    /// pushing so hard that a quiet passage of the TTS (inhales,
+    /// sibilants) clips the speaker.
+    ///
+    /// On AVAudioEngine failure we fall back to the plain
+    /// `AVAudioPlayer` path so a broken engine configuration can never
+    /// silently drop the morning affirmations.
     private func playFile(at url: URL) async {
+        let file: AVAudioFile
+        do {
+            file = try AVAudioFile(forReading: url)
+        } catch {
+            AppLogger.alarm.error("AlarmAudioPlayer: AVAudioFile init failed for \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            DiagnosticsLog.shared.log("player", "file init failed \(url.lastPathComponent): \(error.localizedDescription)")
+            await playFileFallback(at: url)
+            return
+        }
+
+        let engine = AVAudioEngine()
+        let playerNode = AVAudioPlayerNode()
+        let eq = AVAudioUnitEQ(numberOfBands: 1)
+        eq.globalGain = Self.affirmationGainDB
+
+        engine.attach(playerNode)
+        engine.attach(eq)
+
+        let format = file.processingFormat
+        engine.connect(playerNode, to: eq, format: format)
+        engine.connect(eq, to: engine.mainMixerNode, format: format)
+
+        do {
+            try engine.start()
+        } catch {
+            AppLogger.alarm.error("AlarmAudioPlayer: engine start failed: \(error.localizedDescription, privacy: .public)")
+            DiagnosticsLog.shared.log("player", "engine start failed \(url.lastPathComponent): \(error.localizedDescription); using fallback")
+            await playFileFallback(at: url)
+            return
+        }
+
+        playerNode.scheduleFile(file, at: nil, completionHandler: nil)
+        playerNode.play()
+
+        let duration = Double(file.length) / file.processingFormat.sampleRate
+        DiagnosticsLog.shared.log(
+            "player",
+            "playing \(url.lastPathComponent) duration=\(String(format: "%.2f", duration))s gain=+\(Self.affirmationGainDB)dB"
+        )
+
+        try? await Task.sleep(for: .seconds(duration + 0.3))
+
+        let finished = !playerNode.isPlaying
+        playerNode.stop()
+        engine.stop()
+        withExtendedLifetime((engine, playerNode, eq, file)) {}
+
+        DiagnosticsLog.shared.log(
+            "player",
+            "done \(url.lastPathComponent) finished=\(finished)"
+        )
+    }
+
+    /// Plain-`AVAudioPlayer` fallback path used only when the boosted
+    /// AVAudioEngine route fails to initialize. No dB gain — the user
+    /// still hears the affirmation, just at the system-ceiling volume.
+    private func playFileFallback(at url: URL) async {
         let player: AVAudioPlayer
         do {
             player = try AVAudioPlayer(contentsOf: url)
         } catch {
-            AppLogger.alarm.error("AlarmAudioPlayer: init failed for \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
-            DiagnosticsLog.shared.log("player", "init failed \(url.lastPathComponent): \(error.localizedDescription)")
+            AppLogger.alarm.error("AlarmAudioPlayer: fallback init failed for \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            DiagnosticsLog.shared.log("player", "fallback init failed \(url.lastPathComponent): \(error.localizedDescription)")
             return
         }
 
         player.volume = 1.0
         player.prepareToPlay()
 
-        DiagnosticsLog.shared.log("player", "playing \(url.lastPathComponent) duration=\(String(format: "%.2f", player.duration))s")
+        DiagnosticsLog.shared.log("player", "fallback playing \(url.lastPathComponent) duration=\(String(format: "%.2f", player.duration))s")
 
         guard player.play() else {
-            AppLogger.alarm.error("AlarmAudioPlayer: play() returned false for \(url.lastPathComponent, privacy: .public)")
-            DiagnosticsLog.shared.log("player", "play() returned false for \(url.lastPathComponent)")
+            AppLogger.alarm.error("AlarmAudioPlayer: fallback play() returned false for \(url.lastPathComponent, privacy: .public)")
+            DiagnosticsLog.shared.log("player", "fallback play() returned false for \(url.lastPathComponent)")
             return
         }
 
         try? await Task.sleep(for: .seconds(player.duration + 0.3))
-        // If the session was preempted mid-playback, `isPlaying` will
-        // already be false and `currentTime` won't have reached
-        // `duration`. Logging the gap lets Diagnostics show exactly
-        // how much audio the user actually heard.
         let finished = !player.isPlaying
         let played = player.currentTime
         DiagnosticsLog.shared.log(
             "player",
-            "done \(url.lastPathComponent) played=\(String(format: "%.2f", played))s finished=\(finished)"
+            "fallback done \(url.lastPathComponent) played=\(String(format: "%.2f", played))s finished=\(finished)"
         )
         withExtendedLifetime(player) {}
     }
