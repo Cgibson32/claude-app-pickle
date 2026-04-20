@@ -122,6 +122,7 @@ final class AlarmKitScheduler {
 
     /// Called by the ringing UI's Stop button. Resumes `handleFire`.
     func userPressedStop() {
+        AlarmTelemetry.eventSync(.stopPressed, alarmID: ringingAlarmID)
         ringingContinuation?.resume(returning: .stop)
         ringingContinuation = nil
         ringingTimeoutTask?.cancel()
@@ -130,6 +131,7 @@ final class AlarmKitScheduler {
 
     /// Called by the ringing UI's Snooze button. Resumes `handleFire`.
     func userPressedSnooze() {
+        AlarmTelemetry.eventSync(.snoozePressed, alarmID: ringingAlarmID)
         ringingContinuation?.resume(returning: .snooze)
         ringingContinuation = nil
         ringingTimeoutTask?.cancel()
@@ -185,7 +187,12 @@ final class AlarmKitScheduler {
     struct DiagnosticsSnapshot: Sendable {
         let permissionDenied: Bool
         let isPlayingMorningAudio: Bool
+        let isSleepModeActive: Bool
+        let ringingAlarmID: UUID?
+        let ringingAlarmLabel: String
         let activeFireHandlingCount: Int
+        let pendingFollowUpRenderCount: Int
+        let trackedSoundNameCount: Int
         let lastUpdateReceived: Date?
         let lastAlertingAlarm: AlertingEvent?
         let lastHandleFireOutcome: FireOutcome?
@@ -194,7 +201,12 @@ final class AlarmKitScheduler {
         static let empty = DiagnosticsSnapshot(
             permissionDenied: false,
             isPlayingMorningAudio: false,
+            isSleepModeActive: false,
+            ringingAlarmID: nil,
+            ringingAlarmLabel: "",
             activeFireHandlingCount: 0,
+            pendingFollowUpRenderCount: 0,
+            trackedSoundNameCount: 0,
             lastUpdateReceived: nil,
             lastAlertingAlarm: nil,
             lastHandleFireOutcome: nil
@@ -205,7 +217,12 @@ final class AlarmKitScheduler {
         DiagnosticsSnapshot(
             permissionDenied: permissionDenied,
             isPlayingMorningAudio: isPlayingMorningAudio,
+            isSleepModeActive: isSleepModeActive,
+            ringingAlarmID: ringingAlarmID,
+            ringingAlarmLabel: ringingAlarmLabel,
             activeFireHandlingCount: activeFireHandling.count,
+            pendingFollowUpRenderCount: pendingFollowUpRenders.count,
+            trackedSoundNameCount: alarmSoundNames.count,
             lastUpdateReceived: lastUpdateReceived,
             lastAlertingAlarm: lastAlertingAlarm,
             lastHandleFireOutcome: lastHandleFireOutcome
@@ -311,9 +328,11 @@ final class AlarmKitScheduler {
             alarmSoundNames[alarm.id] = alarm.soundName
             AppLogger.alarm.info("scheduled alarm \(alarm.id, privacy: .public)")
             DiagnosticsLog.shared.log("scheduler", "scheduled \(alarm.id.uuidString.prefix(8)) sound=\(alarm.soundName)")
+            AlarmTelemetry.eventSync(.scheduled, alarmID: alarm.id, extra: "sound=\(alarm.soundName)")
         } catch {
             AppLogger.alarm.error("schedule failed for \(alarm.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
             DiagnosticsLog.shared.log("scheduler", "schedule failed: \(error.localizedDescription)")
+            AlarmTelemetry.eventSync(.schedulingFailed, alarmID: alarm.id, extra: "err=\(error.localizedDescription)")
         }
     }
 
@@ -405,8 +424,14 @@ final class AlarmKitScheduler {
                 _ = try await self.manager.schedule(id: followUpID, configuration: configuration)
                 AppLogger.alarm.info("scheduled snooze follow-up \(followUpID, privacy: .public) sound=\(soundName, privacy: .public)")
                 DiagnosticsLog.shared.log("scheduler", "snooze follow-up \(followUpID.uuidString.prefix(8)) in \(AppConstants.snoozeDurationMinutes)min")
+                AlarmTelemetry.eventSync(
+                    .snoozeFollowUpScheduled,
+                    alarmID: followUpID,
+                    extra: "from=\(originalAlarmID.uuidString.prefix(8)) in=\(AppConstants.snoozeDurationMinutes)min"
+                )
             } catch {
                 AppLogger.alarm.error("snooze follow-up schedule failed: \(error.localizedDescription, privacy: .public)")
+                AlarmTelemetry.eventSync(.snoozeFollowUpFailed, alarmID: followUpID, extra: "err=\(error.localizedDescription)")
             }
         }
 
@@ -414,16 +439,14 @@ final class AlarmKitScheduler {
         // ModelContainer so this works even from the background intent
         // path where RootView's reconcile may not run in time.
         Task { @MainActor in
+            AlarmTelemetry.eventSync(.snoozeRenderStart, alarmID: followUpID)
+            let renderStart = Date()
             do {
-                let schema = Schema([
-                    UserProfile.self, Alarm.self, Affirmation.self,
-                    DailyClosingMessage.self, GratitudeEntry.self,
-                    DailyIntention.self, EveningReflection.self
-                ])
-                let container = try ModelContainer(for: schema)
+                let container = try ModelContainer(for: AffirmationAlarmApp.appSchema)
                 let context = ModelContext(container)
                 guard let profile = try context.fetch(FetchDescriptor<UserProfile>()).first else {
                     DiagnosticsLog.shared.log("scheduler", "snooze render: no profile found")
+                    AlarmTelemetry.eventSync(.snoozeRenderFailed, alarmID: followUpID, extra: "no-profile")
                     return
                 }
                 await MorningAudioRenderer.shared.renderForFollowUp(
@@ -432,8 +455,14 @@ final class AlarmKitScheduler {
                     modelContext: context
                 )
                 self.pendingFollowUpRenders.remove(followUpID)
+                AlarmTelemetry.eventSync(
+                    .snoozeRenderComplete,
+                    alarmID: followUpID,
+                    elapsedMs: Int(Date().timeIntervalSince(renderStart) * 1000)
+                )
             } catch {
                 DiagnosticsLog.shared.log("scheduler", "snooze render failed: \(error.localizedDescription); will retry on reconcile")
+                AlarmTelemetry.eventSync(.snoozeRenderFailed, alarmID: followUpID, extra: "err=\(error.localizedDescription)")
             }
         }
     }
@@ -472,8 +501,10 @@ final class AlarmKitScheduler {
     /// app can re-schedule repeating alarms.
     private func handleFire(alarmID: UUID) async {
         defer { activeFireHandling.remove(alarmID) }
+        let fireStart = Date()
 
         DiagnosticsLog.shared.log("observer", "handleFire start \(alarmID.uuidString.prefix(8))")
+        AlarmTelemetry.eventSync(.fire, alarmID: alarmID)
 
         let soundsDir = MorningAudioRenderer.soundsDirectory()
         let morningURL = soundsDir.appendingPathComponent("morning-\(alarmID.uuidString).mp3")
@@ -481,12 +512,14 @@ final class AlarmKitScheduler {
             AppLogger.alarm.info("observer: no morning render for \(alarmID.uuidString.prefix(8), privacy: .public); letting system sound continue")
             lastHandleFireOutcome = FireOutcome(outcome: "noMorningRender", date: Date())
             DiagnosticsLog.shared.log("observer", "no morning render — leaving system sound")
+            AlarmTelemetry.eventSync(.fireNoRender, alarmID: alarmID)
             return
         }
 
         guard UIApplication.shared.applicationState == .active else {
             DiagnosticsLog.shared.log("observer", "app backgrounded — letting system alert handle \(alarmID.uuidString.prefix(8))")
             lastHandleFireOutcome = FireOutcome(outcome: "backgrounded", date: Date())
+            AlarmTelemetry.eventSync(.fireBackgrounded, alarmID: alarmID)
             return
         }
 
@@ -513,6 +546,12 @@ final class AlarmKitScheduler {
         ringingAlarmID = alarmID
         ringingAlarmLabel = label
         DiagnosticsLog.shared.log("observer", "ringing UI shown for \(alarmID.uuidString.prefix(8))")
+        let ringingShownAt = Date()
+        AlarmTelemetry.eventSync(
+            .ringingShown,
+            alarmID: alarmID,
+            elapsedMs: Int(ringingShownAt.timeIntervalSince(fireStart) * 1000)
+        )
 
         // Suspend until the user presses Stop or Snooze (or timeout).
         let action: RingingAction = await withCheckedContinuation { continuation in
@@ -522,8 +561,10 @@ final class AlarmKitScheduler {
                 try? await Task.sleep(for: .minutes(5))
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
-                    self?.ringingContinuation?.resume(returning: .stop)
-                    self?.ringingContinuation = nil
+                    guard let self, self.ringingContinuation != nil else { return }
+                    AlarmTelemetry.eventSync(.ringingTimeout, alarmID: self.ringingAlarmID)
+                    self.ringingContinuation?.resume(returning: .stop)
+                    self.ringingContinuation = nil
                 }
             }
         }
@@ -531,25 +572,45 @@ final class AlarmKitScheduler {
         await AlarmAudioPlayer.shared.stopAlarmLoop()
         ringingAlarmID = nil
         DiagnosticsLog.shared.log("observer", "ringing dismissed action=\(action)")
+        AlarmTelemetry.eventSync(
+            .ringingDismissed,
+            alarmID: alarmID,
+            elapsedMs: Int(Date().timeIntervalSince(ringingShownAt) * 1000),
+            extra: "action=\(action)"
+        )
 
         switch action {
         case .stop:
             isPlayingMorningAudio = true
+            AlarmTelemetry.eventSync(.playStart, alarmID: alarmID)
+            let playStart = Date()
             let outcome = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
             isPlayingMorningAudio = false
 
             AppLogger.alarm.info("observer: \(alarmID.uuidString.prefix(8), privacy: .public) outcome=\(String(describing: outcome), privacy: .public)")
             lastHandleFireOutcome = FireOutcome(outcome: String(describing: outcome), date: Date())
             DiagnosticsLog.shared.log("observer", "handleFire outcome=\(outcome)")
+            AlarmTelemetry.eventSync(
+                .playComplete,
+                alarmID: alarmID,
+                elapsedMs: Int(Date().timeIntervalSince(playStart) * 1000),
+                extra: "outcome=\(outcome)"
+            )
 
             if case .played = outcome {
                 MorningAudioRenderer.shared.invalidateAll()
+                MissedAlarmDetector.recordSuccess(alarmID: alarmID)
+                AlarmTelemetry.eventSync(.lastFireRecorded, alarmID: alarmID)
             }
 
         case .snooze:
             scheduleSnoozeFollowUp(originalAlarmID: alarmID)
             lastHandleFireOutcome = FireOutcome(outcome: "snoozed", date: Date())
             DiagnosticsLog.shared.log("observer", "snoozed \(alarmID.uuidString.prefix(8))")
+            // Treat a successful snooze as a "heard it" signal — the user
+            // interacted, so the missed-alarm detector should not flag this
+            // fire. The follow-up will have its own record-success path.
+            MissedAlarmDetector.recordSuccess(alarmID: alarmID)
         }
 
         BackgroundKeepAlive.shared.start()

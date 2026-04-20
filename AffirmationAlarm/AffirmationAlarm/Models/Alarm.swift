@@ -75,4 +75,33 @@ final class Alarm {
         }
         return nil
     }
+
+    /// Most recent past occurrence of this alarm within the last `days`
+    /// days. Used by `MissedAlarmDetector` to spot fires that happened
+    /// while the app was dead (no success record written).
+    ///
+    /// Mirrors `nextFireDate` but scans backwards. Returns `nil` if no
+    /// matching weekday occurrence exists within the window.
+    func mostRecentPastFire(withinDays days: Int = 2) -> Date? {
+        let calendar = Calendar.current
+        let now = Date()
+        let repeatSet = Set(repeatDays)
+
+        for offset in 0...days {
+            guard let dayBase = calendar.date(byAdding: .day, value: -offset, to: calendar.startOfDay(for: now)) else { continue }
+            var comps = calendar.dateComponents([.year, .month, .day], from: dayBase)
+            comps.hour = hour
+            comps.minute = minute
+            guard let candidate = calendar.date(from: comps), candidate <= now else { continue }
+
+            if repeatSet.isEmpty {
+                return candidate
+            }
+            let weekday = calendar.component(.weekday, from: candidate)
+            if repeatSet.contains(weekday) {
+                return candidate
+            }
+        }
+        return nil
+    }
 }

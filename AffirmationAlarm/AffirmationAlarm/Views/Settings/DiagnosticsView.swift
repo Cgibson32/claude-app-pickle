@@ -29,6 +29,7 @@ struct DiagnosticsView: View {
                 configurationSection
                 keepAliveSection
                 observerSection
+                missedAlarmSection
                 playbackSection
                 perAlarmSection
                 logSection
@@ -87,8 +88,19 @@ struct DiagnosticsView: View {
     private var observerSection: some View {
         card(title: "AlarmKit observer") {
             kvRow("permission denied", schedulerSnapshot.permissionDenied ? "YES" : "no")
+            kvRow("sleep mode active", schedulerSnapshot.isSleepModeActive ? "yes" : "no")
             kvRow("playing morning audio", schedulerSnapshot.isPlayingMorningAudio ? "yes" : "no")
+            if let ringing = schedulerSnapshot.ringingAlarmID {
+                let labelSuffix = schedulerSnapshot.ringingAlarmLabel.isEmpty
+                    ? ""
+                    : " — \(schedulerSnapshot.ringingAlarmLabel)"
+                kvRow("ringing alarm", "\(ringing.uuidString.prefix(8))\(labelSuffix)")
+            } else {
+                kvRow("ringing alarm", "none")
+            }
             kvRow("active fire handling", String(schedulerSnapshot.activeFireHandlingCount))
+            kvRow("pending follow-up renders", String(schedulerSnapshot.pendingFollowUpRenderCount))
+            kvRow("tracked sound names", String(schedulerSnapshot.trackedSoundNameCount))
             if let last = schedulerSnapshot.lastUpdateReceived {
                 kvRow("last update received", formatted(last))
             } else {
@@ -105,6 +117,23 @@ struct DiagnosticsView: View {
                 kvRow("last handleFire", "never this session")
             }
             kvRow("Stop intent opens app?", "yes (openAppWhenRun=true)")
+        }
+    }
+
+    private var missedAlarmSection: some View {
+        card(title: "Last successful fires") {
+            let successes = MissedAlarmDetector.allLastSuccesses()
+            if successes.isEmpty {
+                Text("No alarms have recorded a successful fire yet.")
+                    .font(AppTheme.caption)
+                    .foregroundStyle(AppTheme.textSecondary)
+            } else {
+                ForEach(Array(successes.keys.sorted { $0.uuidString < $1.uuidString }), id: \.self) { id in
+                    if let date = successes[id] {
+                        kvRow(String(id.uuidString.prefix(8)), formatted(date))
+                    }
+                }
+            }
         }
     }
 
@@ -283,6 +312,7 @@ struct DiagnosticsView: View {
         case "intent": return .pink
         case "render": return .yellow
         case "scheduler": return .purple
+        case "telemetry": return .mint
         default: return AppTheme.textSecondary
         }
     }

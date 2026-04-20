@@ -6,23 +6,28 @@ struct AffirmationAlarmApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     let modelContainer: ModelContainer
 
+    /// Single source of truth for the SwiftData schema. Shared by the main
+    /// ModelContainer and by any transient containers (e.g. the snooze
+    /// follow-up eager-render path in `AlarmKitScheduler`) so schema drift
+    /// between the two can't cause migration mismatches.
+    static let appSchema = Schema([
+        UserProfile.self,
+        Alarm.self,
+        Affirmation.self,
+        DailyClosingMessage.self,
+        GratitudeEntry.self,
+        DailyIntention.self,
+        EveningReflection.self
+    ])
+
     init() {
-        let schema = Schema([
-            UserProfile.self,
-            Alarm.self,
-            Affirmation.self,
-            DailyClosingMessage.self,
-            GratitudeEntry.self,
-            DailyIntention.self,
-            EveningReflection.self
-        ])
         do {
             let config = ModelConfiguration(isStoredInMemoryOnly: false)
-            modelContainer = try ModelContainer(for: schema, configurations: [config])
+            modelContainer = try ModelContainer(for: Self.appSchema, configurations: [config])
         } catch {
             do {
                 let fallback = ModelConfiguration(isStoredInMemoryOnly: true)
-                modelContainer = try ModelContainer(for: schema, configurations: [fallback])
+                modelContainer = try ModelContainer(for: Self.appSchema, configurations: [fallback])
             } catch {
                 fatalError("Failed to create ModelContainer: \(error)")
             }
@@ -57,6 +62,8 @@ struct RootView: View {
     @Query private var alarms: [Alarm]
     @State private var showEveningReflection = false
     @State private var scheduler = AlarmKitScheduler.shared
+    @State private var missedAlarms: [Alarm] = []
+    @State private var missedBannerDismissed = false
 
     var body: some View {
         Group {
@@ -66,9 +73,23 @@ struct RootView: View {
                 OnboardingContainerView()
             }
         }
+        .overlay(alignment: .top) {
+            if !missedAlarms.isEmpty, !missedBannerDismissed {
+                MissedAlarmBanner(
+                    count: missedAlarms.count,
+                    onDismiss: { missedBannerDismissed = true }
+                )
+                .padding(.horizontal, AppTheme.spacingLg)
+                .padding(.top, AppTheme.spacingSm)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: missedAlarms.count)
+        .animation(.easeInOut(duration: 0.2), value: missedBannerDismissed)
         .onAppear {
             ensureProfileExists()
             reconcileAlarmsWithSystem()
+            checkForMissedAlarms()
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
@@ -79,6 +100,7 @@ struct RootView: View {
                 // the window where an overnight interruption left us dead
                 // and the user tapped to re-open.
                 BackgroundKeepAlive.shared.start()
+                checkForMissedAlarms()
             }
         }
         .sheet(isPresented: $showEveningReflection) {
@@ -89,12 +111,37 @@ struct RootView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .didCompleteMorningPlayback)) { _ in
             reconcileAlarmsWithSystem()
+            // A fresh success wipes any stale "missed alarm" banner.
+            missedAlarms = []
         }
         .fullScreenCover(isPresented: Binding(
             get: { scheduler.ringingAlarmID != nil && !scheduler.isSleepModeActive },
             set: { _ in }
         )) {
             AlarmRingingView()
+        }
+    }
+
+    /// Scan enabled alarms and surface ones whose most recent expected
+    /// fire wasn't recorded as successful. One-shot banner per session —
+    /// dismissal sticks until the user relaunches the app.
+    private func checkForMissedAlarms() {
+        guard !missedBannerDismissed else { return }
+        let allAlarms = (try? modelContext.fetch(FetchDescriptor<Alarm>())) ?? []
+        let missed = MissedAlarmDetector.detect(alarms: allAlarms)
+        if missed.isEmpty {
+            missedAlarms = []
+            return
+        }
+        if missed.map(\.id) != missedAlarms.map(\.id) {
+            missedAlarms = missed
+            for alarm in missed {
+                AlarmTelemetry.event(
+                    .missedAlarmDetected,
+                    alarmID: alarm.id,
+                    extra: "time=\(alarm.timeString)"
+                )
+            }
         }
     }
 
@@ -165,5 +212,53 @@ struct RootView: View {
                 AlarmKitScheduler.shared.scheduleAlarm(alarm)
             }
         }
+    }
+}
+
+/// One-shot banner shown at the top of `RootView` when `MissedAlarmDetector`
+/// thinks an enabled alarm's recent fire wasn't completed successfully.
+/// The user dismisses it with the X; the banner doesn't come back until
+/// another detection cycle on the next launch.
+private struct MissedAlarmBanner: View {
+    let count: Int
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: AppTheme.spacingMd) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(AppTheme.sunsetOrange)
+                .font(.system(size: 18, weight: .semibold))
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(count == 1 ? "An alarm may have missed" : "\(count) alarms may have missed")
+                    .font(AppTheme.headline)
+                    .foregroundStyle(AppTheme.textPrimary)
+                Text("Open Settings → Diagnostics to review the event log.")
+                    .font(AppTheme.caption)
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(AppTheme.textSecondary)
+                    .padding(8)
+                    .background(Circle().fill(Color.white.opacity(0.08)))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(AppTheme.spacingMd)
+        .background(
+            RoundedRectangle(cornerRadius: AppTheme.radiusMd)
+                .fill(AppTheme.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppTheme.radiusMd)
+                        .stroke(AppTheme.sunsetOrange.opacity(0.5), lineWidth: 1)
+                )
+        )
     }
 }
