@@ -67,31 +67,32 @@ final class MorningAudioRenderer {
     func refresh(
         for alarm: Alarm,
         profile: UserProfile,
-        modelContext: ModelContext
-    ) async -> String? {
+        modelContext: ModelContext,
+        exclude: [String] = []
+    ) async -> (filename: String?, usedTexts: [String]) {
         let paths = RenderPaths(alarmID: alarm.id)
 
-        if isFresh(paths.morning) { return paths.morning.lastPathComponent }
+        if isFresh(paths.morning) { return (paths.morning.lastPathComponent, []) }
 
-        guard ensureSoundsDirectoryExists() else { return nil }
+        guard ensureSoundsDirectoryExists() else { return (nil, []) }
 
         let content: RenderContent
         do {
-            content = try await buildContent(for: alarm, profile: profile, modelContext: modelContext)
+            content = try await buildContent(for: alarm, profile: profile, modelContext: modelContext, exclude: exclude)
         } catch {
             AppLogger.audio.error("content build failed: \(error.localizedDescription, privacy: .public)")
-            return nil
+            return (nil, [])
         }
 
         // The morning MP3 is required — if it fails there's nothing to
         // play. The closing MP3 is best-effort: a transient TTS failure
         // on it shouldn't block the whole render.
         guard await renderMainMP3(to: paths.morning, script: content.mainScript, voice: content.voice) else {
-            return nil
+            return (nil, [])
         }
         await renderSupportingMP3(to: paths.closing, script: content.closingScript, voice: content.voice, label: "closing")
 
-        return paths.morning.lastPathComponent
+        return (paths.morning.lastPathComponent, content.affirmationTexts)
     }
 
     /// Render every enabled alarm. Called on app launch so tomorrow's
@@ -101,8 +102,15 @@ final class MorningAudioRenderer {
         profile: UserProfile,
         modelContext: ModelContext
     ) async {
+        var exclude: [String] = []
         for alarm in alarms where alarm.isEnabled {
-            _ = await refresh(for: alarm, profile: profile, modelContext: modelContext)
+            let (_, usedTexts) = await refresh(
+                for: alarm,
+                profile: profile,
+                modelContext: modelContext,
+                exclude: exclude
+            )
+            exclude.append(contentsOf: usedTexts)
         }
     }
 
@@ -155,17 +163,20 @@ final class MorningAudioRenderer {
         let mainScript: String
         let closingScript: String
         let voice: OpenAITTSService.Voice
+        let affirmationTexts: [String]
     }
 
     private func buildContent(
         for alarm: Alarm,
         profile: UserProfile,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        exclude: [String] = []
     ) async throws -> RenderContent {
         let cache = AffirmationCacheService()
         let (affirmations, closing) = try await cache.fetchOrGenerate(
             for: profile,
-            modelContext: modelContext
+            modelContext: modelContext,
+            exclude: exclude
         )
 
         let voice = OpenAITTSService.Voice(rawValue: profile.ttsVoice) ?? .nova
@@ -183,7 +194,8 @@ final class MorningAudioRenderer {
         return RenderContent(
             mainScript: composer.main(),
             closingScript: composer.closing(),
-            voice: voice
+            voice: voice,
+            affirmationTexts: affirmations.map(\.text)
         )
     }
 

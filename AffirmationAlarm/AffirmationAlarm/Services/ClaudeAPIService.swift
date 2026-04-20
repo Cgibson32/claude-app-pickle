@@ -47,7 +47,8 @@ actor ClaudeAPIService {
         recentGratitude: [String],
         recentIntentions: [String],
         recentReflections: [RecentReflection],
-        count: Int
+        count: Int,
+        exclude: [String] = []
     ) async throws -> GeneratedContent {
         guard let apiKey = APIKeyConfiguration.getAPIKey(), !apiKey.isEmpty else {
             throw APIError.noAPIKey
@@ -63,7 +64,8 @@ actor ClaudeAPIService {
             recentGratitude: recentGratitude,
             recentIntentions: recentIntentions,
             recentReflections: recentReflections,
-            count: count
+            count: count,
+            exclude: exclude
         )
 
         let payload = MessagesRequest(
@@ -179,7 +181,8 @@ actor ClaudeAPIService {
         recentGratitude: [String],
         recentIntentions: [String],
         recentReflections: [RecentReflection],
-        count: Int
+        count: Int,
+        exclude: [String]
     ) -> String {
         let trimmedGoals = goals.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -218,12 +221,26 @@ actor ClaudeAPIService {
             supporting.append("Recent evening reflections:\n- " + lines.joined(separator: "\n- "))
         }
 
+        var exclusionBlock = ""
+        if !exclude.isEmpty {
+            let numbered = exclude.enumerated()
+                .map { "\($0.offset + 1). \($0.element)" }
+                .joined(separator: "\n")
+            exclusionBlock = """
+
+            === ALREADY USED (do NOT repeat or closely paraphrase any of these) ===
+            \(numbered)
+            ===
+            """
+        }
+
         return """
         Generate \(count) personalized morning affirmations for this person, following every rule in your instructions.
 
         \(header)
 
         \(supporting.joined(separator: "\n"))
+        \(exclusionBlock)
 
         REMINDER: Before writing, pick 2–4 concrete nouns/verbs from the goals block above. Every single affirmation (and the closing) must reference at least one of them by name. Generic encouragement that could apply to anyone is a failed output.
         """

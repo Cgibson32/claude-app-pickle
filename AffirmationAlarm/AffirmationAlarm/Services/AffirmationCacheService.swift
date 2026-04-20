@@ -19,7 +19,8 @@ class AffirmationCacheService {
 
     func fetchOrGenerate(
         for profile: UserProfile,
-        modelContext: ModelContext
+        modelContext: ModelContext,
+        exclude: [String] = []
     ) async throws -> ([Affirmation], DailyClosingMessage?) {
         let requestedCount = max(1, profile.affirmationCount)
 
@@ -50,7 +51,8 @@ class AffirmationCacheService {
                 recentGratitude: recent.gratitude,
                 recentIntentions: recent.intentions,
                 recentReflections: recent.reflections,
-                count: needed
+                count: needed,
+                exclude: exclude
             )
         } catch {
             AppLogger.claude.error("generateAffirmations failed, using bundled pool: \(error.localizedDescription, privacy: .public)")
