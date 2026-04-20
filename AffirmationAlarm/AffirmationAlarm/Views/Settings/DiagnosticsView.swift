@@ -23,9 +23,14 @@ struct DiagnosticsView: View {
     @State private var playerSummary: AlarmAudioPlayer.PlaybackSummary?
     @State private var logEntries: [DiagnosticsLog.Entry] = []
 
+    /// Recent events is the section users actually want when debugging
+    /// an overnight failure, so it starts open. Everything else starts
+    /// collapsed — expand on demand instead of scrolling past it.
+    @State private var expandedSections: Set<String> = ["Recent events"]
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: AppTheme.spacingLg) {
+            VStack(alignment: .leading, spacing: AppTheme.spacingMd) {
                 configurationSection
                 keepAliveSection
                 observerSection
@@ -41,10 +46,20 @@ struct DiagnosticsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    refresh()
-                } label: {
-                    Image(systemName: "arrow.clockwise")
+                HStack(spacing: AppTheme.spacingSm) {
+                    Button {
+                        toggleAllSections()
+                    } label: {
+                        Image(systemName: allExpanded ? "chevron.up.chevron.down" : "chevron.down.chevron.up")
+                    }
+                    .accessibilityLabel(allExpanded ? "Collapse all sections" : "Expand all sections")
+
+                    Button {
+                        refresh()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .accessibilityLabel("Refresh diagnostics")
                 }
             }
         }
@@ -152,20 +167,18 @@ struct DiagnosticsView: View {
     @ViewBuilder
     private var perAlarmSection: some View {
         let enabled = alarms.filter(\.isEnabled)
-        if !enabled.isEmpty {
-            card(title: "Rendered audio (\(enabled.count) enabled alarm\(enabled.count == 1 ? "" : "s"))") {
+        card(title: "Rendered audio") {
+            if enabled.isEmpty {
+                Text("No enabled alarms.")
+                    .font(AppTheme.caption)
+                    .foregroundStyle(AppTheme.textSecondary)
+            } else {
                 ForEach(enabled, id: \.id) { alarm in
                     alarmBlock(alarm: alarm)
                     if alarm.id != enabled.last?.id {
                         Divider().background(AppTheme.textTertiary.opacity(0.3))
                     }
                 }
-            }
-        } else {
-            card(title: "Rendered audio") {
-                Text("No enabled alarms.")
-                    .font(AppTheme.caption)
-                    .foregroundStyle(AppTheme.textSecondary)
             }
         }
     }
@@ -194,7 +207,7 @@ struct DiagnosticsView: View {
     }
 
     private var logSection: some View {
-        card(title: "Recent events (\(logEntries.count))") {
+        card(title: "Recent events") {
             if logEntries.isEmpty {
                 Text("No events logged yet. Trigger an alarm to see activity.")
                     .font(AppTheme.caption)
@@ -256,16 +269,36 @@ struct DiagnosticsView: View {
 
     // MARK: - Shared card shell
 
+    /// Collapsible diagnostic card. Each section keeps its own expansion
+    /// state via `expandedSections` so a closed section stays closed
+    /// after a refresh, and the user never sees the whole 7-section
+    /// wall of text at once unless they ask for it.
     @ViewBuilder
     private func card<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
+        let binding = Binding(
+            get: { expandedSections.contains(title) },
+            set: { isExpanded in
+                if isExpanded {
+                    expandedSections.insert(title)
+                } else {
+                    expandedSections.remove(title)
+                }
+            }
+        )
+
+        DisclosureGroup(isExpanded: binding) {
+            VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
+                content()
+            }
+            .padding(.top, AppTheme.spacingSm)
+        } label: {
             Text(title)
                 .font(AppTheme.caption.weight(.semibold))
                 .foregroundStyle(AppTheme.textTertiary)
-            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .tint(AppTheme.textSecondary)
         .padding(AppTheme.spacingLg)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .background(AppTheme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
     }
@@ -315,6 +348,29 @@ struct DiagnosticsView: View {
         case "telemetry": return .mint
         default: return AppTheme.textSecondary
         }
+    }
+
+    // MARK: - Expand / collapse
+
+    /// The titles every section is registered under. Duplicated here
+    /// because `DisclosureGroup` has no registry we can introspect —
+    /// keep in sync with the section builders above.
+    private static let sectionTitles: Set<String> = [
+        "Configuration",
+        "Keep-alive",
+        "AlarmKit observer",
+        "Last successful fires",
+        "AlarmAudioPlayer",
+        "Rendered audio",
+        "Recent events"
+    ]
+
+    private var allExpanded: Bool {
+        expandedSections == Self.sectionTitles
+    }
+
+    private func toggleAllSections() {
+        expandedSections = allExpanded ? [] : Self.sectionTitles
     }
 
     // MARK: - Refresh

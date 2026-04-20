@@ -1,6 +1,10 @@
 import SwiftUI
 import SwiftData
 
+/// Settings hub organized into labelled sections so related toggles sit
+/// together. "Personal" merges the old Profile + Alarm Preferences pages
+/// — name, goals, focus areas, affirmation count, and length all answer
+/// "what does my morning sound like?" so one screen saves the user a tap.
 struct SettingsView: View {
     @Query private var profiles: [UserProfile]
     private var profile: UserProfile? { profiles.first }
@@ -10,68 +14,81 @@ struct SettingsView: View {
             GradientBackground(style: .sunrise, withBlobs: false)
 
             ScrollView {
-                VStack(spacing: AppTheme.spacingMd) {
-                    // Profile
-                    NavigationLink {
-                        ProfileEditView()
-                    } label: {
-                        SettingsRow(icon: "person.fill", title: "Profile", color: AppTheme.sunsetOrange)
-                    }
-
-                    // Alarm preferences
-                    NavigationLink {
-                        AlarmPreferencesView()
-                    } label: {
-                        SettingsRow(icon: "alarm.fill", title: "Alarm Preferences", color: AppTheme.gold)
-                    }
-
-                    // Voice settings
-                    NavigationLink {
-                        SpeechSettingsView()
-                    } label: {
-                        SettingsRow(icon: "speaker.wave.2.fill", title: "Voice Settings", color: AppTheme.warmAmber)
-                    }
-
-                    // Evening reflection
-                    NavigationLink {
-                        EveningReflectionSettingsView()
-                    } label: {
-                        SettingsRow(icon: "moon.stars.fill", title: "Evening Reflection", color: AppTheme.deepPlum)
-                    }
-
-                    // Diagnostics — on-device view of alarm pipeline state
-                    NavigationLink {
-                        DiagnosticsView()
-                    } label: {
-                        SettingsRow(icon: "stethoscope", title: "Diagnostics", color: AppTheme.textSecondary)
-                    }
-
-                    // About
-                    VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
-                        Text("About")
-                            .font(AppTheme.caption)
-                            .foregroundStyle(AppTheme.textTertiary)
-                            .padding(.top, AppTheme.spacingLg)
-
-                        HStack {
-                            Text("Affirmation Alarm")
-                                .font(AppTheme.bodyFont)
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Spacer()
-                            Text("v1.0.0")
-                                .font(AppTheme.caption)
-                                .foregroundStyle(AppTheme.textTertiary)
+                VStack(alignment: .leading, spacing: AppTheme.spacingXl) {
+                    section("Personal") {
+                        NavigationLink {
+                            PersonalSettingsView()
+                        } label: {
+                            SettingsRow(icon: "person.fill", title: "Profile & Affirmations", color: AppTheme.sunsetOrange)
                         }
-                        .padding(AppTheme.spacingLg)
-                        .background(AppTheme.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
                     }
+
+                    section("Voice & Audio") {
+                        NavigationLink {
+                            SpeechSettingsView()
+                        } label: {
+                            SettingsRow(icon: "speaker.wave.2.fill", title: "Voice", color: AppTheme.warmAmber)
+                        }
+                    }
+
+                    section("Wellness") {
+                        NavigationLink {
+                            EveningReflectionSettingsView()
+                        } label: {
+                            SettingsRow(icon: "moon.stars.fill", title: "Evening Reflection", color: AppTheme.deepPlum)
+                        }
+                    }
+
+                    section("Debug") {
+                        NavigationLink {
+                            DiagnosticsView()
+                        } label: {
+                            SettingsRow(icon: "stethoscope", title: "Diagnostics", color: AppTheme.textSecondary)
+                        }
+                    }
+
+                    aboutCard
                 }
                 .padding(AppTheme.spacingXl)
             }
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    @ViewBuilder
+    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
+            Text(title.uppercased())
+                .font(AppTheme.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.textTertiary)
+                .tracking(0.6)
+                .padding(.horizontal, AppTheme.spacingSm)
+            content()
+        }
+    }
+
+    private var aboutCard: some View {
+        VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
+            Text("ABOUT")
+                .font(AppTheme.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.textTertiary)
+                .tracking(0.6)
+                .padding(.horizontal, AppTheme.spacingSm)
+
+            HStack {
+                Text("Affirmation Alarm")
+                    .font(AppTheme.bodyFont)
+                    .foregroundStyle(AppTheme.textPrimary)
+                Spacer()
+                Text("v1.0.0")
+                    .font(AppTheme.caption)
+                    .foregroundStyle(AppTheme.textTertiary)
+            }
+            .padding(AppTheme.spacingLg)
+            .background(AppTheme.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
+        }
     }
 }
 
