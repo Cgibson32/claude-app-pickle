@@ -39,10 +39,6 @@ struct HomeView: View {
                         sleepModeCard
                     }
 
-                    TodayAffirmationsCard()
-
-                    favoritesLink
-
                     Spacer().frame(height: AppTheme.spacingXl)
                 }
                 .padding(.horizontal, AppTheme.spacingXl)
@@ -103,29 +99,6 @@ struct HomeView: View {
             )
         }
         .buttonStyle(.bounce)
-    }
-
-    private var favoritesLink: some View {
-        NavigationLink {
-            FavoritesView()
-        } label: {
-            HStack(spacing: AppTheme.spacingMd) {
-                Image(systemName: "heart.fill")
-                    .font(.system(size: 18))
-                    .foregroundStyle(Color(hex: "E85D75"))
-                Text("Favorites")
-                    .font(AppTheme.bodyFont)
-                    .foregroundStyle(AppTheme.textPrimary)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(AppTheme.textTertiary)
-            }
-            .padding(AppTheme.spacingLg)
-            .background(AppTheme.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
-        }
-        .buttonStyle(.plain)
     }
 
     private var greetingSection: some View {
