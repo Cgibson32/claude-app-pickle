@@ -25,6 +25,11 @@ struct HomeView: View {
 
     private var profile: UserProfile? { profiles.first }
 
+    private var hasAPIKey: Bool {
+        if let key = APIKeyConfiguration.getAPIKey(), !key.isEmpty { return true }
+        return false
+    }
+
     var body: some View {
         ZStack {
             GradientBackground(style: .sunrise)
@@ -32,6 +37,10 @@ struct HomeView: View {
             ScrollView {
                 VStack(spacing: AppTheme.spacingXl) {
                     greetingSection
+
+                    if !hasAPIKey {
+                        apiKeyWarning
+                    }
 
                     NextAlarmCard(alarms: alarms, isPreparing: isPreparingFirstMorning)
 
@@ -99,6 +108,25 @@ struct HomeView: View {
             )
         }
         .buttonStyle(.bounce)
+    }
+
+    private var apiKeyWarning: some View {
+        VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
+            HStack(spacing: AppTheme.spacingSm) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+                Text("Affirmations not personalized")
+                    .font(AppTheme.headline)
+                    .foregroundStyle(AppTheme.textPrimary)
+            }
+            Text("No Claude API key found. Your alarm will play generic affirmations instead of ones tailored to your goals. Add your key in Settings → Diagnostics.")
+                .font(AppTheme.caption)
+                .foregroundStyle(AppTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(AppTheme.spacingLg)
+        .background(Color.orange.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
     }
 
     private var greetingSection: some View {
