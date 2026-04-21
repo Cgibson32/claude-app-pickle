@@ -63,9 +63,10 @@ class AffirmationCacheService {
             )
         }
 
-        // Step 4: purge yesterday's (and earlier) leftover generated rows
-        // BEFORE inserting the new ones, so SwiftData doesn't accumulate.
-        purgeOldGenerated(modelContext: modelContext)
+        // Step 4: purge ALL previous generated rows (not just old ones)
+        // before inserting, so only one set exists at any time. Favorites
+        // and custom rows are preserved.
+        purgeAllGenerated(modelContext: modelContext)
 
         let goalContext = ([profile.freeformGoals] + profile.selectedCategories).joined(separator: "; ")
         var generated: [Affirmation] = []
@@ -129,32 +130,25 @@ class AffirmationCacheService {
 
     // MARK: - Garbage collection
 
-    /// Now that every fire generates a fresh set, the SwiftData table
-    /// would grow without bound. Delete any generated (non-favorite,
-    /// non-custom) row older than 1 day. Favorites and customs stay —
-    /// they're the user's curated content.
-    private func purgeOldGenerated(modelContext: ModelContext) {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date()
+    /// Delete ALL generated (non-favorite, non-custom) affirmation rows
+    /// and ALL closing messages. Called before inserting a fresh set so
+    /// only one batch exists at any time — no duplicate rows.
+    private func purgeAllGenerated(modelContext: ModelContext) {
         let descriptor = FetchDescriptor<Affirmation>(
             predicate: #Predicate {
-                $0.generatedFor < cutoff
-                    && $0.favoriteType == 0
+                $0.favoriteType == 0
                     && $0.isCustom == false
             }
         )
-        if let old = try? modelContext.fetch(descriptor) {
-            for entry in old {
+        if let rows = try? modelContext.fetch(descriptor) {
+            for entry in rows {
                 modelContext.delete(entry)
             }
         }
 
-        // Also clear stale DailyClosingMessage rows — they're 1:1 with
-        // fires now, not days, so they'd pile up similarly.
-        let closingDescriptor = FetchDescriptor<DailyClosingMessage>(
-            predicate: #Predicate { $0.generatedFor < cutoff }
-        )
-        if let oldClosings = try? modelContext.fetch(closingDescriptor) {
-            for entry in oldClosings {
+        let closingDescriptor = FetchDescriptor<DailyClosingMessage>()
+        if let closings = try? modelContext.fetch(closingDescriptor) {
+            for entry in closings {
                 modelContext.delete(entry)
             }
         }
