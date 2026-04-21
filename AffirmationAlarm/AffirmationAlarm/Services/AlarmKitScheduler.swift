@@ -598,13 +598,6 @@ final class AlarmKitScheduler {
             return
         }
 
-        guard UIApplication.shared.applicationState == .active else {
-            DiagnosticsLog.shared.log("observer", "app backgrounded — letting system alert handle \(alarmID.uuidString.prefix(8))")
-            lastHandleFireOutcome = FireOutcome(outcome: "backgrounded", date: Date())
-            AlarmTelemetry.eventSync(.fireBackgrounded, alarmID: alarmID)
-            return
-        }
-
         let label = alarmLabels[alarmID] ?? "Alarm"
 
         try? manager.cancel(id: alarmID)
@@ -613,52 +606,64 @@ final class AlarmKitScheduler {
         let waited = await InterruptionWaiter.awaitEnd(timeout: .milliseconds(1500))
         DiagnosticsLog.shared.log("observer", "interruption wait returned: \(waited ? "ended" : "timeout")")
 
-        // Show the ringing overlay immediately — the user sees Stop/Snooze
-        // while affirmations are already playing. No alarm tone loop.
-        ringingAlarmID = alarmID
-        ringingAlarmLabel = label
+        let isForeground = await MainActor.run {
+            UIApplication.shared.applicationState == .active
+        }
+
         isPlayingMorningAudio = true
         VolumeBooster.startMonitoring()
-        DiagnosticsLog.shared.log("observer", "ringing UI shown, starting affirmations for \(alarmID.uuidString.prefix(8))")
-        let ringingShownAt = Date()
+
+        if isForeground {
+            // App visible — show ringing overlay with Stop/Snooze,
+            // race playback against user interaction.
+            ringingAlarmID = alarmID
+            ringingAlarmLabel = label
+        }
+
+        DiagnosticsLog.shared.log("observer", "starting affirmations for \(alarmID.uuidString.prefix(8)) foreground=\(isForeground)")
+        let playStart = Date()
         AlarmTelemetry.eventSync(
             .ringingShown,
             alarmID: alarmID,
-            elapsedMs: Int(ringingShownAt.timeIntervalSince(fireStart) * 1000)
+            elapsedMs: Int(playStart.timeIntervalSince(fireStart) * 1000)
         )
 
-        // Play affirmations as a background task so we can race it against
-        // the user pressing Stop or Snooze. Whichever comes first wins.
         let playbackTask = Task { () -> AlarmAudioPlayer.PlaybackOutcome in
             await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
         }
 
-        // Race: wait for user action OR playback to finish naturally.
-        let action = await withTaskGroup(of: RingingAction.self) { group in
-            group.addTask { [weak self] in
-                guard let self else { return .stop }
-                return await self.awaitRingingAction(alarmID: alarmID)
+        let action: RingingAction
+        if isForeground {
+            // Race: user taps Stop/Snooze OR playback finishes.
+            action = await withTaskGroup(of: RingingAction.self) { group in
+                group.addTask { [weak self] in
+                    guard let self else { return .stop }
+                    return await self.awaitRingingAction(alarmID: alarmID)
+                }
+                group.addTask {
+                    _ = await playbackTask.value
+                    return .stop
+                }
+                let first = await group.next() ?? .stop
+                group.cancelAll()
+                return first
             }
-            group.addTask {
-                _ = await playbackTask.value
-                return .stop
-            }
-            let first = await group.next() ?? .stop
-            group.cancelAll()
-            return first
+        } else {
+            // Background — just play straight through, no UI.
+            _ = await playbackTask.value
+            action = .stop
         }
 
-        // Clean up — stop any remaining audio, dismiss ringing UI.
         playbackTask.cancel()
         await AlarmAudioPlayer.shared.stopPlayback()
         VolumeBooster.stopMonitoring()
         isPlayingMorningAudio = false
         ringingAlarmID = nil
-        DiagnosticsLog.shared.log("observer", "ringing dismissed action=\(action)")
+        DiagnosticsLog.shared.log("observer", "playback done action=\(action)")
         AlarmTelemetry.eventSync(
             .ringingDismissed,
             alarmID: alarmID,
-            elapsedMs: Int(Date().timeIntervalSince(ringingShownAt) * 1000),
+            elapsedMs: Int(Date().timeIntervalSince(playStart) * 1000),
             extra: "action=\(action)"
         )
 
@@ -671,7 +676,7 @@ final class AlarmKitScheduler {
             AlarmTelemetry.eventSync(
                 .playComplete,
                 alarmID: alarmID,
-                elapsedMs: Int(Date().timeIntervalSince(ringingShownAt) * 1000),
+                elapsedMs: Int(Date().timeIntervalSince(playStart) * 1000),
                 extra: "outcome=\(outcome)"
             )
             if case .played = outcome {
