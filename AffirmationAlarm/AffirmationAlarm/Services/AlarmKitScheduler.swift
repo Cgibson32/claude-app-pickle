@@ -610,86 +610,37 @@ final class AlarmKitScheduler {
             UIApplication.shared.applicationState == .active
         }
 
-        isPlayingMorningAudio = true
-        VolumeBooster.startMonitoring()
-
         if isForeground {
-            // App visible — show ringing overlay with Stop/Snooze,
-            // race playback against user interaction.
             ringingAlarmID = alarmID
             ringingAlarmLabel = label
         }
 
-        DiagnosticsLog.shared.log("observer", "starting affirmations for \(alarmID.uuidString.prefix(8)) foreground=\(isForeground)")
+        isPlayingMorningAudio = true
+        VolumeBooster.startMonitoring()
+        DiagnosticsLog.shared.log("observer", "playing affirmations for \(alarmID.uuidString.prefix(8)) foreground=\(isForeground)")
         let playStart = Date()
-        AlarmTelemetry.eventSync(
-            .ringingShown,
-            alarmID: alarmID,
-            elapsedMs: Int(playStart.timeIntervalSince(fireStart) * 1000)
-        )
+        AlarmTelemetry.eventSync(.playStart, alarmID: alarmID)
 
-        let playbackTask = Task { () -> AlarmAudioPlayer.PlaybackOutcome in
-            await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
-        }
+        let outcome = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
 
-        let action: RingingAction
-        if isForeground {
-            // Race: user taps Stop/Snooze OR playback finishes.
-            action = await withTaskGroup(of: RingingAction.self) { group in
-                group.addTask { [weak self] in
-                    guard let self else { return .stop }
-                    return await self.awaitRingingAction(alarmID: alarmID)
-                }
-                group.addTask {
-                    _ = await playbackTask.value
-                    return .stop
-                }
-                let first = await group.next() ?? .stop
-                group.cancelAll()
-                return first
-            }
-        } else {
-            // Background — just play straight through, no UI.
-            _ = await playbackTask.value
-            action = .stop
-        }
-
-        playbackTask.cancel()
-        await AlarmAudioPlayer.shared.stopPlayback()
         VolumeBooster.stopMonitoring()
         isPlayingMorningAudio = false
         ringingAlarmID = nil
-        DiagnosticsLog.shared.log("observer", "playback done action=\(action)")
+
+        AppLogger.alarm.info("observer: \(alarmID.uuidString.prefix(8), privacy: .public) outcome=\(String(describing: outcome), privacy: .public)")
+        lastHandleFireOutcome = FireOutcome(outcome: String(describing: outcome), date: Date())
+        DiagnosticsLog.shared.log("observer", "handleFire outcome=\(outcome)")
         AlarmTelemetry.eventSync(
-            .ringingDismissed,
+            .playComplete,
             alarmID: alarmID,
             elapsedMs: Int(Date().timeIntervalSince(playStart) * 1000),
-            extra: "action=\(action)"
+            extra: "outcome=\(outcome)"
         )
 
-        switch action {
-        case .stop:
-            let outcome = await playbackTask.value
-            AppLogger.alarm.info("observer: \(alarmID.uuidString.prefix(8), privacy: .public) outcome=\(String(describing: outcome), privacy: .public)")
-            lastHandleFireOutcome = FireOutcome(outcome: String(describing: outcome), date: Date())
-            DiagnosticsLog.shared.log("observer", "handleFire outcome=\(outcome)")
-            AlarmTelemetry.eventSync(
-                .playComplete,
-                alarmID: alarmID,
-                elapsedMs: Int(Date().timeIntervalSince(playStart) * 1000),
-                extra: "outcome=\(outcome)"
-            )
-            if case .played = outcome {
-                MorningAudioRenderer.shared.invalidateAll()
-                MissedAlarmDetector.recordSuccess(alarmID: alarmID)
-                AlarmTelemetry.eventSync(.lastFireRecorded, alarmID: alarmID)
-            }
-
-        case .snooze:
-            scheduleSnoozeFollowUp(originalAlarmID: alarmID)
-            lastHandleFireOutcome = FireOutcome(outcome: "snoozed", date: Date())
-            DiagnosticsLog.shared.log("observer", "snoozed \(alarmID.uuidString.prefix(8))")
+        if case .played = outcome {
+            MorningAudioRenderer.shared.invalidateAll()
             MissedAlarmDetector.recordSuccess(alarmID: alarmID)
+            AlarmTelemetry.eventSync(.lastFireRecorded, alarmID: alarmID)
         }
 
         BackgroundKeepAlive.shared.start()
