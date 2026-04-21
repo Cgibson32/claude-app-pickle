@@ -2,7 +2,7 @@ import Foundation
 
 enum AppConstants {
     static let apiURL = "https://api.anthropic.com/v1/messages"
-    static let apiModel = "claude-opus-4-6"
+    static let apiModel = "claude-sonnet-4-6"
     static let apiVersion = "2023-06-01"
     static let maxTokens = 1000
 

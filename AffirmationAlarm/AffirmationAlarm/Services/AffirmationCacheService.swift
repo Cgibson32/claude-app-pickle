@@ -55,6 +55,7 @@ class AffirmationCacheService {
             )
         } catch {
             AppLogger.claude.error("generateAffirmations failed, using bundled pool: \(error.localizedDescription, privacy: .public)")
+            DiagnosticsLog.shared.log("claude", "API FAILED: \(error.localizedDescription) — using generic fallback")
             let pooled = BundledAffirmationPool.selection(count: needed)
             content = ClaudeAPIService.GeneratedContent(
                 affirmations: pooled,

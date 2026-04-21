@@ -50,6 +50,7 @@ actor ClaudeAPIService {
         maxTokens: Int = AppConstants.maxTokens
     ) async throws -> GeneratedContent {
         guard let apiKey = APIKeyConfiguration.getAPIKey(), !apiKey.isEmpty else {
+            DiagnosticsLog.shared.log("claude", "NO API KEY — check Settings → Diagnostics")
             throw APIError.noAPIKey
         }
         guard let url = URL(string: AppConstants.apiURL) else {
@@ -145,6 +146,8 @@ actor ClaudeAPIService {
             throw APIError.malformedResponse
         }
         guard http.statusCode == 200 else {
+            let body = String(data: data.prefix(300), encoding: .utf8) ?? ""
+            DiagnosticsLog.shared.log("claude", "HTTP \(http.statusCode): \(body)")
             throw APIError.httpStatus(http.statusCode)
         }
         return data
