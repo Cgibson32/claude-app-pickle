@@ -571,16 +571,16 @@ final class AlarmKitScheduler {
         }
     }
 
-    /// Handle an alarm that just started alerting. Two paths:
+    /// Handle an alarm that just started alerting. The morning affirmation
+    /// sequence IS the alarm — a brief chime intro followed by the
+    /// personalized spoken affirmations. No separate alarm tone loop;
+    /// the user wakes up to their affirmations directly.
     ///
-    /// - **Foregrounded**: cancel system alert, show in-app ringing UI
-    ///   with Stop/Snooze, loop the alarm sound. When user presses Stop
-    ///   the affirmation sequence plays; Snooze schedules a follow-up.
+    /// - **Foregrounded**: cancel system alert, show ringing overlay
+    ///   (Stop/Snooze), immediately begin affirmation playback. Stop
+    ///   silences mid-playback; Snooze silences and reschedules.
     /// - **Backgrounded**: let the system alert handle it. The existing
-    ///   Stop/Snooze intents fire when the user interacts.
-    ///
-    /// After playback/snooze, posts `.didCompleteMorningPlayback` so the
-    /// app can re-schedule repeating alarms.
+    ///   Stop intent fires when the user interacts from the lock screen.
     private func handleFire(alarmID: UUID) async {
         defer { activeFireHandling.remove(alarmID) }
         let fireStart = Date()
@@ -605,9 +605,6 @@ final class AlarmKitScheduler {
             return
         }
 
-        // Look up label from our tracked labels dict (populated at
-        // schedule time) rather than the AlarmKit alarm object, whose
-        // metadata accessor changed across SDK versions.
         let label = alarmLabels[alarmID] ?? "Alarm"
 
         try? manager.cancel(id: alarmID)
@@ -616,16 +613,13 @@ final class AlarmKitScheduler {
         let waited = await InterruptionWaiter.awaitEnd(timeout: .milliseconds(1500))
         DiagnosticsLog.shared.log("observer", "interruption wait returned: \(waited ? "ended" : "timeout")")
 
-        // Start looping the alarm sound while the ringing UI is shown.
-        // Also begin monitoring system volume so we re-boost if the user
-        // presses the hardware volume-down button during ringing.
-        let soundName = alarmSoundNames[alarmID] ?? "alarm_gentle"
-        await AlarmAudioPlayer.shared.startAlarmLoop(soundName: soundName)
-        VolumeBooster.startMonitoring()
-
+        // Show the ringing overlay immediately — the user sees Stop/Snooze
+        // while affirmations are already playing. No alarm tone loop.
         ringingAlarmID = alarmID
         ringingAlarmLabel = label
-        DiagnosticsLog.shared.log("observer", "ringing UI shown for \(alarmID.uuidString.prefix(8))")
+        isPlayingMorningAudio = true
+        VolumeBooster.startMonitoring()
+        DiagnosticsLog.shared.log("observer", "ringing UI shown, starting affirmations for \(alarmID.uuidString.prefix(8))")
         let ringingShownAt = Date()
         AlarmTelemetry.eventSync(
             .ringingShown,
@@ -633,14 +627,32 @@ final class AlarmKitScheduler {
             elapsedMs: Int(ringingShownAt.timeIntervalSince(fireStart) * 1000)
         )
 
-        // Suspend until the user presses Stop or Snooze (or timeout).
-        // While waiting, escalate volume every 60s and re-boost system
-        // volume in case the user lowered it. After 5 minutes total,
-        // schedule a fallback system alert and auto-stop.
-        let action = await awaitRingingAction(alarmID: alarmID)
+        // Play affirmations as a background task so we can race it against
+        // the user pressing Stop or Snooze. Whichever comes first wins.
+        let playbackTask = Task { () -> AlarmAudioPlayer.PlaybackOutcome in
+            await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
+        }
 
-        await AlarmAudioPlayer.shared.stopAlarmLoop()
+        // Race: wait for user action OR playback to finish naturally.
+        let action = await withTaskGroup(of: RingingAction.self) { group in
+            group.addTask { [weak self] in
+                guard let self else { return .stop }
+                return await self.awaitRingingAction(alarmID: alarmID)
+            }
+            group.addTask {
+                _ = await playbackTask.value
+                return .stop
+            }
+            let first = await group.next() ?? .stop
+            group.cancelAll()
+            return first
+        }
+
+        // Clean up — stop any remaining audio, dismiss ringing UI.
+        playbackTask.cancel()
+        await AlarmAudioPlayer.shared.stopPlayback()
         VolumeBooster.stopMonitoring()
+        isPlayingMorningAudio = false
         ringingAlarmID = nil
         DiagnosticsLog.shared.log("observer", "ringing dismissed action=\(action)")
         AlarmTelemetry.eventSync(
@@ -652,22 +664,16 @@ final class AlarmKitScheduler {
 
         switch action {
         case .stop:
-            isPlayingMorningAudio = true
-            AlarmTelemetry.eventSync(.playStart, alarmID: alarmID)
-            let playStart = Date()
-            let outcome = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
-            isPlayingMorningAudio = false
-
+            let outcome = await playbackTask.value
             AppLogger.alarm.info("observer: \(alarmID.uuidString.prefix(8), privacy: .public) outcome=\(String(describing: outcome), privacy: .public)")
             lastHandleFireOutcome = FireOutcome(outcome: String(describing: outcome), date: Date())
             DiagnosticsLog.shared.log("observer", "handleFire outcome=\(outcome)")
             AlarmTelemetry.eventSync(
                 .playComplete,
                 alarmID: alarmID,
-                elapsedMs: Int(Date().timeIntervalSince(playStart) * 1000),
+                elapsedMs: Int(Date().timeIntervalSince(ringingShownAt) * 1000),
                 extra: "outcome=\(outcome)"
             )
-
             if case .played = outcome {
                 MorningAudioRenderer.shared.invalidateAll()
                 MissedAlarmDetector.recordSuccess(alarmID: alarmID)
@@ -678,9 +684,6 @@ final class AlarmKitScheduler {
             scheduleSnoozeFollowUp(originalAlarmID: alarmID)
             lastHandleFireOutcome = FireOutcome(outcome: "snoozed", date: Date())
             DiagnosticsLog.shared.log("observer", "snoozed \(alarmID.uuidString.prefix(8))")
-            // Treat a successful snooze as a "heard it" signal — the user
-            // interacted, so the missed-alarm detector should not flag this
-            // fire. The follow-up will have its own record-success path.
             MissedAlarmDetector.recordSuccess(alarmID: alarmID)
         }
 

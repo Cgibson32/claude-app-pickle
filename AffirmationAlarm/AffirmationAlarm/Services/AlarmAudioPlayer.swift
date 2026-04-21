@@ -27,18 +27,21 @@ import Foundation
 private enum AlarmIntro {
     /// Bundle resource name (without extension) of the intro audio.
     /// Must exist as `<stem>.caf` in the app bundle.
-    static let soundStem = "alarm_birds"
+    static let soundStem = "alarm_gentle"
 
     /// Total intro length in milliseconds — hold + fade combined.
-    static let totalMs: Int = 2000
+    /// ~4s gives enough time to start waking the user before the
+    /// spoken affirmations begin.
+    static let totalMs: Int = 4000
 
     /// Trailing fade-out so the cut into "Good morning, <name>" doesn't
     /// feel abrupt. Must be less than `totalMs`.
-    static let fadeMs: Int = 300
+    static let fadeMs: Int = 500
 
-    /// Softer than the spoken affirmations (which play at volume 1.0)
-    /// so the birds feel like a gentle lead-in, not a second alarm.
-    static let volume: Float = 0.6
+    /// Loud enough to wake the user — this IS the alarm now, not just
+    /// a gentle lead-in. Still slightly below 1.0 so the spoken voice
+    /// feels like a step up in presence.
+    static let volume: Float = 0.85
 }
 
 actor AlarmAudioPlayer {
@@ -88,6 +91,13 @@ actor AlarmAudioPlayer {
     /// The player driving the looping alarm sound while the ringing UI is
     /// on screen. `nil` when no alarm is actively ringing.
     private var loopingPlayer: AVAudioPlayer?
+
+    /// Engine currently playing a morning/closing file. Stored so
+    /// `stopPlayback()` can halt it mid-sentence when the user taps
+    /// Stop or Snooze during affirmation-as-alarm playback.
+    private var activeEngine: AVAudioEngine?
+    private var activeFallbackPlayer: AVAudioPlayer?
+    private var stopRequested = false
 
     // MARK: - State
 
@@ -160,15 +170,9 @@ actor AlarmAudioPlayer {
         }
 
         playing.insert(alarmID)
-        // Release the `playing` slot no matter how we exit. Purgatory is
-        // set explicitly on success paths below.
+        stopRequested = false
         defer { playing.remove(alarmID) }
 
-        // Slam system media volume to max BEFORE activating the session,
-        // so the alarm plays loudly regardless of what the user left the
-        // media slider at overnight. The actual volume write lands a
-        // couple runloop ticks later; that's fine — session activation
-        // and intro playback comfortably absorb that latency.
         await MainActor.run { VolumeBooster.boostToMax() }
 
         guard await activateAudioSession() else {
@@ -176,7 +180,9 @@ actor AlarmAudioPlayer {
         }
 
         await playIntro()
+        guard !stopRequested else { return record(outcome: .played, alarmID: alarmID) }
         if let morning { await playFile(at: morning) }
+        guard !stopRequested else { return record(outcome: .played, alarmID: alarmID) }
         if let closing { await playFile(at: closing) }
 
         // Do NOT deactivate the session here. We're sharing keep-alive's
@@ -240,6 +246,18 @@ actor AlarmAudioPlayer {
         loopingPlayer?.stop()
         loopingPlayer = nil
         DiagnosticsLog.shared.log("player", "alarm loop stopped")
+    }
+
+    /// Stop any in-flight morning/closing playback immediately. Called
+    /// when the user taps Stop or Snooze during affirmation-as-alarm
+    /// playback to silence mid-sentence.
+    func stopPlayback() {
+        stopRequested = true
+        activeEngine?.stop()
+        activeEngine = nil
+        activeFallbackPlayer?.stop()
+        activeFallbackPlayer = nil
+        DiagnosticsLog.shared.log("player", "playback stopped by user")
     }
 
     /// Play a short double-beep chime overlaid on the active alarm loop.
@@ -419,6 +437,7 @@ actor AlarmAudioPlayer {
             return
         }
 
+        activeEngine = engine
         playerNode.scheduleFile(file, at: nil, completionHandler: nil)
         playerNode.play()
 
@@ -433,6 +452,7 @@ actor AlarmAudioPlayer {
         let finished = !playerNode.isPlaying
         playerNode.stop()
         engine.stop()
+        activeEngine = nil
         withExtendedLifetime((engine, playerNode, eq, file)) {}
 
         DiagnosticsLog.shared.log(
@@ -456,6 +476,7 @@ actor AlarmAudioPlayer {
 
         player.volume = 1.0
         player.prepareToPlay()
+        activeFallbackPlayer = player
 
         DiagnosticsLog.shared.log("player", "fallback playing \(url.lastPathComponent) duration=\(String(format: "%.2f", player.duration))s")
 
@@ -468,6 +489,7 @@ actor AlarmAudioPlayer {
         try? await Task.sleep(for: .seconds(player.duration + 0.3))
         let finished = !player.isPlaying
         let played = player.currentTime
+        activeFallbackPlayer = nil
         DiagnosticsLog.shared.log(
             "player",
             "fallback done \(url.lastPathComponent) played=\(String(format: "%.2f", played))s finished=\(finished)"
