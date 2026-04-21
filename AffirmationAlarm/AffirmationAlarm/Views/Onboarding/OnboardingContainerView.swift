@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 struct OnboardingContainerView: View {
     @State private var viewModel = OnboardingViewModel()
