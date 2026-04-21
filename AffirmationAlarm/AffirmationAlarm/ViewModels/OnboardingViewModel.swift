@@ -16,7 +16,7 @@ class OnboardingViewModel {
     var alarmRepeatDays: Set<Int> = []
     var alarmSound = AppConstants.AlarmSound.gentle
 
-    let totalSteps = 5
+    let totalSteps = 4
 
     var canAdvance: Bool {
         switch currentStep {
@@ -24,7 +24,6 @@ class OnboardingViewModel {
         case 1: return !name.trimmingCharacters(in: .whitespaces).isEmpty
         case 2: return !selectedCategories.isEmpty
         case 3: return true
-        case 4: return true
         default: return false
         }
     }

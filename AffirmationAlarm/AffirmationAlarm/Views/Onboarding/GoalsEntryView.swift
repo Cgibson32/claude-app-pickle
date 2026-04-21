@@ -23,7 +23,6 @@ struct GoalsEntryView: View {
                         .foregroundStyle(AppTheme.textSecondary)
                 }
 
-                // Category chips with flow layout
                 FlowLayout(spacing: AppTheme.spacingSm) {
                     ForEach(GoalCategory.allCases, id: \.self) { category in
                         CategoryChip(
@@ -39,7 +38,6 @@ struct GoalsEntryView: View {
                     }
                 }
 
-                // Personal goals text
                 VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
                     Text("Personal goals (optional)")
                         .font(AppTheme.subheadline)
@@ -55,7 +53,6 @@ struct GoalsEntryView: View {
                         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
                 }
 
-                // Affirmation count
                 VStack(spacing: AppTheme.spacingSm) {
                     Text("Daily affirmations: \(viewModel.affirmationCount)")
                         .font(AppTheme.subheadline)
@@ -77,6 +74,10 @@ struct GoalsEntryView: View {
                     }
                 }
 
+                // Evening reflection — folded in here so it doesn't need
+                // its own full-screen step. Toggle + time picker.
+                eveningReflectionSection
+
                 Button("Continue") {
                     HapticService.medium()
                     viewModel.advance()
@@ -91,6 +92,58 @@ struct GoalsEntryView: View {
             .padding(.horizontal, AppTheme.spacingXxl)
         }
         .scrollDismissesKeyboard(.interactively)
+    }
+
+    private var eveningReflectionSection: some View {
+        VStack(spacing: AppTheme.spacingLg) {
+            HStack(spacing: AppTheme.spacingMd) {
+                Image(systemName: "moon.stars.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(AppTheme.gold)
+                Text("Evening Reflection")
+                    .font(AppTheme.headline)
+                    .foregroundStyle(AppTheme.textPrimary)
+                Spacer()
+            }
+
+            Text("A quick nightly check-in — your reflections shape tomorrow's affirmations.")
+                .font(AppTheme.caption)
+                .foregroundStyle(AppTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Toggle(isOn: $viewModel.eveningReflectionEnabled) {
+                Text("Enable evening reminders")
+                    .font(AppTheme.bodyFont)
+                    .foregroundStyle(AppTheme.textPrimary)
+            }
+            .tint(AppTheme.sunsetOrange)
+
+            if viewModel.eveningReflectionEnabled {
+                DatePicker(
+                    "Reminder time",
+                    selection: Binding(
+                        get: {
+                            Calendar.current.date(
+                                from: DateComponents(hour: viewModel.eveningReflectionHour, minute: viewModel.eveningReflectionMinute)
+                            ) ?? Date()
+                        },
+                        set: { date in
+                            viewModel.eveningReflectionHour = Calendar.current.component(.hour, from: date)
+                            viewModel.eveningReflectionMinute = Calendar.current.component(.minute, from: date)
+                        }
+                    ),
+                    displayedComponents: .hourAndMinute
+                )
+                .datePickerStyle(.wheel)
+                .labelsHidden()
+                .frame(height: 120)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .padding(AppTheme.spacingXl)
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
+        .animation(AppTheme.bouncy, value: viewModel.eveningReflectionEnabled)
     }
 }
 
