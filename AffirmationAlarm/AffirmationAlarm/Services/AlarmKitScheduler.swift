@@ -125,6 +125,7 @@ final class AlarmKitScheduler {
     /// Alarm ID → sound name, populated at schedule time. Looked up at
     /// fire time to loop the correct alarm tone in the ringing UI.
     private var alarmSoundNames: [UUID: String] = [:]
+    private var alarmLabels: [UUID: String] = [:]
 
     /// Timestamps of recent eager-render attempts per follow-up UUID.
     /// Prevents re-snooze spam from triggering N Claude + N TTS renders
@@ -344,6 +345,7 @@ final class AlarmKitScheduler {
             let configuration = makeConfiguration(for: alarm)
             _ = try await manager.schedule(id: alarm.id, configuration: configuration)
             alarmSoundNames[alarm.id] = alarm.soundName
+            alarmLabels[alarm.id] = alarm.label
             AppLogger.alarm.info("scheduled alarm \(alarm.id, privacy: .public)")
             DiagnosticsLog.shared.log("scheduler", "scheduled \(alarm.id.uuidString.prefix(8)) sound=\(alarm.soundName)")
             AlarmTelemetry.eventSync(.scheduled, alarmID: alarm.id, extra: "sound=\(alarm.soundName)")
@@ -434,6 +436,7 @@ final class AlarmKitScheduler {
         )
 
         alarmSoundNames[followUpID] = soundName
+        alarmLabels[followUpID] = "Snooze follow-up"
         pendingFollowUpRenders.insert(followUpID)
 
         Task { [weak self] in
@@ -602,15 +605,10 @@ final class AlarmKitScheduler {
             return
         }
 
-        // Look up label BEFORE cancel — cancel removes the alarm entry.
-        let label: String = {
-            if let alarms = try? manager.alarms {
-                for alarm in alarms where alarm.id == alarmID {
-                    return alarm.attributes.metadata.label
-                }
-            }
-            return "Alarm"
-        }()
+        // Look up label from our tracked labels dict (populated at
+        // schedule time) rather than the AlarmKit alarm object, whose
+        // metadata accessor changed across SDK versions.
+        let label = alarmLabels[alarmID] ?? "Alarm"
 
         try? manager.cancel(id: alarmID)
         DiagnosticsLog.shared.log("observer", "cancelled system alarm; waiting for interruption end")
@@ -794,6 +792,7 @@ final class AlarmKitScheduler {
         )
 
         alarmSoundNames[fallbackID] = soundName
+        alarmLabels[fallbackID] = "Fallback"
 
         Task { [weak self] in
             guard let self else { return }

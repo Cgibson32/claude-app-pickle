@@ -16,7 +16,7 @@ import AVFoundation
 /// silently — the user can tap again. There is no alarm-critical path
 /// here, so offline fallback isn't worth the complexity.
 @MainActor @Observable
-final class VoicePreviewService: NSObject, @preconcurrency AVAudioPlayerDelegate {
+final class VoicePreviewService: NSObject, AVAudioPlayerDelegate {
     private let cloudTTS = OpenAITTSService()
     private var audioPlayer: AVAudioPlayer?
     private var playerContinuation: CheckedContinuation<Void, Never>?
