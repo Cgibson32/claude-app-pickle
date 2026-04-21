@@ -139,6 +139,16 @@ struct FavoriteCard: View {
                 }
                 .buttonStyle(.bounce)
                 .accessibilityLabel(affirmation.isRotation ? "Remove from rotation" : "Add to rotation")
+
+                Button {
+                    AffirmationImageRenderer.share(text: affirmation.text)
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .foregroundStyle(AppTheme.textTertiary)
+                        .font(.system(size: 14))
+                }
+                .buttonStyle(.bounce)
+                .accessibilityLabel("Share affirmation")
             }
         }
         .padding(AppTheme.spacingLg)

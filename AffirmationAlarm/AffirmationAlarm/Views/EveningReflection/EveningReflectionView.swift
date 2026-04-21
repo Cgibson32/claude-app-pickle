@@ -9,6 +9,7 @@ struct EveningReflectionView: View {
     @State private var goodThing = ""
     @State private var gratitude = ""
     @State private var emojiAnimated = false
+    @State private var showSavedToast = false
 
     private var moods: [(emoji: String, label: String)] {
         zip(AppConstants.moodEmojis, AppConstants.moodLabels).map { ($0, $1) }
@@ -120,6 +121,9 @@ struct EveningReflectionView: View {
             .onAppear {
                 emojiAnimated = true
             }
+            .overlay(alignment: .top) {
+                ToastView(message: "Reflection saved", isPresented: $showSavedToast)
+            }
         }
     }
 
@@ -133,6 +137,12 @@ struct EveningReflectionView: View {
         try? modelContext.save()
 
         HapticService.success()
-        dismiss()
+        withAnimation(.easeIn(duration: 0.2)) {
+            showSavedToast = true
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.5))
+            dismiss()
+        }
     }
 }

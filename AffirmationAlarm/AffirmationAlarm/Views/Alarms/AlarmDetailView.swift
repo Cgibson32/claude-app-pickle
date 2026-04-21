@@ -16,6 +16,7 @@ struct AlarmDetailView: View {
     @State private var isEnabled: Bool
     @State private var previewingSound: AppConstants.AlarmSound?
     @State private var previewStopTask: Task<Void, Never>?
+    @State private var showDeleteConfirmation = false
 
     init(alarm: Alarm?) {
         self.alarm = alarm
@@ -113,12 +114,7 @@ struct AlarmDetailView: View {
 
                         if alarm != nil {
                             Button(role: .destructive) {
-                                if let alarm {
-                                    AlarmKitScheduler.shared.cancelAlarm(alarm)
-                                    MorningAudioRenderer.shared.removeFiles(for: alarm)
-                                    modelContext.delete(alarm)
-                                }
-                                dismiss()
+                                showDeleteConfirmation = true
                             } label: {
                                 Text("Delete Alarm")
                                     .font(AppTheme.headline)
@@ -127,6 +123,20 @@ struct AlarmDetailView: View {
                                     .padding(AppTheme.spacingLg)
                                     .background(Color.red.opacity(0.1))
                                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
+                            }
+                            .confirmationDialog(
+                                "Delete this alarm?",
+                                isPresented: $showDeleteConfirmation,
+                                titleVisibility: .visible
+                            ) {
+                                Button("Delete", role: .destructive) {
+                                    if let alarm {
+                                        AlarmKitScheduler.shared.cancelAlarm(alarm)
+                                        MorningAudioRenderer.shared.removeFiles(for: alarm)
+                                        modelContext.delete(alarm)
+                                    }
+                                    dismiss()
+                                }
                             }
                         }
                     }

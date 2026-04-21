@@ -25,6 +25,8 @@ struct SleepModeView: View {
     @State private var scheduler = AlarmKitScheduler.shared
     @State private var currentTime = Date()
     @State private var showExitConfirmation = false
+    @AppStorage("hasSeenSleepModeTip") private var hasSeenTip = false
+    @State private var showBrightnessTip = false
 
     /// Saved brightness level, restored on exit.
     @State private var previousBrightness: CGFloat = 0.5
@@ -64,6 +66,23 @@ struct SleepModeView: View {
                     .padding(.bottom, AppTheme.spacing3xl)
             }
         }
+        .overlay {
+            if showBrightnessTip {
+                VStack(spacing: AppTheme.spacingSm) {
+                    Image(systemName: "sun.min.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(AppTheme.gold.opacity(0.6))
+                    Text("Your screen has been dimmed.\nTap Exit to restore brightness.")
+                        .font(AppTheme.caption)
+                        .foregroundStyle(AppTheme.warmWhite.opacity(0.5))
+                        .multilineTextAlignment(.center)
+                }
+                .padding(AppTheme.spacingXl)
+                .background(.ultraThinMaterial.opacity(0.4))
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
+                .transition(.opacity)
+            }
+        }
         .persistentSystemOverlays(.hidden)
         .statusBarHidden()
         .preferredColorScheme(.dark)
@@ -72,6 +91,17 @@ struct SleepModeView: View {
             UIScreen.main.brightness = 0.05
             UIApplication.shared.isIdleTimerDisabled = true
             scheduler.isSleepModeActive = true
+
+            if !hasSeenTip {
+                showBrightnessTip = true
+                hasSeenTip = true
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(4))
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        showBrightnessTip = false
+                    }
+                }
+            }
         }
         .onDisappear {
             UIScreen.main.brightness = previousBrightness

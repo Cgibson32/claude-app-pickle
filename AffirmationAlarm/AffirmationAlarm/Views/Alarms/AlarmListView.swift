@@ -110,6 +110,7 @@ struct AlarmRow: View {
     @Query private var profiles: [UserProfile]
     @State private var showingEdit = false
     @State private var showDeleteConfirmation = false
+    @State private var flashToggle = false
 
     var body: some View {
         Button {
@@ -148,8 +149,9 @@ struct AlarmRow: View {
                 .accessibilityLabel(alarm.isEnabled ? "Turn off alarm" : "Turn on alarm")
             }
             .padding(AppTheme.spacingLg)
-            .background(AppTheme.cardBackground)
+            .background(flashToggle ? AppTheme.gold.opacity(0.12) : AppTheme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
+            .animation(.easeOut(duration: 0.35), value: flashToggle)
         }
         .buttonStyle(.bounce)
         .accessibilityElement(children: .combine)
@@ -175,8 +177,15 @@ struct AlarmRow: View {
     }
 
     private func handleAlarmToggle(alarm: Alarm, enabled: Bool) {
+        HapticService.selection()
         alarm.isEnabled = enabled
         try? modelContext.save()
+
+        flashToggle = true
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(0.35))
+            flashToggle = false
+        }
         if enabled {
             if let profile = profiles.first {
                 let context = modelContext

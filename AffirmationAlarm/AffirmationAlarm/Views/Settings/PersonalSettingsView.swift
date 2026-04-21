@@ -20,6 +20,7 @@ struct PersonalSettingsView: View {
     @State private var name = ""
     @State private var goals = ""
     @State private var selectedCategories: Set<GoalCategory> = []
+    @State private var showSavedToast = false
 
     var body: some View {
         ZStack {
@@ -47,6 +48,9 @@ struct PersonalSettingsView: View {
                     .foregroundStyle(name.trimmingCharacters(in: .whitespaces).isEmpty ? AppTheme.textTertiary : AppTheme.gold)
                     .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
             }
+        }
+        .overlay(alignment: .top) {
+            ToastView(message: "Saved", isPresented: $showSavedToast)
         }
         .onAppear {
             if let profile {
@@ -208,7 +212,15 @@ struct PersonalSettingsView: View {
                 )
             }
         }
-        dismiss()
+
+        HapticService.success()
+        withAnimation(.easeIn(duration: 0.2)) {
+            showSavedToast = true
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.5))
+            dismiss()
+        }
     }
 
     private func invalidateTodaysAffirmations() {

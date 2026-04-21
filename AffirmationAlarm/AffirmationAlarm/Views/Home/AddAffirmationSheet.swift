@@ -11,6 +11,7 @@ struct AddAffirmationSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var text: String = ""
+    @State private var showSavedToast = false
     @FocusState private var focused: Bool
 
     private var trimmed: String {
@@ -60,6 +61,9 @@ struct AddAffirmationSheet: View {
                 }
             }
             .onAppear { focused = true }
+            .overlay(alignment: .top) {
+                ToastView(message: "Affirmation added", isPresented: $showSavedToast)
+            }
         }
     }
 
@@ -71,6 +75,13 @@ struct AddAffirmationSheet: View {
         affirmation.isCustom = true
         modelContext.insert(affirmation)
         HapticService.success()
-        dismiss()
+        focused = false
+        withAnimation(.easeIn(duration: 0.2)) {
+            showSavedToast = true
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.5))
+            dismiss()
+        }
     }
 }
