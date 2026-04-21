@@ -274,7 +274,7 @@ struct DiagnosticsView: View {
     /// after a refresh, and the user never sees the whole 7-section
     /// wall of text at once unless they ask for it.
     @ViewBuilder
-    private func card<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+    private func card<Content: View>(title: String, @ViewBuilder content: @escaping () -> Content) -> some View {
         let binding = Binding(
             get: { expandedSections.contains(title) },
             set: { isExpanded in
