@@ -637,8 +637,8 @@ final class AlarmKitScheduler {
             extra: "outcome=\(outcome)"
         )
 
+        MorningAudioRenderer.shared.invalidateAll()
         if case .played = outcome {
-            MorningAudioRenderer.shared.invalidateAll()
             MissedAlarmDetector.recordSuccess(alarmID: alarmID)
             AlarmTelemetry.eventSync(.lastFireRecorded, alarmID: alarmID)
         }
