@@ -34,7 +34,7 @@ class AffirmationCacheService {
         // skip Claude generation entirely. Use a bundled closing to avoid
         // burning an API call purely for the 5–10 word tail.
         guard needed > 0 else {
-            purgeOldGenerated(modelContext: modelContext)
+            purgeAllGenerated(modelContext: modelContext)
             let closing = DailyClosingMessage(message: BundledAffirmationPool.closing())
             modelContext.insert(closing)
             return (selectedFavorites, closing)
