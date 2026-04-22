@@ -194,24 +194,11 @@ actor ClaudeAPIService {
             \(trimmedGoals)
             ===
             """
-        } else if !categories.isEmpty {
-            header = """
-            === USER FOCUS AREAS (PRIMARY — every affirmation must reference these) ===
-            \(categories.joined(separator: ", "))
-            ===
-            """
         } else {
             header = "=== NO GOALS PROVIDED — write warm, general affirmations ==="
         }
 
         var supporting: [String] = ["User name: \(name)"]
-        if !trimmedGoals.isEmpty, !categories.isEmpty {
-            supporting.append("Secondary focus areas: \(categories.joined(separator: ", "))")
-        }
-        if !recentReflections.isEmpty {
-            let lines = recentReflections.map(Self.describe(reflection:))
-            supporting.append("Recent evening reflections:\n- " + lines.joined(separator: "\n- "))
-        }
 
         var exclusionBlock = ""
         if !exclude.isEmpty {

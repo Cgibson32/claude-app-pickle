@@ -22,7 +22,7 @@ class OnboardingViewModel {
         switch currentStep {
         case 0: return true
         case 1: return !name.trimmingCharacters(in: .whitespaces).isEmpty
-        case 2: return !selectedCategories.isEmpty
+        case 2: return !goals.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case 3: return true
         default: return false
         }

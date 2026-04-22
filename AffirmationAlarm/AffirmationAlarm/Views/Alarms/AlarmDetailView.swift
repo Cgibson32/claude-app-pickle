@@ -168,7 +168,7 @@ struct AlarmDetailView: View {
             alarm.repeatDays = Array(repeatDays)
             alarm.soundName = soundName.rawValue
             alarm.label = label
-            alarm.isEnabled = isEnabled
+            alarm.isEnabled = true
             targetAlarm = alarm
         } else {
             let newAlarm = Alarm(

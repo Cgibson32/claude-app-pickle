@@ -5,7 +5,7 @@ struct OnboardingContainerView: View {
     @State private var viewModel = OnboardingViewModel()
     @Environment(\.modelContext) private var modelContext
 
-    private let stepLabels = ["Welcome", "Your Name", "Goals & Reflection", "Set Alarm"]
+    private let stepLabels = ["Welcome", "Your Name", "Your Goals", "Set Alarm"]
 
     var body: some View {
         ZStack {

@@ -31,14 +31,6 @@ struct SettingsView: View {
                         }
                     }
 
-                    section("Wellness") {
-                        NavigationLink {
-                            EveningReflectionSettingsView()
-                        } label: {
-                            SettingsRow(icon: "moon.stars.fill", title: "Evening Reflection", color: AppTheme.deepPlum)
-                        }
-                    }
-
                     section("Debug") {
                         NavigationLink {
                             DiagnosticsView()

@@ -85,7 +85,6 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query private var profiles: [UserProfile]
     @Query private var alarms: [Alarm]
-    @State private var showEveningReflection = false
     @State private var scheduler = AlarmKitScheduler.shared
     @State private var missedAlarms: [Alarm] = []
     @State private var missedBannerDismissed = false
@@ -127,12 +126,6 @@ struct RootView: View {
                 BackgroundKeepAlive.shared.start()
                 checkForMissedAlarms()
             }
-        }
-        .sheet(isPresented: $showEveningReflection) {
-            EveningReflectionView()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .didTapEveningReflection)) { _ in
-            showEveningReflection = true
         }
         .onReceive(NotificationCenter.default.publisher(for: .didCompleteMorningPlayback)) { _ in
             reconcileAlarmsWithSystem()
@@ -204,13 +197,6 @@ struct RootView: View {
         guard let profile = (try? modelContext.fetch(FetchDescriptor<UserProfile>()))?.first,
               profile.hasCompletedOnboarding else {
             return
-        }
-
-        if profile.eveningReflectionEnabled {
-            EveningReflectionSchedulingService.schedule(
-                hour: profile.eveningReflectionHour,
-                minute: profile.eveningReflectionMinute
-            )
         }
 
         let context = modelContext

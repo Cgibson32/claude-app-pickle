@@ -19,7 +19,6 @@ struct PersonalSettingsView: View {
 
     @State private var name = ""
     @State private var goals = ""
-    @State private var selectedCategories: Set<GoalCategory> = []
     @State private var showSavedToast = false
 
     var body: some View {
@@ -30,7 +29,6 @@ struct PersonalSettingsView: View {
                 VStack(spacing: AppTheme.spacingXxl) {
                     nameField
                     goalsField
-                    focusAreasField
 
                     if let profile {
                         countPicker(profile: profile)
@@ -56,9 +54,6 @@ struct PersonalSettingsView: View {
             if let profile {
                 name = profile.name
                 goals = profile.freeformGoals
-                selectedCategories = Set(
-                    profile.selectedCategories.compactMap { GoalCategory(rawValue: $0) }
-                )
             }
         }
     }
@@ -93,28 +88,6 @@ struct PersonalSettingsView: View {
                 .frame(minHeight: 100)
                 .background(AppTheme.inputBackground)
                 .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
-        }
-    }
-
-    private var focusAreasField: some View {
-        VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
-            Text("Focus Areas")
-                .font(AppTheme.subheadline)
-                .foregroundStyle(AppTheme.textSecondary)
-            FlowLayout(spacing: AppTheme.spacingSm) {
-                ForEach(GoalCategory.allCases, id: \.self) { category in
-                    CategoryChip(
-                        category: category,
-                        isSelected: selectedCategories.contains(category)
-                    ) {
-                        if selectedCategories.contains(category) {
-                            selectedCategories.remove(category)
-                        } else {
-                            selectedCategories.insert(category)
-                        }
-                    }
-                }
-            }
         }
     }
 
@@ -190,13 +163,10 @@ struct PersonalSettingsView: View {
         }
 
         let newGoals = goals
-        let newCategories = selectedCategories.map(\.rawValue).sorted()
         let goalsChanged = profile.freeformGoals != newGoals
-            || profile.selectedCategories.sorted() != newCategories
 
         profile.name = name.trimmingCharacters(in: .whitespaces)
         profile.freeformGoals = newGoals
-        profile.selectedCategories = selectedCategories.map(\.rawValue)
 
         // Goals drive affirmation generation. When they change, drop
         // today's cached affirmations + MP3s so the next render rebuilds

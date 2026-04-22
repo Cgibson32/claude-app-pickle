@@ -14,32 +14,18 @@ struct GoalsEntryView: View {
                         .font(.system(size: 48))
                         .foregroundStyle(AppTheme.sunsetOrange)
 
-                    Text("What matters to you?")
+                    Text("What are your goals?")
                         .font(AppTheme.title)
                         .foregroundStyle(AppTheme.textPrimary)
 
-                    Text("Pick 1\u{2013}4 focus areas for your affirmations")
+                    Text("Your affirmations will be tailored to exactly what you write here.")
                         .font(AppTheme.bodyFont)
                         .foregroundStyle(AppTheme.textSecondary)
-                }
-
-                FlowLayout(spacing: AppTheme.spacingSm) {
-                    ForEach(GoalCategory.allCases, id: \.self) { category in
-                        CategoryChip(
-                            category: category,
-                            isSelected: viewModel.selectedCategories.contains(category)
-                        ) {
-                            if viewModel.selectedCategories.contains(category) {
-                                viewModel.selectedCategories.remove(category)
-                            } else if viewModel.selectedCategories.count < 4 {
-                                viewModel.selectedCategories.insert(category)
-                            }
-                        }
-                    }
+                        .multilineTextAlignment(.center)
                 }
 
                 VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
-                    Text("Personal goals (optional)")
+                    Text("Your goals")
                         .font(AppTheme.subheadline)
                         .foregroundStyle(AppTheme.textSecondary)
 
@@ -74,10 +60,6 @@ struct GoalsEntryView: View {
                     }
                 }
 
-                // Evening reflection — folded in here so it doesn't need
-                // its own full-screen step. Toggle + time picker.
-                eveningReflectionSection
-
                 Button("Continue") {
                     HapticService.medium()
                     viewModel.advance()
@@ -94,57 +76,6 @@ struct GoalsEntryView: View {
         .scrollDismissesKeyboard(.interactively)
     }
 
-    private var eveningReflectionSection: some View {
-        VStack(spacing: AppTheme.spacingLg) {
-            HStack(spacing: AppTheme.spacingMd) {
-                Image(systemName: "moon.stars.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(AppTheme.gold)
-                Text("Evening Reflection")
-                    .font(AppTheme.headline)
-                    .foregroundStyle(AppTheme.textPrimary)
-                Spacer()
-            }
-
-            Text("A quick nightly check-in — your reflections shape tomorrow's affirmations.")
-                .font(AppTheme.caption)
-                .foregroundStyle(AppTheme.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Toggle(isOn: $viewModel.eveningReflectionEnabled) {
-                Text("Enable evening reminders")
-                    .font(AppTheme.bodyFont)
-                    .foregroundStyle(AppTheme.textPrimary)
-            }
-            .tint(AppTheme.sunsetOrange)
-
-            if viewModel.eveningReflectionEnabled {
-                DatePicker(
-                    "Reminder time",
-                    selection: Binding(
-                        get: {
-                            Calendar.current.date(
-                                from: DateComponents(hour: viewModel.eveningReflectionHour, minute: viewModel.eveningReflectionMinute)
-                            ) ?? Date()
-                        },
-                        set: { date in
-                            viewModel.eveningReflectionHour = Calendar.current.component(.hour, from: date)
-                            viewModel.eveningReflectionMinute = Calendar.current.component(.minute, from: date)
-                        }
-                    ),
-                    displayedComponents: .hourAndMinute
-                )
-                .datePickerStyle(.wheel)
-                .labelsHidden()
-                .frame(height: 120)
-                .transition(.move(edge: .top).combined(with: .opacity))
-            }
-        }
-        .padding(AppTheme.spacingXl)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
-        .animation(AppTheme.bouncy, value: viewModel.eveningReflectionEnabled)
-    }
 }
 
 // MARK: - Flow Layout
