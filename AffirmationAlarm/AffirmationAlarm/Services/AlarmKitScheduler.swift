@@ -603,7 +603,7 @@ final class AlarmKitScheduler {
         try? manager.cancel(id: alarmID)
         DiagnosticsLog.shared.log("observer", "cancelled system alarm; waiting for interruption end")
 
-        let waited = await InterruptionWaiter.awaitEnd(timeout: .milliseconds(1500))
+        let waited = await InterruptionWaiter.awaitEnd(timeout: .milliseconds(500))
         DiagnosticsLog.shared.log("observer", "interruption wait returned: \(waited ? "ended" : "timeout")")
 
         let isForeground = await MainActor.run {

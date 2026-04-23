@@ -29,14 +29,8 @@ private enum AlarmIntro {
     /// Must exist as `<stem>.caf` in the app bundle.
     static let soundStem = "alarm_gentle"
 
-    /// Total intro length in milliseconds — hold + fade combined.
-    /// ~4s gives enough time to start waking the user before the
-    /// spoken affirmations begin.
-    static let totalMs: Int = 4000
-
-    /// Trailing fade-out so the cut into "Good morning, <name>" doesn't
-    /// feel abrupt. Must be less than `totalMs`.
-    static let fadeMs: Int = 500
+    static let totalMs: Int = 1500
+    static let fadeMs: Int = 300
 
     /// Loud enough to wake the user — this IS the alarm now, not just
     /// a gentle lead-in. Still slightly below 1.0 so the spoken voice
