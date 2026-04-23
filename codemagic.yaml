@@ -187,7 +187,7 @@ workflows:
           cd AffirmationAlarm
           PLIST=AffirmationAlarm/Info.generated.plist
           MISSING_CRITICAL=0
-          for KEY in ANTHROPIC_API_KEY OPENAI_API_KEY SENTRY_DSN; do
+          for KEY in ANTHROPIC_API_KEY OPENAI_API_KEY ELEVENLABS_API_KEY SENTRY_DSN; do
             VALUE="${!KEY:-}"
             # PlistBuddy Add fails if the key exists; Set fails if missing.
             # Try Add first; if it fails, fall back to Set.
@@ -201,7 +201,7 @@ workflows:
               # rendering pipeline. An empty string here silently disables
               # every TTS call and the app ships with no audio. Don't fail
               # the build (allows CI of UI-only changes), but flag loudly.
-              if [ "$KEY" = "OPENAI_API_KEY" ] || [ "$KEY" = "ANTHROPIC_API_KEY" ]; then
+              if [ "$KEY" = "ELEVENLABS_API_KEY" ] || [ "$KEY" = "ANTHROPIC_API_KEY" ]; then
                 MISSING_CRITICAL=$((MISSING_CRITICAL + 1))
               fi
             fi

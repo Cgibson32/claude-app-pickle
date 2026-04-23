@@ -20,7 +20,23 @@ enum APIKeyConfiguration {
         saveToKeychain(key, account: anthropicKeychainKey)
     }
 
-    // MARK: - OpenAI (TTS)
+    // MARK: - ElevenLabs (TTS)
+
+    private static let elevenLabsKeychainKey = "com.affirmationalarm.elevenlabs-api-key"
+
+    static var elevenLabsKey: String? {
+        if let bundled = Bundle.main.object(forInfoDictionaryKey: "ELEVENLABS_API_KEY") as? String,
+           !bundled.isEmpty, bundled != "$(ELEVENLABS_API_KEY)" {
+            return bundled
+        }
+        return getFromKeychain(elevenLabsKeychainKey)
+    }
+
+    static func setElevenLabsKey(_ key: String) {
+        saveToKeychain(key, account: elevenLabsKeychainKey)
+    }
+
+    // MARK: - OpenAI (TTS - legacy)
 
     /// Bundled OpenAI API key — users do NOT configure this. The key is pulled
     /// from the Info.plist (injected at build time via an xcconfig / env var) or

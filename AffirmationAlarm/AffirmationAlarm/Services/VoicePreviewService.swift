@@ -17,15 +17,12 @@ import AVFoundation
 /// here, so offline fallback isn't worth the complexity.
 @MainActor @Observable
 final class VoicePreviewService: NSObject, AVAudioPlayerDelegate {
-    private let cloudTTS = OpenAITTSService()
+    private let cloudTTS = ElevenLabsTTSService()
     private var audioPlayer: AVAudioPlayer?
     private var playerContinuation: CheckedContinuation<Void, Never>?
     private var sessionConfigured = false
 
-    /// Voice used for the next preview. Mirror of
-    /// `OpenAITTSService.Voice`; set by `SpeechSettingsView` before each
-    /// call to `preview`.
-    var voice: OpenAITTSService.Voice = .nova
+    var voice: ElevenLabsTTSService.Voice = .rachel
 
     /// Synthesize `text` with the current `voice` and play it. Returns
     /// when playback finishes, is interrupted by `stop()`, or on any
@@ -33,7 +30,7 @@ final class VoicePreviewService: NSObject, AVAudioPlayerDelegate {
     func preview(text: String) async {
         configureSessionIfNeeded()
         do {
-            let data = try await cloudTTS.synthesize(text: text, voice: voice, format: .mp3)
+            let data = try await cloudTTS.synthesize(text: text, voice: voice)
             await playAudioData(data)
         } catch {
             // Preview is best-effort; caller decides UI state.

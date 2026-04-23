@@ -12,7 +12,7 @@ struct SpeechSettingsView: View {
     /// finishes. The preview button shows a speaker-wave icon while active,
     /// and all other rows' play buttons are disabled to prevent overlapping
     /// playback.
-    @State private var previewingVoice: OpenAITTSService.Voice?
+    @State private var previewingVoice: ElevenLabsTTSService.Voice?
 
     /// Held as `@State` rather than instantiating fresh each tap, so the
     /// underlying OpenAI cache persists across previews — a second tap on
@@ -77,9 +77,9 @@ struct SpeechSettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             VStack(spacing: 0) {
-                ForEach(OpenAITTSService.Voice.allCases, id: \.self) { voice in
+                ForEach(ElevenLabsTTSService.Voice.allCases, id: \.self) { voice in
                     voiceRow(voice: voice, profile: profile)
-                    if voice != OpenAITTSService.Voice.allCases.last {
+                    if voice != ElevenLabsTTSService.Voice.allCases.last {
                         Divider().background(AppTheme.strokeLight)
                     }
                 }
@@ -90,7 +90,7 @@ struct SpeechSettingsView: View {
     }
 
     @ViewBuilder
-    private func voiceRow(voice: OpenAITTSService.Voice, profile: UserProfile) -> some View {
+    private func voiceRow(voice: ElevenLabsTTSService.Voice, profile: UserProfile) -> some View {
         let isSelected = profile.ttsVoice == voice.rawValue
         let isPreviewing = previewingVoice == voice
 
@@ -143,7 +143,7 @@ struct SpeechSettingsView: View {
     /// audio file (yesterday's Nova recording isn't what they just asked
     /// for), and kick off a fresh render + reschedule for every enabled
     /// alarm so tomorrow morning uses the new voice.
-    private func select(voice: OpenAITTSService.Voice, profile: UserProfile) {
+    private func select(voice: ElevenLabsTTSService.Voice, profile: UserProfile) {
         profile.ttsVoice = voice.rawValue
         try? modelContext.save()
 
@@ -168,7 +168,7 @@ struct SpeechSettingsView: View {
     /// preview before starting a new one. First tap of any voice has a
     /// ~1s OpenAI round-trip; subsequent taps hit the in-memory cache in
     /// `OpenAITTSService` and play instantly.
-    private func preview(voice: OpenAITTSService.Voice, profile: UserProfile) {
+    private func preview(voice: ElevenLabsTTSService.Voice, profile: UserProfile) {
         previewSpeech.stop()
 
         let trimmedName = profile.name.trimmingCharacters(in: .whitespacesAndNewlines)

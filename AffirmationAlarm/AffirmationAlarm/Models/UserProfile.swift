@@ -11,7 +11,7 @@ final class UserProfile {
     /// OpenAI TTS voice name — raw value of `OpenAITTSService.Voice`. Default
     /// `nova` is warm and conversational; users can preview + switch in
     /// Voice Settings.
-    var ttsVoice: String = "nova"
+    var ttsVoice: String = "21m00Tcm4TlvDq8ikWAM"
     var affirmationCount: Int = 3
     /// Raw value of `AffirmationBudget`. Stored as `String` (rather than
     /// the enum itself) so an existing SwiftData store migrates without a

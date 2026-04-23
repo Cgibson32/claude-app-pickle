@@ -51,7 +51,7 @@ final class MorningAudioRenderer {
     /// always produces a fresh render for tomorrow.
     private let staleAfter: TimeInterval = 300
 
-    private let tts = OpenAITTSService()
+    private let tts = ElevenLabsTTSService()
 
     // MARK: - Public API
 
@@ -134,7 +134,7 @@ final class MorningAudioRenderer {
         guard ensureSoundsDirectoryExists() else { return }
 
         let cache = AffirmationCacheService()
-        let voice = OpenAITTSService.Voice(rawValue: profile.ttsVoice) ?? .nova
+        let voice = ElevenLabsTTSService.Voice(rawValue: profile.ttsVoice) ?? .rachel
         let count = profile.affirmationCount
 
         do {
@@ -217,7 +217,7 @@ final class MorningAudioRenderer {
     private struct RenderContent {
         let mainScript: String
         let closingScript: String
-        let voice: OpenAITTSService.Voice
+        let voice: ElevenLabsTTSService.Voice
         let affirmationTexts: [String]
     }
 
@@ -234,7 +234,7 @@ final class MorningAudioRenderer {
             exclude: exclude
         )
 
-        let voice = OpenAITTSService.Voice(rawValue: profile.ttsVoice) ?? .nova
+        let voice = ElevenLabsTTSService.Voice(rawValue: profile.ttsVoice) ?? .rachel
         let count = profile.affirmationCount
         let budget = wordBudget(for: count, budget: profile.budget)
 
@@ -279,9 +279,9 @@ final class MorningAudioRenderer {
 
     // MARK: - Rendering primitives
 
-    private func renderMainMP3(to url: URL, script: String, voice: OpenAITTSService.Voice) async -> Bool {
+    private func renderMainMP3(to url: URL, script: String, voice: ElevenLabsTTSService.Voice) async -> Bool {
         do {
-            let data = try await tts.synthesize(text: script, voice: voice, format: .mp3)
+            let data = try await tts.synthesize(text: script, voice: voice)
             try data.write(to: url, options: .atomic)
             guard verifyPlayable(at: url, label: "main MP3") else { return false }
             DiagnosticsLog.shared.log("render", "main MP3 rendered \(url.lastPathComponent) size=\(data.count)")
@@ -303,7 +303,7 @@ final class MorningAudioRenderer {
     private func renderClosing(
         to url: URL,
         script: String,
-        voice: OpenAITTSService.Voice,
+        voice: ElevenLabsTTSService.Voice,
         alarmID: UUID
     ) async {
         if copyBundledClosingIfEligible(to: url, script: script) {
@@ -344,11 +344,11 @@ final class MorningAudioRenderer {
     private func renderSupportingMP3(
         to url: URL,
         script: String,
-        voice: OpenAITTSService.Voice,
+        voice: ElevenLabsTTSService.Voice,
         label: String
     ) async {
         do {
-            let data = try await tts.synthesize(text: script, voice: voice, format: .mp3)
+            let data = try await tts.synthesize(text: script, voice: voice)
             try data.write(to: url, options: .atomic)
             if verifyPlayable(at: url, label: "\(label) MP3") {
                 DiagnosticsLog.shared.log("render", "\(label) MP3 rendered \(url.lastPathComponent) size=\(data.count)")
