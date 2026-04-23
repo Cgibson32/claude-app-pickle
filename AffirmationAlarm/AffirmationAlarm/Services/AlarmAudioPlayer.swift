@@ -29,13 +29,9 @@ private enum AlarmIntro {
     /// Must exist as `<stem>.caf` in the app bundle.
     static let soundStem = "alarm_gentle"
 
-    static let totalMs: Int = 1500
-    static let fadeMs: Int = 300
-
-    /// Loud enough to wake the user — this IS the alarm now, not just
-    /// a gentle lead-in. Still slightly below 1.0 so the spoken voice
-    /// feels like a step up in presence.
-    static let volume: Float = 0.85
+    static let totalMs: Int = 3000
+    static let fadeMs: Int = 400
+    static let volume: Float = 1.0
 }
 
 actor AlarmAudioPlayer {
