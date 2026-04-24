@@ -583,7 +583,6 @@ final class AlarmKitScheduler {
     ///   Stop intent fires when the user interacts from the lock screen.
     private func handleFire(alarmID: UUID) async {
         defer { activeFireHandling.remove(alarmID) }
-        let fireStart = Date()
 
         DiagnosticsLog.shared.log("observer", "handleFire start \(alarmID.uuidString.prefix(8))")
         AlarmTelemetry.eventSync(.fire, alarmID: alarmID)
@@ -606,41 +605,58 @@ final class AlarmKitScheduler {
         let waited = await InterruptionWaiter.awaitEnd(timeout: .milliseconds(500))
         DiagnosticsLog.shared.log("observer", "interruption wait returned: \(waited ? "ended" : "timeout")")
 
-        let isForeground = await MainActor.run {
-            UIApplication.shared.applicationState == .active
-        }
-
-        if isForeground {
-            ringingAlarmID = alarmID
-            ringingAlarmLabel = label
-        }
-
+        // Always show the ringing overlay so Stop/Snooze is available
+        // whether the app is foregrounded or the user opens it mid-playback.
+        ringingAlarmID = alarmID
+        ringingAlarmLabel = label
         isPlayingMorningAudio = true
         VolumeBooster.startMonitoring()
-        DiagnosticsLog.shared.log("observer", "playing affirmations for \(alarmID.uuidString.prefix(8)) foreground=\(isForeground)")
+
         let playStart = Date()
+        DiagnosticsLog.shared.log("observer", "playing affirmations for \(alarmID.uuidString.prefix(8))")
         AlarmTelemetry.eventSync(.playStart, alarmID: alarmID)
 
-        let outcome = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
+        // Race: playback vs user pressing Stop/Snooze. First to finish wins.
+        let action: RingingAction = await withTaskGroup(of: RingingAction.self) { group in
+            group.addTask {
+                _ = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
+                return .stop
+            }
+            group.addTask { [weak self] in
+                guard let self else { return .stop }
+                return await self.awaitRingingAction(alarmID: alarmID)
+            }
+            let first = await group.next() ?? .stop
+            group.cancelAll()
+            return first
+        }
 
+        // Silence any remaining audio and dismiss the overlay.
+        await AlarmAudioPlayer.shared.stopPlayback()
         VolumeBooster.stopMonitoring()
         isPlayingMorningAudio = false
         ringingAlarmID = nil
 
-        AppLogger.alarm.info("observer: \(alarmID.uuidString.prefix(8), privacy: .public) outcome=\(String(describing: outcome), privacy: .public)")
-        lastHandleFireOutcome = FireOutcome(outcome: String(describing: outcome), date: Date())
-        DiagnosticsLog.shared.log("observer", "handleFire outcome=\(outcome)")
+        DiagnosticsLog.shared.log("observer", "handleFire done action=\(action)")
+        lastHandleFireOutcome = FireOutcome(outcome: String(describing: action), date: Date())
         AlarmTelemetry.eventSync(
             .playComplete,
             alarmID: alarmID,
             elapsedMs: Int(Date().timeIntervalSince(playStart) * 1000),
-            extra: "outcome=\(outcome)"
+            extra: "action=\(action)"
         )
 
-        MorningAudioRenderer.shared.invalidateAll()
-        if case .played = outcome {
+        switch action {
+        case .stop:
+            MorningAudioRenderer.shared.invalidateAll()
             MissedAlarmDetector.recordSuccess(alarmID: alarmID)
             AlarmTelemetry.eventSync(.lastFireRecorded, alarmID: alarmID)
+
+        case .snooze:
+            MorningAudioRenderer.shared.invalidateAll()
+            scheduleSnoozeFollowUp(originalAlarmID: alarmID)
+            MissedAlarmDetector.recordSuccess(alarmID: alarmID)
+            DiagnosticsLog.shared.log("observer", "snoozed \(alarmID.uuidString.prefix(8))")
         }
 
         BackgroundKeepAlive.shared.start()
