@@ -147,14 +147,14 @@ final class AlarmKitScheduler {
         AlarmTelemetry.eventSync(.stopPressed, alarmID: ringingAlarmID)
         ringingContinuation?.yield(.stop)
         ringingContinuation?.finish()
+        Task { await AlarmAudioPlayer.shared.stopPlayback() }
     }
 
-    /// Called by the ringing UI's Snooze button. Same yield-then-finish
-    /// pattern as Stop.
     func userPressedSnooze() {
         AlarmTelemetry.eventSync(.snoozePressed, alarmID: ringingAlarmID)
         ringingContinuation?.yield(.snooze)
         ringingContinuation?.finish()
+        Task { await AlarmAudioPlayer.shared.stopPlayback() }
     }
 
     // MARK: - Private state
@@ -616,22 +616,37 @@ final class AlarmKitScheduler {
         DiagnosticsLog.shared.log("observer", "playing affirmations for \(alarmID.uuidString.prefix(8))")
         AlarmTelemetry.eventSync(.playStart, alarmID: alarmID)
 
-        // Race: playback vs user pressing Stop/Snooze. First to finish wins.
-        let action: RingingAction = await withTaskGroup(of: RingingAction.self) { group in
-            group.addTask {
-                _ = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
-                return .stop
-            }
-            group.addTask { [weak self] in
-                guard let self else { return .stop }
-                return await self.awaitRingingAction(alarmID: alarmID)
-            }
+        // Set up the action stream so Stop/Snooze buttons can interrupt.
+        let (stream, continuation) = AsyncStream<RingingAction>.makeStream()
+        ringingContinuation = continuation
+
+        // Play affirmations. If user presses Stop/Snooze during playback,
+        // stopPlayback() is called from the button handler to silence audio.
+        let playbackTask = Task {
+            await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
+        }
+
+        // Wait for either: user presses Stop/Snooze, OR playback finishes.
+        var action: RingingAction = .stop
+        let actionTask = Task { () -> RingingAction in
+            for await a in stream { return a }
+            return .stop
+        }
+
+        // Whichever completes first determines the action.
+        let result: RingingAction = await withTaskGroup(of: RingingAction.self) { group in
+            group.addTask { _ = await playbackTask.value; return .stop }
+            group.addTask { await actionTask.value }
             let first = await group.next() ?? .stop
             group.cancelAll()
             return first
         }
+        action = result
 
-        // Silence any remaining audio and dismiss the overlay.
+        // Clean up: stop any remaining audio, dismiss overlay.
+        playbackTask.cancel()
+        actionTask.cancel()
+        ringingContinuation = nil
         await AlarmAudioPlayer.shared.stopPlayback()
         VolumeBooster.stopMonitoring()
         isPlayingMorningAudio = false
