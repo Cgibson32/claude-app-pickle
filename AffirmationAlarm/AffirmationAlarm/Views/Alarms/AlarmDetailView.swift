@@ -11,11 +11,8 @@ struct AlarmDetailView: View {
     @State private var hour: Int
     @State private var minute: Int
     @State private var repeatDays: Set<Int>
-    @State private var soundName: AppConstants.AlarmSound
     @State private var label: String
     @State private var isEnabled: Bool
-    @State private var previewingSound: AppConstants.AlarmSound?
-    @State private var previewStopTask: Task<Void, Never>?
     @State private var showDeleteConfirmation = false
 
     init(alarm: Alarm?) {
@@ -23,7 +20,6 @@ struct AlarmDetailView: View {
         _hour = State(initialValue: alarm?.hour ?? 6)
         _minute = State(initialValue: alarm?.minute ?? 30)
         _repeatDays = State(initialValue: Set(alarm?.repeatDays ?? []))
-        _soundName = State(initialValue: AppConstants.AlarmSound(rawValue: alarm?.soundName ?? "alarm_gentle") ?? .gentle)
         _label = State(initialValue: alarm?.label ?? "Morning Affirmations")
         _isEnabled = State(initialValue: alarm?.isEnabled ?? true)
     }
@@ -65,53 +61,6 @@ struct AlarmDetailView: View {
                             .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
                             .dismissKeyboardOnSubmit()
 
-                        VStack(spacing: AppTheme.spacingSm) {
-                            Text("Sound")
-                                .font(AppTheme.subheadline)
-                                .foregroundStyle(AppTheme.textSecondary)
-
-                            VStack(spacing: 0) {
-                                ForEach(AppConstants.AlarmSound.allCases, id: \.self) { sound in
-                                    HStack(spacing: AppTheme.spacingMd) {
-                                        Button {
-                                            HapticService.selection()
-                                            soundName = sound
-                                        } label: {
-                                            HStack {
-                                                Text(sound.displayName)
-                                                    .font(AppTheme.bodyFont)
-                                                    .foregroundStyle(AppTheme.textPrimary)
-                                                Spacer()
-                                                if soundName == sound {
-                                                    Image(systemName: "checkmark.circle.fill")
-                                                        .foregroundStyle(AppTheme.gold)
-                                                }
-                                            }
-                                            .contentShape(Rectangle())
-                                        }
-                                        .buttonStyle(.plain)
-
-                                        Button {
-                                            togglePreview(sound)
-                                        } label: {
-                                            Image(systemName: previewingSound == sound ? "stop.circle.fill" : "play.circle")
-                                                .font(.title2)
-                                                .foregroundStyle(previewingSound == sound ? AppTheme.gold : AppTheme.textSecondary)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                    .padding(.horizontal, AppTheme.spacingLg)
-                                    .padding(.vertical, AppTheme.spacingMd)
-
-                                    if sound != AppConstants.AlarmSound.allCases.last {
-                                        Divider().background(AppTheme.strokeLight)
-                                    }
-                                }
-                            }
-                            .background(AppTheme.cardBackground)
-                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
-                        }
-
                         if alarm != nil {
                             Button(role: .destructive) {
                                 showDeleteConfirmation = true
@@ -145,7 +94,6 @@ struct AlarmDetailView: View {
             }
             .navigationTitle(alarm == nil ? "New Alarm" : "Edit Alarm")
             .navigationBarTitleDisplayMode(.inline)
-            .onDisappear { stopPreview() }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
@@ -166,7 +114,6 @@ struct AlarmDetailView: View {
             alarm.hour = hour
             alarm.minute = minute
             alarm.repeatDays = Array(repeatDays)
-            alarm.soundName = soundName.rawValue
             alarm.label = label
             alarm.isEnabled = true
             targetAlarm = alarm
@@ -175,7 +122,6 @@ struct AlarmDetailView: View {
                 hour: hour,
                 minute: minute,
                 repeatDays: Array(repeatDays),
-                soundName: soundName.rawValue,
                 label: label
             )
             modelContext.insert(newAlarm)
@@ -207,30 +153,4 @@ struct AlarmDetailView: View {
         dismiss()
     }
 
-    /// Play the chosen alarm sound through the real ringing audio path so
-    /// users can hear it the same way it'll sound at 6 AM. Capped at 5s so
-    /// a forgotten preview doesn't run forever.
-    private func togglePreview(_ sound: AppConstants.AlarmSound) {
-        HapticService.selection()
-        if previewingSound == sound {
-            stopPreview()
-            return
-        }
-        stopPreview()
-        previewingSound = sound
-        previewStopTask = Task { @MainActor in
-            await AlarmAudioPlayer.shared.startAlarmLoop(soundName: sound.rawValue)
-            try? await Task.sleep(for: .seconds(5))
-            if Task.isCancelled { return }
-            await AlarmAudioPlayer.shared.stopAlarmLoop()
-            if previewingSound == sound { previewingSound = nil }
-        }
-    }
-
-    private func stopPreview() {
-        previewStopTask?.cancel()
-        previewStopTask = nil
-        previewingSound = nil
-        Task { @MainActor in await AlarmAudioPlayer.shared.stopAlarmLoop() }
-    }
 }
