@@ -38,6 +38,8 @@ struct HomeView: View {
                 VStack(spacing: AppTheme.spacingXl) {
                     greetingSection
 
+                    streakRibbon
+
                     if !hasAPIKey {
                         apiKeyWarning
                     }
@@ -108,6 +110,63 @@ struct HomeView: View {
             )
         }
         .buttonStyle(.bounce)
+    }
+
+    /// Soft pill that celebrates consecutive mornings the user has woken
+    /// up to the ritual. Renders only while the streak is live (most
+    /// recent success today or yesterday). When paused, the ribbon is
+    /// silent — no "you broke it" message, no "welcome back" — the next
+    /// successful morning brings it back on its own.
+    @ViewBuilder
+    private var streakRibbon: some View {
+        let streak = StreakService.current()
+        if streak.isLive && streak.count >= 1 {
+            HStack(spacing: AppTheme.spacingMd) {
+                ZStack {
+                    Circle()
+                        .fill(AppTheme.gold.opacity(0.18))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "sun.max.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(AppTheme.gold)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(streakHeadline(count: streak.count))
+                        .font(AppTheme.headline)
+                        .foregroundStyle(AppTheme.textPrimary)
+                    Text(streakSubcopy(count: streak.count))
+                        .font(AppTheme.caption)
+                        .foregroundStyle(AppTheme.textSecondary)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(AppTheme.spacingLg)
+            .background(AppTheme.gold.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.radiusLg)
+                    .strokeBorder(AppTheme.gold.opacity(0.18), lineWidth: 1)
+            )
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private func streakHeadline(count: Int) -> String {
+        switch count {
+        case 1: return "Your first morning"
+        case 2...6: return "\(count) mornings in a row"
+        default: return "\(count)-morning streak"
+        }
+    }
+
+    private func streakSubcopy(count: Int) -> String {
+        switch count {
+        case 1: return "Welcome to the ritual."
+        case 2...6: return "Keep showing up."
+        default: return "You are building something real."
+        }
     }
 
     private var apiKeyWarning: some View {
