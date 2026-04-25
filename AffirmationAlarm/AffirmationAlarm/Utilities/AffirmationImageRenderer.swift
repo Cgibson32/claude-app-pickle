@@ -5,7 +5,10 @@ enum AffirmationImageRenderer {
     static func renderImage(text: String) -> UIImage? {
         let view = ShareableAffirmationCard(text: text)
         let renderer = ImageRenderer(content: view)
-        renderer.scale = UIScreen.main.scale
+        // Card is 540×675 pt. Scale 2 → 1080×1350 px, the Instagram feed
+        // 4:5 ratio. Fixed (not UIScreen.main.scale) so shares look identical
+        // from every device — no surprise downscale on older hardware.
+        renderer.scale = 2.0
         return renderer.uiImage
     }
 
