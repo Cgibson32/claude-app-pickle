@@ -45,6 +45,7 @@ actor ClaudeAPIService {
         goals: String,
         categories: [String],
         recentReflections: [RecentReflection],
+        eveningIntention: String? = nil,
         count: Int,
         exclude: [String] = [],
         maxTokens: Int = AppConstants.maxTokens
@@ -62,6 +63,7 @@ actor ClaudeAPIService {
             goals: goals,
             categories: categories,
             recentReflections: recentReflections,
+            eveningIntention: eveningIntention,
             count: count,
             exclude: exclude
         )
@@ -179,6 +181,7 @@ actor ClaudeAPIService {
         goals: String,
         categories: [String],
         recentReflections: [RecentReflection],
+        eveningIntention: String?,
         count: Int,
         exclude: [String]
     ) -> String {
@@ -200,6 +203,20 @@ actor ClaudeAPIService {
 
         var supporting: [String] = ["User name: \(name)"]
 
+        // The intention block, if present, is the second-strongest signal —
+        // strong enough that the model is told to call it back in the FIRST
+        // affirmation specifically, while the rest stay goal-anchored.
+        var intentionBlock = ""
+        if let intent = eveningIntention?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !intent.isEmpty {
+            intentionBlock = """
+
+            === LAST NIGHT'S INTENTION (FIRST AFFIRMATION must call this back) ===
+            \(intent)
+            ===
+            """
+        }
+
         var exclusionBlock = ""
         if !exclude.isEmpty {
             let numbered = exclude.enumerated()
@@ -217,6 +234,7 @@ actor ClaudeAPIService {
         Generate \(count) personalized morning affirmations for this person, following every rule in your instructions.
 
         \(header)
+        \(intentionBlock)
 
         \(supporting.joined(separator: "\n"))
         \(exclusionBlock)
@@ -258,6 +276,19 @@ actor ClaudeAPIService {
     - No emojis. No quotation marks.
     - Banned: "You are enough", "You are worthy", "You deserve happiness", "You attract abundance", "You are limitless", "You are unstoppable", "You are amazing". Nothing that belongs on a generic poster.
     - Closing: 5–10 words, "you" voice, references the goal.
+
+    === INTENTION CALLBACK ===
+
+    If the user message contains a "LAST NIGHT'S INTENTION" block, the FIRST affirmation in your output MUST reference it directly. Speak their intention back to them in "you" voice, as if it's already true. Make it unmistakable that you heard them. The remaining affirmations follow the usual rules above (goal-anchored, varied openers).
+
+    Example:
+    Intention: "I want to stop snapping at my kids when I'm tired."
+    First affirmation GOOD: "You said you wanted to be the calm in your home — and that calm is already what they feel from you."
+    First affirmation BAD: "You are a great parent." (didn't reference the intention)
+
+    Intention: "I want to finally finish this chapter."
+    First affirmation GOOD: "You wanted to finish that chapter — today, the words are already moving toward you."
+    First affirmation BAD: "You are a writer." (too generic)
 
     === EXAMPLES ===
 

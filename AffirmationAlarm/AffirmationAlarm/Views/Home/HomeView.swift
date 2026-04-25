@@ -44,6 +44,8 @@ struct HomeView: View {
 
                     NextAlarmCard(alarms: alarms, isPreparing: isPreparingFirstMorning)
 
+                    IntentionCard()
+
                     if alarms.contains(where: \.isEnabled) {
                         sleepModeCard
                     }

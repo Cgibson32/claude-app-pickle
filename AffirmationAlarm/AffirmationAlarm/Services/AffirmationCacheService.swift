@@ -42,6 +42,7 @@ class AffirmationCacheService {
 
         // Step 3: generate the remaining `needed` affirmations fresh.
         let recentReflections = fetchRecentReflections(modelContext: modelContext)
+        let intention = fetchFreshIntention(modelContext: modelContext)
         let content: ClaudeAPIService.GeneratedContent
         do {
             content = try await apiService.generateAffirmations(
@@ -49,6 +50,7 @@ class AffirmationCacheService {
                 goals: profile.freeformGoals,
                 categories: profile.selectedCategories,
                 recentReflections: recentReflections,
+                eveningIntention: intention,
                 count: needed,
                 exclude: exclude,
                 maxTokens: profile.budget.claudeMaxTokens
@@ -126,6 +128,23 @@ class AffirmationCacheService {
         return rows.map {
             ClaudeAPIService.RecentReflection(mood: $0.mood, goodThing: $0.goodThing, gratitude: $0.gratitude)
         }
+    }
+
+    /// Returns the most recently written intention if it's still "fresh"
+    /// (within the last 24 hours). Older intentions are quietly ignored —
+    /// we only call back what the user said *last night*, not three days
+    /// ago, otherwise the morning starts to feel stale.
+    private func fetchFreshIntention(modelContext: ModelContext) -> String? {
+        var descriptor = FetchDescriptor<EveningIntention>(
+            sortBy: [SortDescriptor(\EveningIntention.createdAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        guard let latest = (try? modelContext.fetch(descriptor))?.first else { return nil }
+        let trimmed = latest.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let age = Date().timeIntervalSince(latest.createdAt)
+        guard age >= 0, age < 24 * 60 * 60 else { return nil }
+        return trimmed
     }
 
     // MARK: - Garbage collection

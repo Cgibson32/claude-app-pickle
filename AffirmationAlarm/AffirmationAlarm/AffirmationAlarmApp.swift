@@ -15,7 +15,8 @@ struct AffirmationAlarmApp: App {
         Alarm.self,
         Affirmation.self,
         DailyClosingMessage.self,
-        EveningReflection.self
+        EveningReflection.self,
+        EveningIntention.self
     ])
 
     /// Build the persistent `ModelContainer`, recovering from an
