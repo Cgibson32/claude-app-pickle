@@ -24,10 +24,24 @@ struct GoalsEntryView: View {
                         .multilineTextAlignment(.center)
                 }
 
-                VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
+                VStack(alignment: .leading, spacing: AppTheme.spacingMd) {
                     Text("Your goals")
                         .font(AppTheme.subheadline)
                         .foregroundStyle(AppTheme.textSecondary)
+
+                    VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
+                        Text("Need ideas? Tap one to add")
+                            .font(AppTheme.caption)
+                            .foregroundStyle(AppTheme.textTertiary)
+
+                        FlowLayout(spacing: AppTheme.spacingSm) {
+                            ForEach(Self.exampleGoals, id: \.self) { goal in
+                                ExampleGoalChip(text: goal) {
+                                    addExample(goal)
+                                }
+                            }
+                        }
+                    }
 
                     TextEditor(text: $viewModel.goals)
                         .font(AppTheme.bodyFont)
@@ -76,6 +90,42 @@ struct GoalsEntryView: View {
         .scrollDismissesKeyboard(.interactively)
     }
 
+    private static let exampleGoals = [
+        "Become a more present parent",
+        "Get my health back on track",
+        "Build my business",
+        "Finish writing my book",
+        "Heal and feel whole again",
+        "Learn to love myself"
+    ]
+
+    private func addExample(_ text: String) {
+        HapticService.selection()
+        let trimmed = viewModel.goals.trimmingCharacters(in: .whitespacesAndNewlines)
+        viewModel.goals = trimmed.isEmpty ? text : "\(trimmed)\n\(text)"
+    }
+}
+
+private struct ExampleGoalChip: View {
+    let text: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(text)
+                .font(AppTheme.caption)
+                .foregroundStyle(AppTheme.textSecondary)
+                .padding(.horizontal, AppTheme.spacingMd)
+                .padding(.vertical, AppTheme.spacingSm)
+                .background(AppTheme.cardBackground)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule().stroke(AppTheme.strokeLight, lineWidth: 1)
+                )
+        }
+        .buttonStyle(.bounce)
+        .accessibilityHint("Adds this example to your goals")
+    }
 }
 
 // MARK: - Flow Layout
