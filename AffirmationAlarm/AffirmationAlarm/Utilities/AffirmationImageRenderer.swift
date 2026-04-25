@@ -5,7 +5,9 @@ enum AffirmationImageRenderer {
     static func renderImage(text: String) -> UIImage? {
         let view = ShareableAffirmationCard(text: text)
         let renderer = ImageRenderer(content: view)
-        renderer.scale = UIScreen.main.scale
+        // Card is intrinsically 1080pt square; scale 1 yields a 1080px PNG
+        // — the universal social-share size. Higher scale wastes bytes.
+        renderer.scale = 1
         return renderer.uiImage
     }
 
