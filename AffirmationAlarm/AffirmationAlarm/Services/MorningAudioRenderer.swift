@@ -169,9 +169,10 @@ final class MorningAudioRenderer {
         }
     }
 
-    /// Wipe every rendered file (any alarm ID, any stem). Called when the
-    /// user changes their TTS voice in Settings so the next refresh
-    /// definitely regenerates rather than reusing yesterday's voice.
+    /// Mark every rendered file as stale so the next `refresh()` call
+    /// regenerates. Files stay on disk as a fallback — if re-rendering
+    /// fails (API timeout, no network), the alarm still has audio to play
+    /// instead of falling through to the system tone.
     func invalidateAll() {
         let dir = Self.soundsDirectory()
         guard let contents = try? FileManager.default.contentsOfDirectory(
@@ -179,8 +180,12 @@ final class MorningAudioRenderer {
             includingPropertiesForKeys: nil
         ) else { return }
 
+        let epoch = Date(timeIntervalSince1970: 0)
         for url in contents where url.lastPathComponent.hasAnyPrefix(RenderPaths.allPrefixes) {
-            try? FileManager.default.removeItem(at: url)
+            try? FileManager.default.setAttributes(
+                [.modificationDate: epoch],
+                ofItemAtPath: url.path
+            )
         }
     }
 
