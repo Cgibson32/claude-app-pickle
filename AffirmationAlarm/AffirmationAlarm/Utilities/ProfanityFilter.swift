@@ -34,6 +34,6 @@ enum ProfanityFilter {
         let lowered = text.lowercased()
         let words = lowered.components(separatedBy: .alphanumerics.inverted)
             .filter { !$0.isEmpty }
-        return !words.isDisjoint(with: blockedWords)
+        return words.contains(where: { blockedWords.contains($0) })
     }
 }
