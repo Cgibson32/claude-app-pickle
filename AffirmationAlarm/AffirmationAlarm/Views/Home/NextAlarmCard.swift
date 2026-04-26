@@ -8,6 +8,8 @@ struct NextAlarmCard: View {
     /// full-width banner cluttering the home screen.
     var isPreparing: Bool = false
 
+    @State private var showSheet = false
+
     private var nextAlarm: Alarm? {
         alarms.filter(\.isEnabled)
             .compactMap { alarm -> (Alarm, Date)? in
@@ -19,6 +21,19 @@ struct NextAlarmCard: View {
     }
 
     var body: some View {
+        Button {
+            HapticService.selection()
+            showSheet = true
+        } label: {
+            cardContent
+        }
+        .buttonStyle(.bounce)
+        .sheet(isPresented: $showSheet) {
+            AlarmDetailView(alarm: nextAlarm)
+        }
+    }
+
+    private var cardContent: some View {
         VStack(alignment: .leading, spacing: AppTheme.spacingMd) {
             HStack {
                 Image(systemName: "alarm.fill")
@@ -27,6 +42,9 @@ struct NextAlarmCard: View {
                     .font(AppTheme.subheadline)
                     .foregroundStyle(AppTheme.textSecondary)
                 Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppTheme.textTertiary)
             }
 
             if let alarm = nextAlarm {
@@ -54,12 +72,13 @@ struct NextAlarmCard: View {
                     .font(AppTheme.caption)
                     .foregroundStyle(AppTheme.textTertiary)
             } else {
-                Text("No alarm set")
+                Text("Tap to set an alarm")
                     .font(AppTheme.bodyFont)
-                    .foregroundStyle(AppTheme.textTertiary)
+                    .foregroundStyle(AppTheme.textSecondary)
             }
         }
         .padding(AppTheme.spacingXl)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(AppTheme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
         .animation(AppTheme.gentle, value: isPreparing)
