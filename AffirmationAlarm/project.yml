@@ -79,6 +79,16 @@ targets:
       CODE_SIGN_STYLE: Automatic
       DEVELOPMENT_TEAM: JLYXS97L8A
       GENERATE_INFOPLIST_FILE: YES
+      # When the CI build forces CODE_SIGN_STYLE=Manual on the command
+      # line, xcodebuild requires a provisioning profile *per target*.
+      # We can't put a single specifier on the command line because that
+      # would apply globally to both targets in the scheme. Instead the
+      # main app's specifier reads from a custom build setting
+      # `APP_PROVISIONING_PROFILE` that codemagic.yaml's archive step
+      # sets to the resolved profile name; the widget extension below
+      # uses `WIDGET_PROVISIONING_PROFILE`. Local Xcode builds use
+      # automatic signing and ignore these.
+      PROVISIONING_PROFILE_SPECIFIER: "$(APP_PROVISIONING_PROFILE)"
       # INFOPLIST_KEY_* build settings below duplicate values in
       # `info.properties` above. Kept in sync because some CI paths pass
       # them on the command line and would silently drop the `info.properties`
@@ -116,6 +126,10 @@ targets:
       INFOPLIST_KEY_NSHumanReadableCopyright: ""
       SKIP_INSTALL: NO
       ENABLE_USER_SCRIPT_SANDBOXING: NO
+      # CI sets WIDGET_PROVISIONING_PROFILE on the xcodebuild command
+      # line; this expands to that name when CODE_SIGN_STYLE=Manual is
+      # forced. See the comment on the main app target.
+      PROVISIONING_PROFILE_SPECIFIER: "$(WIDGET_PROVISIONING_PROFILE)"
 
   AffirmationAlarmTests:
     type: bundle.unit-test

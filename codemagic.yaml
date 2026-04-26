@@ -341,13 +341,14 @@ workflows:
       - name: Build archive
         script: |
           cd AffirmationAlarm
-          # NOTE: no PROVISIONING_PROFILE on the command line — that
-          # forces a single profile for every target in the scheme, which
-          # breaks once the AlarmLiveActivity widget extension is
-          # introduced (it has its own bundle ID + profile). Xcode auto-
-          # matches each target to the right profile from
-          # ~/Library/MobileDevice/Provisioning Profiles when given just
-          # CODE_SIGN_STYLE=Manual + CODE_SIGN_IDENTITY.
+          # Per-target provisioning profile names are read from custom
+          # build settings APP_PROVISIONING_PROFILE and
+          # WIDGET_PROVISIONING_PROFILE; project.yml sets each target's
+          # PROVISIONING_PROFILE_SPECIFIER to expand from these. Doing
+          # it this way (rather than a single global PROVISIONING_PROFILE
+          # override) is required once the build has more than one
+          # signed target — the global override would force both targets
+          # to share one profile, which Apple rejects.
           xcodebuild archive \
             -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
@@ -358,6 +359,8 @@ workflows:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             DEVELOPMENT_TEAM=JLYXS97L8A \
+            APP_PROVISIONING_PROFILE="$PROFILE_NAME" \
+            WIDGET_PROVISIONING_PROFILE="$WIDGET_PROFILE_NAME" \
             GENERATE_INFOPLIST_FILE=YES \
             INFOPLIST_KEY_CFBundleIconName=AppIcon \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
