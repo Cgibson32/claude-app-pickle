@@ -1,9 +1,7 @@
 import SwiftUI
 
-/// Fullscreen ringing overlay shown when an alarm fires while the app is
-/// foregrounded but NOT in Sleep Mode. Presented as a `.fullScreenCover`
-/// from `RootView`. The matching in-Sleep-Mode ringing state lives inline
-/// in `SleepModeView`.
+/// Fullscreen ringing overlay shown when an alarm fires and the app is
+/// foregrounded. Presented as a `.fullScreenCover` from `RootView`.
 struct AlarmRingingView: View {
     @State private var scheduler = AlarmKitScheduler.shared
     @State private var currentTime = Date()
@@ -107,9 +105,8 @@ private struct SunriseBackground: View {
 
 // MARK: - Shared Ringing Content
 
-/// Shared ringing UI content used by both `AlarmRingingView` (fullscreen
-/// cover) and `SleepModeView` (inline state). Keeps the visual design in
-/// one place.
+/// Shared ringing UI content used by `AlarmRingingView`. Kept as a
+/// separate struct so the UI can also be embedded inline if needed.
 struct AlarmRingingContent: View {
     let time: Date
     let label: String

@@ -82,8 +82,7 @@ final class AlarmKitScheduler {
     var permissionDenied: Bool = false
 
     /// `true` while the morning affirmation sequence is playing via the
-    /// foreground observer. `SleepModeView` observes this to render a
-    /// "Playing your affirmations..." state.
+    /// foreground observer.
     var isPlayingMorningAudio: Bool = false
 
     /// Non-nil while the in-app ringing UI is showing. The observer sets
@@ -95,8 +94,9 @@ final class AlarmKitScheduler {
     /// Label for the alarm currently ringing (shown in the ringing UI).
     var ringingAlarmLabel: String = ""
 
-    /// Set by `SleepModeView.onAppear/onDisappear` so the scheduler knows
-    /// whether to show the in-app ringing UI or let the system alert run.
+    /// Legacy field kept for telemetry/diagnostics compatibility — always
+    /// false since the bedtime mode UI was removed (the alarm fires
+    /// reliably without any pre-bed user step).
     var isSleepModeActive: Bool = false
 
     /// Follow-up UUIDs waiting for audio rendering. Drained by

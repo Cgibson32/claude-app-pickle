@@ -2,10 +2,9 @@ import SwiftUI
 import SwiftData
 
 /// Home tab — a glance surface, not a workbench. Shows: greeting, next
-/// alarm (with inline "preparing" state during the first-morning render),
-/// sleep mode entry, and today's affirmations. Custom affirmation entry
-/// is a sheet triggered from the toolbar, so the home screen can focus
-/// on *output* without a persistent input field stealing vertical space.
+/// alarm, tonight's intention, and (via toolbar) custom affirmation entry.
+/// The alarm fires automatically without any user prep — there is no
+/// "bedtime mode" to enable.
 ///
 /// This view does NOT own a `NavigationStack` — `MainTabView` wraps each
 /// tab in its own stack so deep navigation stays scoped per tab.
@@ -13,7 +12,6 @@ struct HomeView: View {
     @Query private var profiles: [UserProfile]
     @Query(sort: \Alarm.hour) private var alarms: [Alarm]
 
-    @State private var showSleepMode = false
     @State private var showAddAffirmation = false
 
     /// Set to `true` by `OnboardingViewModel.completeOnboarding` while the
@@ -46,10 +44,6 @@ struct HomeView: View {
 
                     IntentionCard()
 
-                    if alarms.contains(where: \.isEnabled) {
-                        sleepModeCard
-                    }
-
                     Spacer().frame(height: AppTheme.spacingXl)
                 }
                 .padding(.horizontal, AppTheme.spacingXl)
@@ -71,45 +65,6 @@ struct HomeView: View {
         .sheet(isPresented: $showAddAffirmation) {
             AddAffirmationSheet()
         }
-        .fullScreenCover(isPresented: $showSleepMode) {
-            SleepModeView()
-        }
-    }
-
-    private var sleepModeCard: some View {
-        Button {
-            showSleepMode = true
-        } label: {
-            HStack(spacing: AppTheme.spacingMd) {
-                Image(systemName: "moon.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(AppTheme.gold)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Bedtime")
-                        .font(AppTheme.headline)
-                        .foregroundStyle(AppTheme.textPrimary)
-                    Text("Hands-free affirmations when the alarm rings. Otherwise, slide to stop and they'll play automatically.")
-                        .font(AppTheme.caption)
-                        .foregroundStyle(AppTheme.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 0)
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(AppTheme.textTertiary)
-            }
-            .padding(AppTheme.spacingLg)
-            .background(AppTheme.gold.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
-            .overlay(
-                RoundedRectangle(cornerRadius: AppTheme.radiusLg)
-                    .strokeBorder(AppTheme.gold.opacity(0.15), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.bounce)
     }
 
     private var apiKeyWarning: some View {
