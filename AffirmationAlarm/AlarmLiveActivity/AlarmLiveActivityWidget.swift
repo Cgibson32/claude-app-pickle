@@ -13,11 +13,14 @@ struct AlarmLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: AlarmAttributes<AffirmationAlarmMetadata>.self) { context in
             LockScreenView(
-                alarmID: context.attributes.metadata.alarmID,
-                label: context.attributes.metadata.label
+                alarmID: context.attributes.metadata?.alarmID ?? UUID(),
+                label: context.attributes.metadata?.label ?? ""
             )
         } dynamicIsland: { context in
-            DynamicIsland {
+            let alarmID = context.attributes.metadata?.alarmID ?? UUID()
+            let label = context.attributes.metadata?.label ?? ""
+
+            return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     Image(systemName: "alarm.waves.left.and.right.fill")
                         .foregroundStyle(Self.gold)
@@ -30,13 +33,13 @@ struct AlarmLiveActivityWidget: Widget {
                         .monospacedDigit()
                 }
                 DynamicIslandExpandedRegion(.center) {
-                    Text(context.attributes.metadata.label)
+                    Text(label)
                         .font(.subheadline)
                         .foregroundStyle(Self.cream.opacity(0.8))
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack(spacing: 12) {
-                        Button(intent: SnoozeFromLockScreen(alarmID: context.attributes.metadata.alarmID)) {
+                        Button(intent: SnoozeFromLockScreen(alarmID: alarmID)) {
                             Text("Snooze")
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(Self.cream.opacity(0.8))
@@ -45,7 +48,7 @@ struct AlarmLiveActivityWidget: Widget {
                         }
                         .buttonStyle(.plain)
 
-                        Button(intent: StopFromLockScreen(alarmID: context.attributes.metadata.alarmID)) {
+                        Button(intent: StopFromLockScreen(alarmID: alarmID)) {
                             Text("Stop")
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(Color.black)
