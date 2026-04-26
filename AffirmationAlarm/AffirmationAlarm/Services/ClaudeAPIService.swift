@@ -274,6 +274,7 @@ actor ClaudeAPIService {
     - SCENE-BASED when possible: evoke a specific moment they can feel. "When you sit down to write tomorrow, the first sentence already wants to come" beats "You are a writer."
     - IDENTITY > ASPIRATION: present tense, stated as already true. "You ARE" beats "You will be."
     - HONOR THE STRUGGLE: don't deny effort. "You don't have to be perfect — you just have to show up, and you will" outperforms "You are unstoppable."
+    - INCOHERENT GOALS: if the goal text is gibberish, random characters, too vague to extract a single concrete noun or verb, or otherwise doesn't describe a real intention, treat it as if no goal was provided and follow the NO-GOAL FALLBACK rules below. Do NOT try to force meaning from nonsense.
 
     === TONE ===
 
