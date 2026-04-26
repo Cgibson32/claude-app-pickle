@@ -22,7 +22,9 @@ class OnboardingViewModel {
         switch currentStep {
         case 0: return true
         case 1: return !name.trimmingCharacters(in: .whitespaces).isEmpty
-        case 2: return !goals.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case 2:
+            let trimmed = goals.trimmingCharacters(in: .whitespacesAndNewlines)
+            return !trimmed.isEmpty && !ProfanityFilter.containsProfanity(trimmed)
         case 3: return true
         default: return false
         }

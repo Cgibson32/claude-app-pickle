@@ -79,6 +79,13 @@ struct GoalsEntryView: View {
                         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
                 }
 
+                if ProfanityFilter.containsProfanity(viewModel.goals) {
+                    Text("Please remove inappropriate language from your goals.")
+                        .font(AppTheme.caption)
+                        .foregroundStyle(.red.opacity(0.9))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
                 VStack(spacing: AppTheme.spacingSm) {
                     Text("Daily affirmations: \(viewModel.affirmationCount)")
                         .font(AppTheme.subheadline)

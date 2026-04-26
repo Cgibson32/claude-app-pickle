@@ -21,6 +21,14 @@ struct PersonalSettingsView: View {
     @State private var goals = ""
     @State private var showSavedToast = false
 
+    private var hasProfanity: Bool {
+        ProfanityFilter.containsProfanity(goals)
+    }
+
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && !hasProfanity
+    }
+
     var body: some View {
         ZStack {
             GradientBackground(style: .sunrise, withBlobs: false)
@@ -42,8 +50,8 @@ struct PersonalSettingsView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Save") { save() }
-                    .foregroundStyle(name.trimmingCharacters(in: .whitespaces).isEmpty ? AppTheme.textTertiary : AppTheme.gold)
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .foregroundStyle(canSave ? AppTheme.gold : AppTheme.textTertiary)
+                    .disabled(!canSave)
             }
         }
         .overlay(alignment: .top) {
@@ -87,6 +95,12 @@ struct PersonalSettingsView: View {
                 .frame(minHeight: 100)
                 .background(AppTheme.inputBackground)
                 .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
+
+            if hasProfanity {
+                Text("Please remove inappropriate language from your goals.")
+                    .font(AppTheme.caption)
+                    .foregroundStyle(.red.opacity(0.9))
+            }
         }
     }
 
