@@ -1,20 +1,5 @@
 import AVFoundation
 
-/// Plays a short voice sample for the user via OpenAI TTS. The only
-/// consumer is `SpeechSettingsView` so the user can hear each voice
-/// before picking one — the alarm-time ritual itself is pre-rendered by
-/// `MorningAudioRenderer` and played by AlarmKit, never by this service.
-///
-/// Responsibilities, kept deliberately narrow:
-/// - Synthesize the sample via `OpenAITTSService` (cache persists across
-///   taps for instant replay).
-/// - Play the returned MP3 via a transient `AVAudioPlayer`.
-/// - `await preview(...)` returns when playback finishes or is stopped.
-/// - `stop()` cancels in-flight playback.
-///
-/// No `AVSpeechSynthesizer` fallback: if OpenAI fails, `preview` returns
-/// silently — the user can tap again. There is no alarm-critical path
-/// here, so offline fallback isn't worth the complexity.
 @MainActor @Observable
 final class VoicePreviewService: NSObject, AVAudioPlayerDelegate {
     private let cloudTTS = ElevenLabsTTSService()
@@ -23,17 +8,26 @@ final class VoicePreviewService: NSObject, AVAudioPlayerDelegate {
     private var sessionConfigured = false
 
     var voice: ElevenLabsTTSService.Voice = .rachel
+    var lastError: String?
 
-    /// Synthesize `text` with the current `voice` and play it. Returns
-    /// when playback finishes, is interrupted by `stop()`, or on any
-    /// synthesis/playback failure.
     func preview(text: String) async {
+        lastError = nil
         configureSessionIfNeeded()
+
+        guard APIKeyConfiguration.elevenLabsKey != nil else {
+            lastError = "No ElevenLabs API key. Add ELEVENLABS_API_KEY in Codemagic."
+            DiagnosticsLog.shared.log("preview", "no ElevenLabs key")
+            return
+        }
+
         do {
+            DiagnosticsLog.shared.log("preview", "synthesizing \(voice.displayName)")
             let data = try await cloudTTS.synthesize(text: text, voice: voice)
+            DiagnosticsLog.shared.log("preview", "got \(data.count) bytes, playing")
             await playAudioData(data)
         } catch {
-            // Preview is best-effort; caller decides UI state.
+            lastError = "Preview failed: \(error.localizedDescription)"
+            DiagnosticsLog.shared.log("preview", "failed: \(error.localizedDescription)")
         }
     }
 
@@ -52,12 +46,17 @@ final class VoicePreviewService: NSObject, AVAudioPlayerDelegate {
         do {
             let player = try AVAudioPlayer(data: data)
             player.delegate = self
+            player.volume = 1.0
             audioPlayer = player
-            guard player.play() else {
+            guard player.prepareToPlay(), player.play() else {
+                lastError = "Audio player refused to play"
+                DiagnosticsLog.shared.log("preview", "play() returned false")
                 audioPlayer = nil
                 return
             }
         } catch {
+            lastError = "Audio init failed"
+            DiagnosticsLog.shared.log("preview", "AVAudioPlayer init: \(error.localizedDescription)")
             return
         }
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -77,6 +76,7 @@ final class VoicePreviewService: NSObject, AVAudioPlayerDelegate {
 
     nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
         Task { @MainActor in
+            self.lastError = "Decode error"
             self.audioPlayer = nil
             if let c = self.playerContinuation {
                 self.playerContinuation = nil
@@ -87,8 +87,6 @@ final class VoicePreviewService: NSObject, AVAudioPlayerDelegate {
 
     // MARK: - Session
 
-    /// Lazy `.playback`/`.spokenAudio` session so the preview is audible
-    /// even if the user opens Voice Settings as their first interaction.
     private func configureSessionIfNeeded() {
         guard !sessionConfigured else { return }
         do {
@@ -96,7 +94,7 @@ final class VoicePreviewService: NSObject, AVAudioPlayerDelegate {
             try AVAudioSession.sharedInstance().setActive(true)
             sessionConfigured = true
         } catch {
-            // Best-effort; failure just means the preview might be quieter.
+            DiagnosticsLog.shared.log("preview", "audio session: \(error.localizedDescription)")
         }
     }
 }

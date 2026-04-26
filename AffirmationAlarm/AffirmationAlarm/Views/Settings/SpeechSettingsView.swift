@@ -27,20 +27,14 @@ struct SpeechSettingsView: View {
                 VStack(spacing: AppTheme.spacingXxl) {
                     if let profile {
                         voiceSection(profile: profile)
+                    }
 
-                        VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
-                            Text("About the voice")
-                                .font(AppTheme.headline)
-                                .foregroundStyle(AppTheme.textPrimary)
-                            Text("Your morning sequence is spoken by a warm, nurturing voice designed to feel like a calm friend beside you. Pick the one that sounds most like the voice you want to wake up to. If you're offline, it gracefully falls back to the built-in system voice.")
-                                .font(AppTheme.caption)
-                                .foregroundStyle(AppTheme.textSecondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(AppTheme.spacingLg)
-                        .background(AppTheme.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
+                    if let error = previewSpeech.lastError {
+                        Text(error)
+                            .font(AppTheme.caption)
+                            .foregroundStyle(.red.opacity(0.9))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(AppTheme.spacingMd)
                     }
                 }
                 .padding(AppTheme.spacingXl)
