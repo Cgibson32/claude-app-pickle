@@ -154,7 +154,7 @@ struct PersonalSettingsView: View {
         // today's cached affirmations + MP3s so the next render rebuilds
         // with the new goals — otherwise the user waits until tomorrow.
         if goalsChanged {
-            invalidateTodaysAffirmations()
+            purgeAllGeneratedAffirmations()
             MorningAudioRenderer.shared.invalidateAll()
             Task { @MainActor [alarms, profile, modelContext] in
                 await MorningAudioRenderer.shared.refreshAll(
@@ -175,27 +175,24 @@ struct PersonalSettingsView: View {
         }
     }
 
-    private func invalidateTodaysAffirmations() {
-        let today = Calendar.current.startOfDay(for: Date())
-        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today) ?? today
-
+    /// Drop every generated (non-favorite, non-custom) Affirmation row and
+    /// every closing message so the Affirmations tab shows its empty state
+    /// during the brief regeneration window — no flash of yesterday's
+    /// stale lines while the new ones synthesize.
+    private func purgeAllGeneratedAffirmations() {
         let affDescriptor = FetchDescriptor<Affirmation>(
             predicate: #Predicate {
-                $0.generatedFor >= today
-                    && $0.generatedFor < tomorrow
-                    && $0.isCustom == false
-                    && $0.favoriteType == 0
+                $0.isCustom == false && $0.favoriteType == 0
             }
         )
-        if let todays = try? modelContext.fetch(affDescriptor) {
-            for a in todays { modelContext.delete(a) }
+        if let rows = try? modelContext.fetch(affDescriptor) {
+            for a in rows { modelContext.delete(a) }
         }
 
-        let closingDescriptor = FetchDescriptor<DailyClosingMessage>(
-            predicate: #Predicate { $0.generatedFor >= today && $0.generatedFor < tomorrow }
-        )
+        let closingDescriptor = FetchDescriptor<DailyClosingMessage>()
         if let closings = try? modelContext.fetch(closingDescriptor) {
             for c in closings { modelContext.delete(c) }
         }
+        try? modelContext.save()
     }
 }
