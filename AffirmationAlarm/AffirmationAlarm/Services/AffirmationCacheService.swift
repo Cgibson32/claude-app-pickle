@@ -40,7 +40,11 @@ class AffirmationCacheService {
             return (selectedFavorites, closing)
         }
 
-        // Step 3: generate the remaining `needed` affirmations fresh.
+        // Step 3: purge previous generated rows NOW — before the API
+        // call — so the home card shows its empty state instead of flashing
+        // stale affirmations from the previous generation while we wait.
+        purgeAllGenerated(modelContext: modelContext)
+
         let recentReflections = fetchRecentReflections(modelContext: modelContext)
         let intention = fetchFreshIntention(modelContext: modelContext)
         let content: ClaudeAPIService.GeneratedContent
@@ -64,11 +68,6 @@ class AffirmationCacheService {
                 closing: BundledAffirmationPool.closing()
             )
         }
-
-        // Step 4: purge ALL previous generated rows (not just old ones)
-        // before inserting, so only one set exists at any time. Favorites
-        // and custom rows are preserved.
-        purgeAllGenerated(modelContext: modelContext)
 
         let goalContext = ([profile.freeformGoals] + profile.selectedCategories).joined(separator: "; ")
         var generated: [Affirmation] = []
