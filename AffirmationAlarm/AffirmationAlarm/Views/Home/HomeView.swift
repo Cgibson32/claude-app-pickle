@@ -13,6 +13,7 @@ struct HomeView: View {
     @Query(sort: \Alarm.hour) private var alarms: [Alarm]
 
     @State private var showAddAffirmation = false
+    @State private var streakRefreshTrigger = 0
 
     /// Set to `true` by `OnboardingViewModel.completeOnboarding` while the
     /// first morning's audio is being rendered (~5-10s for Claude + TTS
@@ -40,6 +41,12 @@ struct HomeView: View {
                         apiKeyWarning
                     }
 
+                    let streak = StreakService.currentStreak()
+                    let _ = streakRefreshTrigger // re-eval on trigger
+                    if streak > 0 {
+                        StreakRibbon(name: profile?.name ?? "", streak: streak)
+                    }
+
                     NextAlarmCard(alarms: alarms, isPreparing: isPreparingFirstMorning)
 
                     IntentionCard()
@@ -64,6 +71,9 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showAddAffirmation) {
             AddAffirmationSheet()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .didCompleteMorningPlayback)) { _ in
+            streakRefreshTrigger &+= 1
         }
     }
 

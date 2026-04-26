@@ -3,6 +3,18 @@ import SwiftUI
 struct GoalsEntryView: View {
     @Bindable var viewModel: OnboardingViewModel
 
+    /// Six prefilled examples to break the blank-page freeze. Tapping
+    /// appends to the goals field rather than replacing — the user can
+    /// stack examples or use one as a seed they edit.
+    private let exampleGoals = [
+        "Become a more present parent",
+        "Get my health back on track",
+        "Build my business",
+        "Finish writing my book",
+        "Heal and feel whole again",
+        "Learn to love myself"
+    ]
+
     var body: some View {
         ScrollView {
             VStack(spacing: AppTheme.spacingXxl) {
@@ -22,6 +34,34 @@ struct GoalsEntryView: View {
                         .font(AppTheme.bodyFont)
                         .foregroundStyle(AppTheme.textSecondary)
                         .multilineTextAlignment(.center)
+                }
+
+                VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
+                    Text("Need a starting point?")
+                        .font(AppTheme.caption)
+                        .foregroundStyle(AppTheme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    FlowLayout(spacing: 8) {
+                        ForEach(exampleGoals, id: \.self) { example in
+                            Button {
+                                HapticService.selection()
+                                appendExample(example)
+                            } label: {
+                                Text(example)
+                                    .font(AppTheme.caption)
+                                    .foregroundStyle(AppTheme.textPrimary)
+                                    .padding(.horizontal, AppTheme.spacingMd)
+                                    .padding(.vertical, AppTheme.spacingSm)
+                                    .background(AppTheme.cardBackground)
+                                    .clipShape(Capsule())
+                                    .overlay(
+                                        Capsule().strokeBorder(AppTheme.gold.opacity(0.20), lineWidth: 1)
+                                    )
+                            }
+                            .buttonStyle(.bounce)
+                        }
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
@@ -76,6 +116,10 @@ struct GoalsEntryView: View {
         .scrollDismissesKeyboard(.interactively)
     }
 
+    private func appendExample(_ text: String) {
+        let current = viewModel.goals.trimmingCharacters(in: .whitespacesAndNewlines)
+        viewModel.goals = current.isEmpty ? text : current + "\n" + text
+    }
 }
 
 // MARK: - Flow Layout

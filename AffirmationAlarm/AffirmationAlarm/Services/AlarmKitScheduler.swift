@@ -676,12 +676,14 @@ final class AlarmKitScheduler {
         case .stop:
             MorningAudioRenderer.shared.invalidateAll()
             MissedAlarmDetector.recordSuccess(alarmID: alarmID)
+            StreakService.recordSuccess()
             AlarmTelemetry.eventSync(.lastFireRecorded, alarmID: alarmID)
 
         case .snooze:
             MorningAudioRenderer.shared.invalidateAll()
             scheduleSnoozeFollowUp(originalAlarmID: alarmID)
             MissedAlarmDetector.recordSuccess(alarmID: alarmID)
+            StreakService.recordSuccess()
             DiagnosticsLog.shared.log("observer", "snoozed \(alarmID.uuidString.prefix(8))")
         }
 
