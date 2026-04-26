@@ -29,12 +29,16 @@ targets:
     dependencies:
       - package: Sentry
         product: Sentry
+      - target: AlarmLiveActivity
     info:
       path: AffirmationAlarm/Info.generated.plist
       properties:
         CFBundleIconName: AppIcon
         ITSAppUsesNonExemptEncryption: false
         NSAlarmKitUsageDescription: "Affirmation Alarm uses the system alarm framework so your morning ritual rings reliably and wakes you on time, even in silent mode."
+        # Required for the AlarmLiveActivity widget extension to render
+        # custom UI on the lock screen / Dynamic Island when alarms fire.
+        NSSupportsLiveActivities: true
         # Required for StopAndPlayClosingIntent to activate an
         # AVAudioSession and play `closing-<alarmID>.wav` while the app
         # is in the background after the user taps Stop on the alarm.
@@ -83,6 +87,36 @@ targets:
       INFOPLIST_KEY_CFBundleIconName: AppIcon
       INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
       INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+  AlarmLiveActivity:
+    # Widget Extension that renders the Live Activity for AlarmKit alarms
+    # on the lock screen + Dynamic Island. The main app target depends on
+    # this target and embeds it as an extension. Shares the
+    # `AffirmationAlarmMetadata.swift` source file via the explicit
+    # `sources` list below — no shared framework needed since the
+    # metadata is tiny. The widget intentionally does NOT contain the
+    # Stop/Snooze intents: AlarmKit's system alert (rendered separately
+    # from this Live Activity) handles those via the configuration's
+    # `stopIntent` and `secondaryIntent`.
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: AlarmLiveActivity
+      - path: AffirmationAlarm/Models/AffirmationAlarmMetadata.swift
+    info:
+      path: AlarmLiveActivity/Info.generated.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.cgibson.affirmationalarm.AlarmLiveActivity
+      CODE_SIGN_STYLE: Automatic
+      DEVELOPMENT_TEAM: JLYXS97L8A
+      GENERATE_INFOPLIST_FILE: YES
+      INFOPLIST_KEY_CFBundleDisplayName: "Alarm"
+      INFOPLIST_KEY_NSHumanReadableCopyright: ""
+      SKIP_INSTALL: NO
+      ENABLE_USER_SCRIPT_SANDBOXING: NO
+
   AffirmationAlarmTests:
     type: bundle.unit-test
     platform: iOS

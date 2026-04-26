@@ -282,33 +282,72 @@ workflows:
           # Generate a fresh certificate key
           openssl genrsa 2048 2>/dev/null > /tmp/cert_key.pem
           export CERTIFICATE_PRIVATE_KEY="$(cat /tmp/cert_key.pem)"
-          # Fetch/create distribution cert + provisioning profile
+          # Fetch/create distribution cert + provisioning profile for the
+          # main app AND the AlarmLiveActivity widget extension. Both
+          # bundle IDs need their own profile since they ship as separate
+          # signed binaries inside the IPA.
+          WIDGET_BUNDLE_ID="$BUNDLE_ID.AlarmLiveActivity"
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
+          app-store-connect fetch-signing-files "$WIDGET_BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
           keychain add-certificates
-          # Find the provisioning profile (Codemagic CLI saves to Xcode UserData)
-          PROFILE_PATH=$(ls ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/*.mobileprovision 2>/dev/null | head -1)
-          if [ -z "$PROFILE_PATH" ]; then
-            echo "ERROR: No provisioning profiles found"
-            ls -laR ~/Library/Developer/Xcode/UserData/ || true
-            ls -laR ~/Library/MobileDevice/ || true
-            exit 1
-          fi
-          # Copy to where xcodebuild expects it for manual signing
+          # Move every fetched profile into the standard install path so
+          # xcodebuild can auto-match each target to its profile by
+          # bundle ID. We resolve the profile UUID + name for the main
+          # app (used by xcodebuild's PROVISIONING_PROFILE override and
+          # ExportOptions.plist) and the widget (ExportOptions only).
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp "$PROFILE_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin \
-            <<< "$(/usr/bin/security cms -D -i "$PROFILE_PATH")")
-          # Extract profile name for export step
-          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin \
-            <<< "$(/usr/bin/security cms -D -i "$PROFILE_PATH")")
+          cp ~/Library/Developer/Xcode/UserData/Provisioning\ Profiles/*.mobileprovision \
+            ~/Library/MobileDevice/Provisioning\ Profiles/
+
+          # Helper: print "<UUID>|<Name>" for the profile whose
+          # entitlement application-identifier matches the given bundle ID.
+          find_profile() {
+            local target_bid="$1"
+            for p in ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision; do
+              local plist
+              plist=$(/usr/bin/security cms -D -i "$p")
+              local app_id
+              app_id=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' /dev/stdin <<< "$plist" 2>/dev/null)
+              # app_id is `TEAMID.com.cgibson.affirmationalarm` etc — strip the team prefix.
+              local bid="${app_id#*.}"
+              if [ "$bid" = "$target_bid" ]; then
+                local uuid
+                local name
+                uuid=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$plist")
+                name=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< "$plist")
+                echo "$uuid|$name"
+                return 0
+              fi
+            done
+            return 1
+          }
+
+          APP_PROFILE_INFO=$(find_profile "$BUNDLE_ID") || { echo "ERROR: no profile for $BUNDLE_ID"; exit 1; }
+          WIDGET_PROFILE_INFO=$(find_profile "$WIDGET_BUNDLE_ID") || { echo "ERROR: no profile for $WIDGET_BUNDLE_ID"; exit 1; }
+
+          PROFILE_UUID="${APP_PROFILE_INFO%%|*}"
+          PROFILE_NAME="${APP_PROFILE_INFO##*|}"
+          WIDGET_PROFILE_NAME="${WIDGET_PROFILE_INFO##*|}"
+
           echo "PROFILE_UUID=$PROFILE_UUID" >> $CM_ENV
           echo "PROFILE_NAME=$PROFILE_NAME" >> $CM_ENV
-          echo "Using profile: $PROFILE_NAME ($PROFILE_UUID)"
+          echo "WIDGET_PROFILE_NAME=$WIDGET_PROFILE_NAME" >> $CM_ENV
+          echo "App: $PROFILE_NAME"
+          echo "Widget: $WIDGET_PROFILE_NAME"
       - name: Build archive
         script: |
           cd AffirmationAlarm
+          # NOTE: no PROVISIONING_PROFILE on the command line — that
+          # forces a single profile for every target in the scheme, which
+          # breaks once the AlarmLiveActivity widget extension is
+          # introduced (it has its own bundle ID + profile). Xcode auto-
+          # matches each target to the right profile from
+          # ~/Library/MobileDevice/Provisioning Profiles when given just
+          # CODE_SIGN_STYLE=Manual + CODE_SIGN_IDENTITY.
           xcodebuild archive \
             -project "$XCODE_PROJECT" \
             -scheme "$XCODE_SCHEME" \
@@ -318,7 +357,6 @@ workflows:
             COMPILER_INDEX_STORE_ENABLE=NO \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE="$PROFILE_UUID" \
             DEVELOPMENT_TEAM=JLYXS97L8A \
             GENERATE_INFOPLIST_FILE=YES \
             INFOPLIST_KEY_CFBundleIconName=AppIcon \
@@ -344,6 +382,8 @@ workflows:
             <dict>
               <key>com.cgibson.affirmationalarm</key>
               <string>${PROFILE_NAME}</string>
+              <key>com.cgibson.affirmationalarm.AlarmLiveActivity</key>
+              <string>${WIDGET_PROFILE_NAME}</string>
             </dict>
           </dict>
           </plist>

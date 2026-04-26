@@ -11,16 +11,6 @@ import AVFoundation
 import SwiftData
 import SwiftUI
 
-// MARK: - Metadata
-
-/// Per-alarm metadata attached to every AlarmKit entry. Conformances
-/// (Codable/Hashable/Sendable) auto-synthesize because every stored
-/// property is itself Codable/Hashable/Sendable.
-struct AffirmationAlarmMetadata: AlarmMetadata {
-    let alarmID: UUID
-    let label: String
-}
-
 // MARK: - Scheduler
 
 /// Central coordinator for the app's alarm pipeline. Owns three concerns,
