@@ -95,7 +95,6 @@ struct SpeechSettingsView: View {
                     .foregroundStyle(isPreviewing ? AppTheme.sunsetOrange : AppTheme.gold)
             }
             .buttonStyle(.plain)
-            .disabled(previewingVoice != nil && !isPreviewing)
             .accessibilityLabel(isPreviewing ? "Stop \(voice.displayName) preview" : "Play \(voice.displayName) preview")
 
             if isSelected {
