@@ -32,7 +32,6 @@ struct PersonalSettingsView: View {
 
                     if let profile {
                         countPicker(profile: profile)
-                        lengthPicker(profile: profile)
                     }
                 }
                 .padding(AppTheme.spacingXl)
@@ -135,39 +134,6 @@ struct PersonalSettingsView: View {
                 modelContext: modelContext
             )
         }
-    }
-
-    private func lengthPicker(profile: UserProfile) -> some View {
-        VStack(alignment: .leading, spacing: AppTheme.spacingMd) {
-            Text("Length")
-                .font(AppTheme.headline)
-                .foregroundStyle(AppTheme.textPrimary)
-
-            Text(profile.budget.caption)
-                .font(AppTheme.caption)
-                .foregroundStyle(AppTheme.textSecondary)
-                .animation(.easeInOut(duration: 0.15), value: profile.budget)
-
-            HStack(spacing: AppTheme.spacingMd) {
-                ForEach(AffirmationBudget.allCases, id: \.self) { option in
-                    Button(option.label) {
-                        HapticService.selection()
-                        profile.budget = option
-                        invalidateAndRerender()
-                    }
-                    .font(AppTheme.headline)
-                    .foregroundStyle(option == profile.budget ? AppTheme.charcoalBlue : AppTheme.textSecondary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 44)
-                    .background(option == profile.budget ? AppTheme.gold : AppTheme.cardBackground)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
-                    .buttonStyle(.bounce)
-                }
-            }
-        }
-        .padding(AppTheme.spacingLg)
-        .background(AppTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
     }
 
     // MARK: - Save

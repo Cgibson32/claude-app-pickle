@@ -268,7 +268,7 @@ actor ClaudeAPIService {
     === STYLE ===
 
     - "You" voice: "You are..." / "You have..." / "Your..." / "You were built to..."
-    - One sentence. Punchy. Under 20 words.
+    - LENGTH MIX: roughly 4 out of every 5 affirmations should be short and punchy (5–10 words). The remaining 1 out of 5 can be a longer, more reflective sentence (12–18 words). Never more than 18 words.
     - Each one targets a different specific skill, quality, or mindset within their goal.
     - The listener should feel inspired AND see a clear picture of themselves succeeding at something specific.
     - Use the person's name in exactly one affirmation.
