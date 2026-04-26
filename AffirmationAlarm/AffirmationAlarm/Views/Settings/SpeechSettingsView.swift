@@ -26,19 +26,6 @@ struct SpeechSettingsView: View {
             ScrollView {
                 VStack(spacing: AppTheme.spacingXxl) {
                     if let profile {
-                        Toggle(isOn: Binding(
-                            get: { profile.ttsEnabled },
-                            set: { profile.ttsEnabled = $0 }
-                        )) {
-                            Text("Speak affirmations aloud")
-                                .font(AppTheme.headline)
-                                .foregroundStyle(AppTheme.textPrimary)
-                        }
-                        .tint(AppTheme.sunsetOrange)
-                        .padding(AppTheme.spacingLg)
-                        .background(AppTheme.cardBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
-
                         voiceSection(profile: profile)
 
                         VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
@@ -57,7 +44,6 @@ struct SpeechSettingsView: View {
                     }
                 }
                 .padding(AppTheme.spacingXl)
-                .animation(AppTheme.gentle, value: profile?.ttsEnabled)
                 .animation(AppTheme.gentle, value: profile?.ttsVoice)
             }
         }
