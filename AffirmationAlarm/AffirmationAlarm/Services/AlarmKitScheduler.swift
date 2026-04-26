@@ -589,6 +589,17 @@ final class AlarmKitScheduler {
 
         let soundsDir = MorningAudioRenderer.soundsDirectory()
         let morningURL = soundsDir.appendingPathComponent("morning-\(alarmID.uuidString).mp3")
+
+        // If pre-rendered audio is missing (invalidated after last fire,
+        // API timeout during refreshAll, first launch of a new build, etc.),
+        // attempt a live render before giving up. Adds ~10-15s while the
+        // system alarm rings, but the user hears affirmations instead of a
+        // generic tone.
+        if !FileManager.default.fileExists(atPath: morningURL.path) {
+            DiagnosticsLog.shared.log("observer", "no pre-render — attempting live render for \(alarmID.uuidString.prefix(8))")
+            await attemptLiveRender(alarmID: alarmID)
+        }
+
         guard FileManager.default.fileExists(atPath: morningURL.path) else {
             AppLogger.alarm.info("observer: no morning render for \(alarmID.uuidString.prefix(8), privacy: .public); letting system sound continue")
             lastHandleFireOutcome = FireOutcome(outcome: "noMorningRender", date: Date())
@@ -676,6 +687,41 @@ final class AlarmKitScheduler {
 
         BackgroundKeepAlive.shared.start()
         NotificationCenter.default.post(name: .didCompleteMorningPlayback, object: nil)
+    }
+
+    // MARK: - Live render fallback
+
+    /// Last-resort render when pre-rendered audio is missing at fire time.
+    /// Creates a transient ModelContainer, fetches the alarm + profile, and
+    /// asks MorningAudioRenderer to render synchronously. Takes ~10-15s
+    /// (Claude API + TTS round-trip). If anything fails, the caller's
+    /// existing guard falls through to the system tone.
+    private func attemptLiveRender(alarmID: UUID) async {
+        do {
+            let container = try ModelContainer(for: AffirmationAlarmApp.appSchema)
+            let context = ModelContext(container)
+
+            let allAlarms = (try? context.fetch(FetchDescriptor<Alarm>())) ?? []
+            guard let alarm = allAlarms.first(where: { $0.id == alarmID }) else {
+                DiagnosticsLog.shared.log("observer", "live render: alarm not found")
+                return
+            }
+
+            let profileDescriptor = FetchDescriptor<UserProfile>()
+            guard let profile = (try? context.fetch(profileDescriptor))?.first else {
+                DiagnosticsLog.shared.log("observer", "live render: no profile")
+                return
+            }
+
+            let (filename, _) = await MorningAudioRenderer.shared.refresh(
+                for: alarm,
+                profile: profile,
+                modelContext: context
+            )
+            DiagnosticsLog.shared.log("observer", "live render: \(filename != nil ? "success" : "failed")")
+        } catch {
+            DiagnosticsLog.shared.log("observer", "live render: container error \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Ringing action stream
