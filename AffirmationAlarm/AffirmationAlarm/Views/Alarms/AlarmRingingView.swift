@@ -12,7 +12,7 @@ struct AlarmRingingView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            SunriseBackground()
 
             VStack(spacing: 0) {
                 Spacer()
@@ -40,6 +40,73 @@ struct AlarmRingingView: View {
     }
 }
 
+// MARK: - Sunrise Background
+
+/// 3-second animated gradient that fades from pure black through deep
+/// amber to warm gold — simulating the first light of sunrise. Three
+/// radial layers fade in sequentially for a natural build.
+private struct SunriseBackground: View {
+    @State private var showAmber = false
+    @State private var showGold = false
+    @State private var showWarm = false
+
+    var body: some View {
+        ZStack {
+            Color.black
+
+            RadialGradient(
+                colors: [
+                    Color(red: 0.28, green: 0.16, blue: 0.05).opacity(0.9),
+                    Color(red: 0.12, green: 0.07, blue: 0.02).opacity(0.5),
+                    .clear
+                ],
+                center: .center,
+                startRadius: 0,
+                endRadius: 500
+            )
+            .opacity(showAmber ? 1.0 : 0)
+
+            RadialGradient(
+                colors: [
+                    Color(red: 0.79, green: 0.66, blue: 0.42).opacity(0.3),
+                    .clear
+                ],
+                center: .center,
+                startRadius: 0,
+                endRadius: 350
+            )
+            .opacity(showGold ? 1.0 : 0)
+
+            RadialGradient(
+                colors: [
+                    Color(red: 1.0, green: 0.82, blue: 0.4).opacity(0.12),
+                    .clear
+                ],
+                center: .center,
+                startRadius: 0,
+                endRadius: 220
+            )
+            .opacity(showWarm ? 1.0 : 0)
+        }
+        .ignoresSafeArea()
+        .onAppear {
+            withAnimation(.easeIn(duration: 2.0)) { showAmber = true }
+
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(0.8))
+                withAnimation(.easeIn(duration: 1.8)) { showGold = true }
+            }
+
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.6))
+                withAnimation(.easeIn(duration: 1.4)) { showWarm = true }
+            }
+        }
+    }
+}
+
+// MARK: - Shared Ringing Content
+
 /// Shared ringing UI content used by both `AlarmRingingView` (fullscreen
 /// cover) and `SleepModeView` (inline state). Keeps the visual design in
 /// one place.
@@ -55,7 +122,7 @@ struct AlarmRingingContent: View {
         VStack(spacing: AppTheme.spacingXl) {
             Image(systemName: "alarm.waves.left.and.right.fill")
                 .font(.system(size: 64))
-                .foregroundStyle(AppTheme.sunsetOrange)
+                .foregroundStyle(AppTheme.gold)
                 .scaleEffect(pulsing ? 1.15 : 1.0)
                 .animation(
                     .easeInOut(duration: 0.8).repeatForever(autoreverses: true),
@@ -80,12 +147,12 @@ struct AlarmRingingContent: View {
             Button(action: onStop) {
                 Text("Stop")
                     .font(AppTheme.title3)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.charcoalBlue)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, AppTheme.spacingLg)
-                    .background(AppTheme.sunsetOrange)
+                    .background(AppTheme.gold)
                     .clipShape(Capsule())
-                    .shadow(color: AppTheme.sunsetOrange.opacity(0.4), radius: 12, y: 6)
+                    .shadow(color: AppTheme.gold.opacity(0.4), radius: 12, y: 6)
             }
             .padding(.horizontal, AppTheme.spacing3xl)
 

@@ -110,7 +110,7 @@ struct SleepModeView: View {
         }
         .onChange(of: scheduler.ringingAlarmID) { oldValue, newValue in
             if oldValue == nil, newValue != nil {
-                UIScreen.main.brightness = max(previousBrightness, 0.5)
+                rampBrightness(to: 1.0, duration: 3.0)
             } else if oldValue != nil, newValue == nil, !scheduler.isPlayingMorningAudio {
                 UIScreen.main.brightness = 0.05
             }
@@ -215,6 +215,22 @@ struct SleepModeView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm"
         return formatter.string(from: date)
+    }
+
+    /// Gradually ramp screen brightness over `duration` seconds — the
+    /// physical complement to `SunriseBackground`'s on-screen gradient.
+    /// 30 linear steps keeps the ramp smooth without saturating MainActor.
+    private func rampBrightness(to target: CGFloat, duration: TimeInterval) {
+        let start = UIScreen.main.brightness
+        let steps = 30
+        let interval = duration / Double(steps)
+        Task { @MainActor in
+            for step in 1...steps {
+                try? await Task.sleep(for: .seconds(interval))
+                let t = CGFloat(step) / CGFloat(steps)
+                UIScreen.main.brightness = start + (target - start) * t
+            }
+        }
     }
 }
 
