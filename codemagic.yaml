@@ -127,7 +127,10 @@ workflows:
           for SIZE in 20 29 40 58 60 76 80 87 120 152 167 180; do
             sips -z $SIZE $SIZE "$SOURCE" --out "icon_${SIZE}.png" >/dev/null
           done
-          cp "$SOURCE" Icon-1024.png
+          # Modern asset catalog requires a 1024x1024 'Any Appearance' image
+          # well — referenced by Contents.json. Master AppIcon.png may be
+          # larger (we ship at 2048x2048 for fidelity), so resize down.
+          sips -z 1024 1024 "$SOURCE" --out Icon-1024.png >/dev/null
           # Map to filenames expected by Contents.json
           cp icon_40.png  Icon-20@2x.png
           cp icon_60.png  Icon-20@3x.png
