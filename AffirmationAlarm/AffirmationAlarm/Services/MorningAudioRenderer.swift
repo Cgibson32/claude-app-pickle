@@ -143,13 +143,11 @@ final class MorningAudioRenderer {
                 modelContext: modelContext
             )
 
-            let budget = wordBudget(for: count, budget: profile.budget)
             let composer = ScriptComposer(
                 name: profile.name,
                 affirmations: affirmations,
                 affirmationCount: count,
-                closingMessage: closing?.message,
-                wordBudget: budget
+                closingMessage: closing?.message
             )
 
             guard await renderMainMP3(to: paths.morning, script: composer.main(), voice: voice) else {
@@ -241,14 +239,12 @@ final class MorningAudioRenderer {
 
         let voice = ElevenLabsTTSService.Voice(rawValue: profile.ttsVoice) ?? .rachel
         let count = profile.affirmationCount
-        let budget = wordBudget(for: count, budget: profile.budget)
 
         let composer = ScriptComposer(
             name: profile.name,
             affirmations: affirmations,
             affirmationCount: count,
-            closingMessage: closing?.message,
-            wordBudget: budget
+            closingMessage: closing?.message
         )
 
         return RenderContent(
@@ -257,29 +253,6 @@ final class MorningAudioRenderer {
             voice: voice,
             affirmationTexts: affirmations.map(\.text)
         )
-    }
-
-    /// Nova at 0.95x speed runs about 2.47 wps. We play the morning MP3
-    /// via `AVAudioPlayer` (no 30s cap from AlarmKit), so the budget here
-    /// is for user comfort rather than a hard platform limit.
-    ///
-    /// The `budget` multiplier lets the user tune length without us having
-    /// to stream a different TTS model — `short` trims to ~2/3 the default,
-    /// `long` opens the cap to ~130 words (over 50s of spoken audio at
-    /// Nova's pace, still within the window most users tolerate before
-    /// reaching for Stop).
-    private func wordBudget(for affirmationCount: Int, budget: AffirmationBudget) -> Int {
-        let greeting = 3
-        let perAffirmation = 15
-        let base = greeting + perAffirmation * affirmationCount + 5
-        let scaled = Int(Double(base) * budget.wordBudgetMultiplier)
-        let cap: Int
-        switch budget {
-        case .short: cap = 60
-        case .medium: cap = 80
-        case .long: cap = 130
-        }
-        return min(scaled, cap)
     }
 
     // MARK: - Rendering primitives
@@ -427,15 +400,15 @@ private struct ScriptComposer {
     let affirmations: [Affirmation]
     let affirmationCount: Int
     let closingMessage: String?
-    let wordBudget: Int
 
-    /// Morning MP3: greeting + N affirmations. Played by
-    /// `AlarmAudioPlayer` when the alarm fires (via the observer) or
-    /// when the user slides Stop (via the intent + foreground retry).
+    /// Morning MP3: greeting + exactly `affirmationCount` affirmations.
+    /// The user's selected count is the source of truth — Claude's prompt
+    /// already caps per-affirmation length via `claudeMaxTokens`, so we
+    /// don't second-guess by truncating the joined script.
     func main() -> String {
         var segments = [greeting()]
         segments.append(contentsOf: affirmationLines())
-        return trimmed(segments.joined(separator: "\n\n"))
+        return segments.joined(separator: "\n\n")
     }
 
     /// Closing MP3: just the closing message (user-personal or fallback).
@@ -458,12 +431,6 @@ private struct ScriptComposer {
         // Priority favorites already sit at index 0 in the cache, so
         // `prefix(N)` naturally includes any heart-marked ones.
         affirmations.prefix(affirmationCount).map(\.text)
-    }
-
-    private func trimmed(_ text: String) -> String {
-        let words = text.split(separator: " ", omittingEmptySubsequences: false)
-        guard words.count > wordBudget else { return text }
-        return words.prefix(wordBudget).joined(separator: " ") + "."
     }
 }
 

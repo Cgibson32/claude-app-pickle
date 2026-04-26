@@ -106,6 +106,7 @@ struct PersonalSettingsView: View {
                     Button("\(count)") {
                         HapticService.selection()
                         profile.affirmationCount = count
+                        invalidateAndRerender()
                     }
                     .font(AppTheme.headline)
                     .foregroundStyle(count == profile.affirmationCount ? AppTheme.charcoalBlue : AppTheme.textSecondary)
@@ -119,6 +120,21 @@ struct PersonalSettingsView: View {
         .padding(AppTheme.spacingLg)
         .background(AppTheme.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
+    }
+
+    /// Drop the cached MP3 for this alarm and kick off a fresh render so
+    /// the user-selected count takes effect on the next fire instead of
+    /// waiting for natural staleness. Used by the count picker.
+    private func invalidateAndRerender() {
+        guard let profile else { return }
+        MorningAudioRenderer.shared.invalidateAll()
+        Task { @MainActor [alarms, profile, modelContext] in
+            await MorningAudioRenderer.shared.refreshAll(
+                alarms: alarms,
+                profile: profile,
+                modelContext: modelContext
+            )
+        }
     }
 
     private func lengthPicker(profile: UserProfile) -> some View {
@@ -137,7 +153,7 @@ struct PersonalSettingsView: View {
                     Button(option.label) {
                         HapticService.selection()
                         profile.budget = option
-                        MorningAudioRenderer.shared.invalidateAll()
+                        invalidateAndRerender()
                     }
                     .font(AppTheme.headline)
                     .foregroundStyle(option == profile.budget ? AppTheme.charcoalBlue : AppTheme.textSecondary)
