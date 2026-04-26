@@ -119,6 +119,7 @@ struct RootView: View {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 checkPendingMorningPlayback()
+                checkPendingSnoozeReschedule()
                 // Always restart keep-alive on return-to-active. Idempotent
                 // when already running; cheap to call when no alarms are
                 // enabled (silent audio, volume 0, no DAC work). Closes
@@ -182,6 +183,20 @@ struct RootView: View {
         Task {
             _ = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
         }
+    }
+
+    /// Handoff from the Live Activity's Snooze button. The widget
+    /// extension's `SnoozeFromLockScreen` intent only knows how to
+    /// cancel the alarm + write a UserDefaults key — full snooze
+    /// rescheduling lives in the main app's scheduler, so we pick up
+    /// the handoff here.
+    private func checkPendingSnoozeReschedule() {
+        let key = "pendingSnoozeRescheduleAlarmID"
+        guard let idString = UserDefaults.standard.string(forKey: key),
+              let alarmID = UUID(uuidString: idString) else { return }
+        UserDefaults.standard.removeObject(forKey: key)
+        DiagnosticsLog.shared.log("intent", "snooze handoff received for \(alarmID.uuidString.prefix(8))")
+        AlarmKitScheduler.shared.scheduleSnoozeFollowUp(originalAlarmID: alarmID)
     }
 
     private func reconcileAlarmsWithSystem() {
