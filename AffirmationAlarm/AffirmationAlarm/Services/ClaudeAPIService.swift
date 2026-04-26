@@ -198,7 +198,7 @@ actor ClaudeAPIService {
             ===
             """
         } else {
-            header = "=== NO GOALS PROVIDED — write warm, general affirmations ==="
+            header = "=== NO GOALS PROVIDED — write ritual-anchored affirmations about showing up, beginning, and keeping your word to yourself. See the NO-GOAL FALLBACK section in your instructions. ==="
         }
 
         var supporting: [String] = ["User name: \(name)"]
@@ -339,6 +339,24 @@ actor ClaudeAPIService {
     Intention: "I want to finally finish this chapter."
     First GOOD: "You said you wanted to finish that chapter — today, the words are already moving toward you."
     First BAD: "You are a writer." (too generic)
+
+    === NO-GOAL FALLBACK ===
+
+    When no goals are provided, write RITUAL-ANCHORED affirmations — celebrate the act of showing up, beginning, keeping your word to yourself. The user set an alarm to hear these; that discipline IS the subject.
+
+    GOOD no-goal examples:
+    "You showed up today. That's not small."
+    "The fact that you set this alarm means something."
+    "You are someone who keeps their word to themselves."
+    "Today, your only job is to begin."
+    "You are building something — even on the days it doesn't show."
+
+    BAD no-goal examples:
+    "You are amazing." (poster language, believability gap)
+    "The universe is aligning for you." (manifestation cliché)
+    "You are worthy of everything." (too abstract to feel)
+
+    All other style rules still apply (length mix, name usage, varied openers, scene-based when possible).
 
     === OUTPUT FORMAT ===
 

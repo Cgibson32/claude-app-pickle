@@ -1,79 +1,67 @@
 import Foundation
 
-/// Generic, universally positive affirmations used as a fallback when the
-/// Claude API is unreachable (offline, server outage, rate limited, API key
-/// invalid, etc.). When `AffirmationCacheService.fetchOrGenerate` catches
-/// a Claude error, it pulls a deterministic daily set from this pool so
-/// the user still wakes up to personalized-feeling content.
+/// Ritual-anchored fallback affirmations used when the Claude API is
+/// unreachable (offline, server outage, rate limited, API key issue).
+/// These celebrate the ACT of showing up — setting the alarm, keeping
+/// your word to yourself, beginning — rather than making claims about
+/// the listener's identity that could trigger the believability gap
+/// (Wood et al., 2009). Every line is universally applicable regardless
+/// of goals, but grounded enough to feel real rather than poster-tier.
 ///
-/// Selection is deterministic per calendar day: `selection(count:for:)`
-/// uses the date as the seed so the same three affirmations play
-/// throughout the day if the renderer runs multiple times, but tomorrow's
-/// set is different from today's. Users get offline variety without the
-/// set shifting mid-morning.
-///
-/// The pool intentionally contains only universally positive, goal-
-/// agnostic affirmations — content that would work for any user
-/// regardless of their freeform goals, categories, or recent reflections.
-/// When Claude IS reachable, the user gets fully personalized lines from
-/// `ClaudeAPIService.generateAffirmations`; this pool is the floor.
+/// Selection is deterministic per calendar day so the same set plays
+/// throughout the day if the renderer runs multiple times.
 enum BundledAffirmationPool {
-    /// 30 generic morning affirmations. Each line is under 15 words and
-    /// safe to speak aloud via TTS at the `nova` voice without awkward
-    /// pacing.
+
     static let affirmations: [String] = [
-        "You are stronger than the challenges you will face today.",
-        "Your presence makes the world a little brighter.",
-        "Every breath you take is a fresh beginning.",
-        "You are worthy of love, rest, and gentle care.",
-        "Today, you move through the world with quiet courage.",
-        "Your instincts are wise and you can trust them.",
-        "Good things are gathering quietly on their way to you.",
-        "You are allowed to take up space in this world.",
-        "Every step forward counts, no matter how small.",
-        "You are becoming exactly who you were meant to be.",
-        "Your softness is a strength, not a weakness.",
-        "You carry more light than you realize.",
-        "Today's small choices are shaping a beautiful life.",
-        "You have everything you need to meet this day.",
-        "Peace begins with the way you treat yourself.",
-        "You are allowed to rest without earning it.",
-        "The love you give comes back to you in time.",
-        "Your story is still unfolding, and it is a good one.",
-        "You are exactly where you need to be right now.",
-        "Your voice matters and deserves to be heard.",
-        "You handle hard things with more grace than you know.",
-        "Today is a new chance to be kind to yourself.",
-        "You are learning, growing, and that is enough.",
-        "Your dreams are worth the patience they require.",
-        "You are not behind; you are on your own timeline.",
-        "Small joys are not small — they are the whole point.",
-        "You are allowed to change your mind and begin again.",
-        "The way forward will reveal itself one step at a time.",
-        "You are loved in ways you may not yet see.",
-        "This day is yours — receive it gently."
+        "You showed up today. That's not small.",
+        "The fact that you set this alarm means something.",
+        "You are someone who keeps their word to themselves.",
+        "Today, your only job is to begin.",
+        "You are building something — even on the days it doesn't show.",
+        "Your future self is grateful you're here right now.",
+        "You chose this morning. That's already discipline.",
+        "The version of you that started this is still you.",
+        "You don't have to be perfect to be moving forward.",
+        "Your honest effort today outweighs perfect effort tomorrow.",
+        "You are the kind of person who comes back.",
+        "Today, showing up is the whole strategy.",
+        "The way you talk to yourself this morning shapes everything.",
+        "You are not behind. You are in motion.",
+        "Small, on-purpose actions — that's how this works.",
+        "You belong to this morning.",
+        "You handle hard things with more skill than you credit yourself for.",
+        "The morning belongs to you. Receive it.",
+        "You are allowed to do this slowly.",
+        "Your patience with yourself is a quiet strength.",
+        "The good in you doesn't need to be earned.",
+        "You are growing in ways you can't always see.",
+        "Today, give yourself the same grace you give others.",
+        "You are someone who chose to begin. That's rare.",
+        "The way you carry this — it's admirable.",
+        "You are allowed to be both tired and committed.",
+        "One good morning leads to the next. This is that morning.",
+        "You are not alone in finding this hard.",
+        "The way forward reveals itself one honest step at a time.",
+        "This day is yours. Begin it gently."
     ]
 
-    /// Generic closing lines, also selected deterministically per day.
     static let closings: [String] = [
-        "Have a wonderful day.",
+        "Now go — the day is waiting for you.",
         "Rise gently and begin.",
-        "Today is yours — receive it well.",
-        "Step into the morning with kindness.",
-        "May your day unfold with ease.",
-        "Go softly into this new day."
+        "Today is yours. Make it count.",
+        "One good morning at a time.",
+        "You showed up. Now keep going.",
+        "Step into it. You're ready."
     ]
 
-    /// Deterministic per-day selection of `count` affirmations. The same
-    /// date always returns the same set, so if the renderer runs twice
-    /// on the same day the user doesn't hear a different lineup mid-morning.
+    /// Deterministic per-day selection of `count` affirmations.
     static func selection(count: Int, for date: Date = Date()) -> [String] {
         pick(from: affirmations, count: count, date: date)
     }
 
     /// Deterministic per-day selection of one closing line.
     static func closing(for date: Date = Date()) -> String {
-        pick(from: closings, count: 1, date: date).first ?? "Have a wonderful day."
+        pick(from: closings, count: 1, date: date).first ?? "Now go — the day is waiting for you."
     }
 
     // MARK: - Private deterministic selection
@@ -84,9 +72,6 @@ enum BundledAffirmationPool {
         return Array(pool.shuffled(using: &generator).prefix(count))
     }
 
-    /// Produce a stable `UInt64` seed from a date's year + day-of-year,
-    /// so two calls to `selection(count:for:)` on the same calendar day
-    /// return the same ordering.
     private static func seed(for date: Date) -> UInt64 {
         let calendar = Calendar.current
         let dayOfYear = UInt64(calendar.ordinality(of: .day, in: .year, for: date) ?? 1)
@@ -95,14 +80,10 @@ enum BundledAffirmationPool {
     }
 }
 
-/// Simple linear-congruential PRNG — deterministic from an initial seed
-/// and `Sendable` so it works in any actor context. Used by
-/// `BundledAffirmationPool` to shuffle the pool reproducibly per day.
 private struct SeededRandomGenerator: RandomNumberGenerator {
     private var state: UInt64
 
     init(seed: UInt64) {
-        // Avoid zero state — LCG would get stuck.
         self.state = seed == 0 ? 1 : seed
     }
 
