@@ -39,7 +39,7 @@ struct FavoritesView: View {
                                 title: "Priority",
                                 subtitle: "Repeated every morning",
                                 icon: "heart.fill",
-                                iconColor: Color(hex: "E85D75"),
+                                iconColor: AppTheme.gold,
                                 affirmations: priorityFavorites
                             )
                         }
@@ -121,7 +121,7 @@ struct FavoriteCard: View {
                     affirmation.isFavorited = affirmation.favoriteType != 0
                 } label: {
                     Image(systemName: affirmation.isPriority ? "heart.fill" : "heart")
-                        .foregroundStyle(affirmation.isPriority ? Color(hex: "E85D75") : AppTheme.textTertiary)
+                        .foregroundStyle(affirmation.isPriority ? AppTheme.gold : AppTheme.textTertiary)
                         .font(.system(size: 16))
                 }
                 .buttonStyle(.bounce)

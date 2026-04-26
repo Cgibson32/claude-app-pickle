@@ -5,11 +5,23 @@ enum GradientStyle {
     case energy
     case glow
 
-    var colors: [Color] {
+    var baseColor: Color {
+        AppTheme.charcoalBlue
+    }
+
+    var glowColor: Color {
         switch self {
-        case .sunrise: return [AppTheme.charcoalBlue, AppTheme.deepPlum, AppTheme.burntAmber]
-        case .energy: return [AppTheme.charcoalBlue, AppTheme.darkAmber, AppTheme.gold]
-        case .glow: return [AppTheme.deepPlum, AppTheme.deepRust, AppTheme.warmAmber]
+        case .sunrise: return AppTheme.warmAmber
+        case .energy: return AppTheme.gold
+        case .glow: return AppTheme.sunsetOrange
+        }
+    }
+
+    var glowOpacity: Double {
+        switch self {
+        case .sunrise: return 0.07
+        case .energy: return 0.10
+        case .glow: return 0.08
         }
     }
 }
@@ -20,25 +32,18 @@ struct GradientBackground: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: style.colors,
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            style.baseColor
 
             if withBlobs {
-                BlobShape()
-                    .fill(Color.white.opacity(0.03))
-                    .frame(width: 300, height: 300)
-                    .offset(x: 120, y: -200)
-                    .blur(radius: 40)
-
-                BlobShape()
-                    .fill(AppTheme.sunsetOrange.opacity(0.08))
-                    .frame(width: 250, height: 250)
-                    .offset(x: -100, y: 300)
-                    .blur(radius: 50)
-                    .rotationEffect(.degrees(180))
+                RadialGradient(
+                    colors: [
+                        style.glowColor.opacity(style.glowOpacity),
+                        Color.clear
+                    ],
+                    center: .top,
+                    startRadius: 0,
+                    endRadius: 600
+                )
             }
         }
         .ignoresSafeArea()

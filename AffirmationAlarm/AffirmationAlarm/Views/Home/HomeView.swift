@@ -116,7 +116,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
             HStack(spacing: AppTheme.spacingSm) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(AppTheme.sunsetOrange)
                 Text("Affirmations not personalized")
                     .font(AppTheme.headline)
                     .foregroundStyle(AppTheme.textPrimary)
@@ -127,7 +127,7 @@ struct HomeView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(AppTheme.spacingLg)
-        .background(Color.orange.opacity(0.12))
+        .background(AppTheme.sunsetOrange.opacity(0.12))
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
     }
 

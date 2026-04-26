@@ -88,7 +88,7 @@ struct AlarmListView: View {
         VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
             HStack(spacing: AppTheme.spacingSm) {
                 Image(systemName: "bell.slash.fill")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(AppTheme.sunsetOrange)
                     .accessibilityHidden(true)
                 Text("Your alarms are muted")
                     .font(AppTheme.headline)
@@ -109,7 +109,7 @@ struct AlarmListView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(AppTheme.spacingLg)
-        .background(Color.orange.opacity(0.12))
+        .background(AppTheme.sunsetOrange.opacity(0.12))
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
         .accessibilityElement(children: .combine)
     }

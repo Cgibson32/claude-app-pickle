@@ -424,7 +424,7 @@ final class AlarmKitScheduler {
         let attributes = AlarmAttributes(
             presentation: presentation,
             metadata: AffirmationAlarmMetadata(alarmID: followUpID, label: "Snooze follow-up"),
-            tintColor: Color.orange
+            tintColor: AppTheme.sunsetOrange
         )
 
         let configuration = ScheduleConfiguration.alarm(
@@ -772,7 +772,7 @@ final class AlarmKitScheduler {
         let attributes = AlarmAttributes(
             presentation: presentation,
             metadata: AffirmationAlarmMetadata(alarmID: fallbackID, label: "Fallback"),
-            tintColor: Color.orange
+            tintColor: AppTheme.sunsetOrange
         )
         let configuration = ScheduleConfiguration.alarm(
             schedule: AlarmKit.Alarm.Schedule.fixed(fireDate),
@@ -823,7 +823,7 @@ final class AlarmKitScheduler {
         let attributes = AlarmAttributes(
             presentation: presentation,
             metadata: AffirmationAlarmMetadata(alarmID: alarm.id, label: alarm.label),
-            tintColor: Color.orange
+            tintColor: AppTheme.sunsetOrange
         )
 
         // Fully qualify `AlarmKit.Alarm` — our SwiftData model is also

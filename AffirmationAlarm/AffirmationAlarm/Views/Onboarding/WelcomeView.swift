@@ -10,43 +10,37 @@ struct WelcomeView: View {
         VStack(spacing: AppTheme.spacing3xl) {
             Spacer()
 
-            // Sunset with banded stripes
             ZStack {
-                // Background circle
                 Circle()
                     .fill(
-                        LinearGradient(
+                        RadialGradient(
                             colors: [
-                                AppTheme.gold,
-                                AppTheme.sunsetOrange,
-                                AppTheme.sunsetRed,
-                                AppTheme.sunsetDeepRed
+                                AppTheme.gold.opacity(0.6),
+                                AppTheme.warmAmber.opacity(0.3),
+                                AppTheme.sunsetOrange.opacity(0.1),
+                                Color.clear
                             ],
-                            startPoint: .top,
-                            endPoint: .bottom
+                            center: .center,
+                            startRadius: 20,
+                            endRadius: 120
                         )
                     )
-                    .frame(width: 160, height: 160)
+                    .frame(width: 240, height: 240)
+                    .blur(radius: 20)
 
-                // Horizontal stripe bands for retro sunset look
-                VStack(spacing: 4) {
-                    Spacer()
-                    ForEach(0..<5, id: \.self) { i in
-                        Rectangle()
-                            .fill(AppTheme.charcoalBlue)
-                            .frame(height: CGFloat(2 + i))
-                    }
-                }
-                .frame(width: 160, height: 160)
-                .clipShape(Circle())
+                Circle()
+                    .fill(AppTheme.gold.opacity(0.25))
+                    .frame(width: 80, height: 80)
 
-                // Horizon line
-                Rectangle()
-                    .fill(AppTheme.sunsetDeepRed.opacity(0.6))
-                    .frame(width: 220, height: 2)
-                    .offset(y: 40)
+                Circle()
+                    .strokeBorder(AppTheme.gold.opacity(0.15), lineWidth: 1)
+                    .frame(width: 130, height: 130)
+
+                Circle()
+                    .strokeBorder(AppTheme.gold.opacity(0.08), lineWidth: 1)
+                    .frame(width: 180, height: 180)
             }
-            .frame(width: 160, height: 160)
+            .frame(width: 240, height: 240)
             .offset(y: glowOffset)
             .scaleEffect(sunriseScale)
 

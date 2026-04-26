@@ -1,20 +1,20 @@
 import SwiftUI
 
 struct AppTheme {
-    // MARK: - Brand Colors
-    static let charcoalBlue = Color(hex: "1A1A2E")
-    static let sunsetOrange = Color(hex: "FF8C42")
-    static let gold = Color(hex: "FFD166")
-    static let warmAmber = Color(hex: "F4A261")
-    static let sunsetRed = Color(hex: "E63946")
-    static let sunsetDeepRed = Color(hex: "6B1D2A")
-    static let warmWhite = Color(hex: "FFF5EB")
+    // MARK: - Brand Colors (Resonance)
+    static let charcoalBlue = Color(hex: "0D0B09")
+    static let sunsetOrange = Color(hex: "C8A86A")
+    static let gold = Color(hex: "D4B878")
+    static let warmAmber = Color(hex: "B8945A")
+    static let sunsetRed = Color(hex: "8B6B3D")
+    static let sunsetDeepRed = Color(hex: "1A140E")
+    static let warmWhite = Color(hex: "F5EEDA")
 
-    // MARK: - Dark Gradient Colors
-    static let deepPlum = Color(hex: "2D1B4E")
-    static let burntAmber = Color(hex: "7C3A1C")
-    static let darkAmber = Color(hex: "4A2600")
-    static let deepRust = Color(hex: "9A4012")
+    // MARK: - Dark Gradient Colors (Resonance)
+    static let deepPlum = Color(hex: "1A140E")
+    static let burntAmber = Color(hex: "2A1F15")
+    static let darkAmber = Color(hex: "1A1410")
+    static let deepRust = Color(hex: "3D2E1A")
 
     // MARK: - Semantic Text Colors
     static let textPrimary = warmWhite
@@ -67,11 +67,11 @@ struct AppTheme {
         }
     }
 
-    // MARK: - Semantic Fonts
-    static let largeTitle = soraFont(34, weight: .bold)
-    static let title = soraFont(28, weight: .bold)
-    static let title2 = soraFont(22, weight: .semibold)
-    static let title3 = soraFont(20, weight: .medium)
+    // MARK: - Semantic Fonts (serif headlines + sans body)
+    static let largeTitle: Font = .system(size: 34, weight: .bold, design: .serif)
+    static let title: Font = .system(size: 28, weight: .bold, design: .serif)
+    static let title2: Font = .system(size: 22, weight: .semibold, design: .serif)
+    static let title3: Font = .system(size: 20, weight: .medium, design: .serif)
     static let headline = dmSans(17, weight: .semibold)
     static let bodyFont = dmSans(17)
     static let subheadline = dmSans(15, weight: .medium)
@@ -117,8 +117,8 @@ struct BounceButtonStyle: ButtonStyle {
 }
 
 struct PillButtonStyle: ButtonStyle {
-    var background: Color = AppTheme.sunsetOrange
-    var foreground: Color = .white
+    var background: Color = AppTheme.gold
+    var foreground: Color = AppTheme.charcoalBlue
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
