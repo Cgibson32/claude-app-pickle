@@ -39,6 +39,7 @@ final class EveningIntention {
     var id: UUID = UUID()
     var text: String = ""
     var createdAt: Date = Date.now
+    var consumed: Bool = false
 
     init(text: String = "", createdAt: Date = .now) {
         self.text = text

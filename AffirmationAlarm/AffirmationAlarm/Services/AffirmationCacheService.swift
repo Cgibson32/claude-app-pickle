@@ -129,12 +129,13 @@ class AffirmationCacheService {
         }
     }
 
-    /// Returns the most recently written intention if it's still "fresh"
-    /// (within the last 24 hours). Older intentions are quietly ignored —
-    /// we only call back what the user said *last night*, not three days
-    /// ago, otherwise the morning starts to feel stale.
+    /// Returns the most recently written unconsumed intention if it's still
+    /// "fresh" (within the last 24 hours) and marks it consumed so it only
+    /// influences the very next alarm, then generation falls back to the
+    /// user's standing goals.
     private func fetchFreshIntention(modelContext: ModelContext) -> String? {
         var descriptor = FetchDescriptor<EveningIntention>(
+            predicate: #Predicate { $0.consumed == false },
             sortBy: [SortDescriptor(\EveningIntention.createdAt, order: .reverse)]
         )
         descriptor.fetchLimit = 1
@@ -143,6 +144,7 @@ class AffirmationCacheService {
         guard !trimmed.isEmpty else { return nil }
         let age = Date().timeIntervalSince(latest.createdAt)
         guard age >= 0, age < 24 * 60 * 60 else { return nil }
+        latest.consumed = true
         return trimmed
     }
 
