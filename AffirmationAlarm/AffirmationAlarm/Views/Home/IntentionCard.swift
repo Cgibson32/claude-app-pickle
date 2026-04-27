@@ -131,9 +131,8 @@ struct IntentionSheet: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Save") { save() }
-                        .foregroundStyle(trimmed.isEmpty ? AppTheme.textTertiary : AppTheme.gold)
+                        .foregroundStyle(AppTheme.gold)
                         .fontWeight(.semibold)
-                        .disabled(trimmed.isEmpty)
                 }
             }
             .onAppear { focused = true }
@@ -144,21 +143,17 @@ struct IntentionSheet: View {
     }
 
     private func save() {
-        guard !trimmed.isEmpty else { return }
-        let intent = EveningIntention(text: trimmed)
-        modelContext.insert(intent)
+        if trimmed.isEmpty {
+            consumeAllFreshIntentions()
+        } else {
+            let intent = EveningIntention(text: trimmed)
+            modelContext.insert(intent)
+        }
         try? modelContext.save()
         HapticService.success()
 
-        // Audio rendered before this save was based on the old prompt
-        // context. Wipe it so the next pre-render regenerates with the
-        // new intention woven into the first affirmation.
         MorningAudioRenderer.shared.invalidateAll()
 
-        // Trigger an eager re-render of upcoming alarms when we have a
-        // profile and any enabled alarm. Dismiss is fire-and-forget — the
-        // user shouldn't wait for Claude + TTS round-trips to close the
-        // sheet.
         if let profile = profiles.first {
             let alarms = (try? modelContext.fetch(FetchDescriptor<Alarm>())) ?? []
             let context = modelContext
@@ -179,5 +174,13 @@ struct IntentionSheet: View {
             try? await Task.sleep(for: .seconds(1.2))
             dismiss()
         }
+    }
+
+    private func consumeAllFreshIntentions() {
+        let descriptor = FetchDescriptor<EveningIntention>(
+            predicate: #Predicate { $0.consumed == false }
+        )
+        guard let rows = try? modelContext.fetch(descriptor) else { return }
+        for row in rows { row.consumed = true }
     }
 }
