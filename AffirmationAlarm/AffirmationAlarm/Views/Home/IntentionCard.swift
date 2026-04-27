@@ -13,7 +13,7 @@ struct IntentionCard: View {
     @State private var showSheet = false
 
     private var freshIntentionText: String? {
-        guard let latest = intentions.first else { return nil }
+        guard let latest = intentions.first, !latest.consumed else { return nil }
         let trimmed = latest.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         let age = Date().timeIntervalSince(latest.createdAt)
