@@ -17,6 +17,7 @@ import UIKit
 struct DiagnosticsView: View {
 
     @Query private var alarms: [Alarm]
+    @Query private var profiles: [UserProfile]
 
     @State private var keepAliveSnapshot: BackgroundKeepAlive.SessionSnapshot = .empty
     @State private var schedulerSnapshot: AlarmKitScheduler.DiagnosticsSnapshot = .empty
@@ -38,6 +39,7 @@ struct DiagnosticsView: View {
                 playbackSection
                 perAlarmSection
                 logSection
+                resetOnboardingSection
             }
             .padding(AppTheme.spacingLg)
         }
@@ -233,6 +235,34 @@ struct DiagnosticsView: View {
                 }
                 .padding(.top, AppTheme.spacingSm)
             }
+        }
+    }
+
+    @State private var showResetConfirmation = false
+
+    private var resetOnboardingSection: some View {
+        Button(role: .destructive) {
+            showResetConfirmation = true
+        } label: {
+            HStack {
+                Image(systemName: "arrow.counterclockwise")
+                Text("Reset Onboarding")
+            }
+            .font(AppTheme.headline)
+            .foregroundStyle(.red)
+            .frame(maxWidth: .infinity)
+            .padding(AppTheme.spacingLg)
+            .background(AppTheme.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
+        }
+        .confirmationDialog("Reset onboarding?", isPresented: $showResetConfirmation, titleVisibility: .visible) {
+            Button("Reset", role: .destructive) {
+                if let profile = profiles.first {
+                    profile.hasCompletedOnboarding = false
+                }
+            }
+        } message: {
+            Text("The app will restart at the welcome screen. Your alarms and data are kept.")
         }
     }
 
