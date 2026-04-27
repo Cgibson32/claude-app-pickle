@@ -43,6 +43,9 @@ struct AffirmationsTabView: View {
 
 private struct TodaySection: View {
     @Query(sort: \Affirmation.generatedFor, order: .reverse) private var allAffirmations: [Affirmation]
+    @Query private var profiles: [UserProfile]
+    @Query(sort: \Alarm.hour) private var alarms: [Alarm]
+    @Environment(\.modelContext) private var modelContext
 
     private var recentAffirmations: [Affirmation] {
         guard let newest = allAffirmations.first?.generatedFor else { return [] }
@@ -69,14 +72,43 @@ private struct TodaySection: View {
             }
             .padding(AppTheme.spacingXxl)
         } else {
-            ScrollView {
-                LazyVStack(spacing: AppTheme.spacingMd) {
-                    ForEach(recentAffirmations) { affirmation in
-                        AffirmationRow(affirmation: affirmation)
-                    }
+            List {
+                ForEach(recentAffirmations) { affirmation in
+                    AffirmationRow(affirmation: affirmation)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(
+                            top: AppTheme.spacingSm,
+                            leading: AppTheme.spacingXl,
+                            bottom: AppTheme.spacingSm,
+                            trailing: AppTheme.spacingXl
+                        ))
                 }
-                .padding(AppTheme.spacingXl)
+                .onDelete { offsets in
+                    deleteAndRegenerate(at: offsets)
+                }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+        }
+    }
+
+    private func deleteAndRegenerate(at offsets: IndexSet) {
+        for index in offsets {
+            modelContext.delete(recentAffirmations[index])
+        }
+        HapticService.light()
+
+        guard let profile = profiles.first else { return }
+        MorningAudioRenderer.shared.invalidateAll()
+        let context = modelContext
+        let currentAlarms = alarms
+        Task { @MainActor in
+            await MorningAudioRenderer.shared.refreshAll(
+                alarms: currentAlarms,
+                profile: profile,
+                modelContext: context
+            )
         }
     }
 }
