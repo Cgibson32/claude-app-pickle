@@ -7,5 +7,6 @@ import WidgetKit
 struct AlarmLiveActivityBundle: WidgetBundle {
     var body: some Widget {
         AlarmLiveActivityWidget()
+        RingingLiveActivityWidget()
     }
 }

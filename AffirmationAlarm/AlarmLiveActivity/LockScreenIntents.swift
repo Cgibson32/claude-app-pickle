@@ -30,9 +30,7 @@ struct StopFromLockScreen: LiveActivityIntent {
     func perform() async throws -> some IntentResult {
         guard let uuid = UUID(uuidString: alarmID) else { return .result() }
         try? AlarmManager.shared.cancel(id: uuid)
-        // Handoff key shared with the main app's `PendingPlayback`
-        // namespace. Kept literal here so the widget extension doesn't
-        // need to import any main-app source.
+        UserDefaults.standard.set("stop", forKey: "lockScreenAction")
         UserDefaults.standard.set(uuid.uuidString, forKey: "pendingMorningPlayback")
         return .result()
     }
@@ -63,6 +61,7 @@ struct SnoozeFromLockScreen: LiveActivityIntent {
     func perform() async throws -> some IntentResult {
         guard let uuid = UUID(uuidString: alarmID) else { return .result() }
         try? AlarmManager.shared.cancel(id: uuid)
+        UserDefaults.standard.set("snooze", forKey: "lockScreenAction")
         UserDefaults.standard.set(uuid.uuidString, forKey: "pendingSnoozeRescheduleAlarmID")
         return .result()
     }

@@ -112,6 +112,7 @@ targets:
     sources:
       - path: AlarmLiveActivity
       - path: AffirmationAlarm/Models/AffirmationAlarmMetadata.swift
+      - path: AffirmationAlarm/Models/RingingAttributes.swift
     info:
       path: AlarmLiveActivity/Info.generated.plist
       properties:

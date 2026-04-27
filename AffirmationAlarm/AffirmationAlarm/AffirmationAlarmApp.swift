@@ -173,7 +173,11 @@ struct RootView: View {
 
     /// Fallback playback path: if the Stop-slide intent set a pending
     /// playback flag and the app opened, play from the foreground.
+    /// Skipped when handleFire is already playing — the lock screen
+    /// intent's action is routed through the UserDefaults polling in
+    /// handleFire's task group instead.
     private func checkPendingMorningPlayback() {
+        guard !scheduler.isPlayingMorningAudio else { return }
         guard let idString = UserDefaults.standard.string(forKey: PendingPlayback.userDefaultsKey),
               let alarmID = UUID(uuidString: idString) else { return }
 
@@ -189,8 +193,9 @@ struct RootView: View {
     /// extension's `SnoozeFromLockScreen` intent only knows how to
     /// cancel the alarm + write a UserDefaults key — full snooze
     /// rescheduling lives in the main app's scheduler, so we pick up
-    /// the handoff here.
+    /// the handoff here. Skipped when handleFire is active.
     private func checkPendingSnoozeReschedule() {
+        guard !scheduler.isPlayingMorningAudio else { return }
         let key = "pendingSnoozeRescheduleAlarmID"
         guard let idString = UserDefaults.standard.string(forKey: key),
               let alarmID = UUID(uuidString: idString) else { return }
