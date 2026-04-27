@@ -41,7 +41,9 @@ struct NameEntryView: View {
             Button("Continue") {
                 HapticService.medium()
                 isFocused = false
-                viewModel.advance()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    viewModel.advance()
+                }
             }
             .buttonStyle(PillButtonStyle())
             .disabled(!viewModel.canAdvance)

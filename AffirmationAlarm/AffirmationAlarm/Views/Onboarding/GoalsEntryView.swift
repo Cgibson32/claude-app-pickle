@@ -2,6 +2,7 @@ import SwiftUI
 
 struct GoalsEntryView: View {
     @Bindable var viewModel: OnboardingViewModel
+    @FocusState private var isFocused: Bool
 
     /// Six prefilled examples to break the blank-page freeze. Tapping
     /// appends to the goals field rather than replacing — the user can
@@ -77,6 +78,7 @@ struct GoalsEntryView: View {
                         .frame(minHeight: 100)
                         .background(AppTheme.inputBackground)
                         .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
+                        .focused($isFocused)
                 }
 
                 if ProfanityFilter.containsProfanity(viewModel.goals) {
@@ -109,7 +111,10 @@ struct GoalsEntryView: View {
 
                 Button("Continue") {
                     HapticService.medium()
-                    viewModel.advance()
+                    isFocused = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        viewModel.advance()
+                    }
                 }
                 .buttonStyle(PillButtonStyle())
                 .disabled(!viewModel.canAdvance)
