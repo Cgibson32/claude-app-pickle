@@ -603,17 +603,19 @@ final class AlarmKitScheduler {
         // Clear any stale lock screen action before starting playback.
         UserDefaults.standard.removeObject(forKey: "lockScreenAction")
 
+        // Start the manual ringing Live Activity FIRST, while the alarm is
+        // still alerting. iOS restricts `Activity.request` from arbitrary
+        // background contexts but allows it during an active alarm-fire
+        // event, so the order here matters — moving this after `cancel()`
+        // causes the request to silently fail and the lock screen UI never
+        // appears. See FB14894127 (April 2026 — still open).
+        let ringingActivity = startRingingActivity(alarmID: alarmID, label: label)
+
         try? manager.cancel(id: alarmID)
         DiagnosticsLog.shared.log("observer", "cancelled system alarm; waiting for interruption end")
 
         let waited = await InterruptionWaiter.awaitEnd(timeout: .milliseconds(500))
         DiagnosticsLog.shared.log("observer", "interruption wait returned: \(waited ? "ended" : "timeout")")
-
-        // Start a manual Live Activity so the lock screen shows Stop/Snooze
-        // while affirmations play. The AlarmKit-managed Live Activity died
-        // when we cancelled the alarm above — this one persists until
-        // playback finishes or the user acts.
-        let ringingActivity = startRingingActivity(alarmID: alarmID, label: label)
 
         // Always show the ringing overlay so Stop/Snooze is available
         // whether the app is foregrounded or the user opens it mid-playback.
