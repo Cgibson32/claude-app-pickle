@@ -664,7 +664,8 @@ final class AlarmKitScheduler {
         isPlayingMorningAudio = false
         ringingAlarmID = nil
         if let ringingActivity {
-            await ringingActivity.end(nil, dismissalPolicy: .immediate)
+            nonisolated(unsafe) let activity = ringingActivity
+            await activity.end(nil, dismissalPolicy: .immediate)
             DiagnosticsLog.shared.log("observer", "ended ringing Live Activity")
         }
         UserDefaults.standard.removeObject(forKey: "lockScreenAction")
