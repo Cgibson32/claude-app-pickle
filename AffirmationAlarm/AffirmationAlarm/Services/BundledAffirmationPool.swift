@@ -46,12 +46,12 @@ enum BundledAffirmationPool {
     ]
 
     static let closings: [String] = [
-        "Now go — the day is waiting for you.",
-        "Rise gently and begin.",
-        "Today is yours. Make it count.",
-        "One good morning at a time.",
-        "You showed up. Now keep going.",
-        "Step into it. You're ready."
+        "Now go — the day is lucky to have you in it.",
+        "You got up. You showed up. Now go show them why.",
+        "Whatever today throws at you, you've already won the first round.",
+        "Walk out that door knowing someone believes in you — because I do.",
+        "The hardest part is over. You're already moving.",
+        "Go make today the one you'll be proud of tonight."
     ]
 
     /// Deterministic per-day selection of `count` affirmations.

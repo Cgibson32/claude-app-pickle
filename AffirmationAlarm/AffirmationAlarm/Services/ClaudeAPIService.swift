@@ -286,7 +286,7 @@ actor ClaudeAPIService {
     - Use the person's name in exactly one affirmation — this is the highest-emotion line, save it for the strongest declaration.
     - Vary openers — no two start the same way.
     - No emojis. No quotation marks.
-    - Closing: 5–10 words, "you" voice, references the goal as something they're actively becoming.
+    - Closing: a warm, personal send-off — 8–15 words, "you" voice, that makes the person feel seen, backed, and ready. It should land like a coach's last words before the game, not a bumper sticker. Reference the goal as something they're actively becoming. Think: "Go show them what all those early mornings built" not "Have a great day."
 
     === BANNED — POSTER LANGUAGE ===
 

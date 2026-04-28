@@ -388,7 +388,7 @@ final class MorningAudioRenderer {
     /// in the bundle. Must stay in sync with `BundledAffirmationPool.closings`
     /// and the `ScriptComposer.closing()` fallback ("Have a wonderful day.").
     private static let defaultClosings: Set<String> = Set(
-        BundledAffirmationPool.closings + ["Have a wonderful day."]
+        BundledAffirmationPool.closings + ["Now go — the day is lucky to have you in it."]
     )
 
     private func renderSupportingMP3(
@@ -489,7 +489,7 @@ private struct ScriptComposer {
         if let text = closingMessage?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
             return text
         }
-        return "Have a wonderful day."
+        return "Now go — the day is lucky to have you in it."
     }
 
     // MARK: - Primitives
