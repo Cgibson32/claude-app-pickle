@@ -260,7 +260,7 @@ final class MorningAudioRenderer {
     private func renderMainMP3(to url: URL, script: String, voice: ElevenLabsTTSService.Voice) async -> Bool {
         do {
             let ttsData = try await tts.synthesize(text: script, voice: voice)
-            let data = prependBirdsIntro(to: ttsData) ?? ttsData
+            let data = await prependBirdsIntro(to: ttsData) ?? ttsData
             try data.write(to: url, options: .atomic)
             guard verifyPlayable(at: url, label: "main MP3") else { return false }
             DiagnosticsLog.shared.log("render", "main MP3 rendered \(url.lastPathComponent) size=\(data.count)")
@@ -274,7 +274,7 @@ final class MorningAudioRenderer {
 
     private static let birdsIntroDuration: Double = 3.0
 
-    private func prependBirdsIntro(to ttsData: Data) -> Data? {
+    private func prependBirdsIntro(to ttsData: Data) async -> Data? {
         guard let birdsURL = Bundle.main.url(forResource: "alarm_birds", withExtension: "caf") else {
             DiagnosticsLog.shared.log("render", "alarm_birds.caf not found in bundle — skipping intro")
             return nil
