@@ -239,9 +239,7 @@ struct RootView: View {
                 AlarmKitScheduler.shared.clearPendingFollowUpRenders()
             }
 
-            for alarm in allAlarms where alarm.isEnabled {
-                AlarmKitScheduler.shared.scheduleAlarm(alarm)
-            }
+            AlarmKitScheduler.shared.scheduleIfMissing(alarms: allAlarms.filter(\.isEnabled))
         }
     }
 }

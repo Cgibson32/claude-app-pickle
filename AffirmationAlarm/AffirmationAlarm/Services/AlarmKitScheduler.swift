@@ -414,6 +414,25 @@ final class AlarmKitScheduler {
         }
     }
 
+    /// Schedule only alarms that are NOT already live in AlarmKit.
+    /// Unlike `scheduleAlarm` (which cancels first), this is safe to call
+    /// on every app resume because it never cancels a pending alarm —
+    /// eliminating the race where a cancel+reschedule near fire time kills
+    /// the alarm for today and pushes it to tomorrow.
+    func scheduleIfMissing(alarms: [Alarm]) {
+        let live = (try? manager.alarms) ?? []
+        let liveIDs = Set(live.map(\.id))
+
+        for alarm in alarms {
+            if liveIDs.contains(alarm.id) {
+                DiagnosticsLog.shared.log("scheduler", "\(alarm.id.uuidString.prefix(8)) already live — skipping")
+                continue
+            }
+            DiagnosticsLog.shared.log("scheduler", "\(alarm.id.uuidString.prefix(8)) not in AlarmKit — scheduling")
+            scheduleAlarm(alarm)
+        }
+    }
+
     // MARK: - Snooze follow-up
 
     /// Schedule a one-shot follow-up alarm using the original alarm's
