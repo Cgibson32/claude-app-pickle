@@ -1,4 +1,3 @@
-import ActivityKit
 // `@preconcurrency` silences Swift 6 region-based isolation errors for
 // AlarmKit's async APIs. `requestAuthorization()` and `schedule(id:_:)`
 // are declared nonisolated and take an `AlarmConfiguration` containing
@@ -655,13 +654,24 @@ final class AlarmKitScheduler {
         // Clear any stale lock screen action before starting playback.
         UserDefaults.standard.removeObject(forKey: "lockScreenAction")
 
-        // Start the manual ringing Live Activity FIRST, while the alarm is
-        // still alerting. iOS restricts `Activity.request` from arbitrary
-        // background contexts but allows it during an active alarm-fire
-        // event, so the order here matters — moving this after `cancel()`
-        // causes the request to silently fail and the lock screen UI never
-        // appears. See FB14894127 (April 2026 — still open).
-        let ringingActivity = startRingingActivity(alarmID: alarmID, label: label)
+        // Let the AlarmKit system alert stay on screen for 3 seconds so the
+        // user sees Stop/Snooze on the lock screen. The system alert is
+        // guaranteed to render — unlike a manual Live Activity which iOS
+        // restricts from background contexts. If the user taps Stop/Snooze
+        // during this window, AlarmKit's built-in intents handle it and
+        // the alarm is already cancelled when we check below.
+        DiagnosticsLog.shared.log("observer", "system alert visible — waiting 3s for user interaction")
+        try? await Task.sleep(for: .seconds(3))
+
+        // Check if the user already acted via the system alert's
+        // Stop/Snooze during the 3-second window.
+        let alreadyHandled = UserDefaults.standard.string(forKey: "lockScreenAction") != nil
+            || UserDefaults.standard.string(forKey: PendingPlayback.userDefaultsKey) != nil
+        if alreadyHandled {
+            DiagnosticsLog.shared.log("observer", "user acted during system alert — skipping auto-play")
+            lastHandleFireOutcome = FireOutcome(outcome: "userActedDuringAlert", date: Date())
+            return
+        }
 
         try? manager.cancel(id: alarmID)
         DiagnosticsLog.shared.log("observer", "cancelled system alarm; waiting for interruption end")
@@ -696,20 +706,17 @@ final class AlarmKitScheduler {
             return .stop
         }
 
-        // Whichever completes first determines the action. The third task
-        // polls UserDefaults for Stop/Snooze tapped on the lock screen
-        // Live Activity (cross-process handoff from the widget intent).
+        // Whichever completes first determines the action.
         let result: RingingAction = await withTaskGroup(of: RingingAction.self) { group in
             group.addTask { _ = await playbackTask.value; return .stop }
             group.addTask { await actionTask.value }
-            group.addTask { await Self.pollLockScreenAction() }
             let first = await group.next() ?? .stop
             group.cancelAll()
             return first
         }
         let action = result
 
-        // Clean up: stop any remaining audio, dismiss overlay, end Live Activity.
+        // Clean up: stop any remaining audio, dismiss overlay.
         playbackTask.cancel()
         actionTask.cancel()
         ringingContinuation = nil
@@ -717,12 +724,6 @@ final class AlarmKitScheduler {
         VolumeBooster.stopMonitoring()
         isPlayingMorningAudio = false
         ringingAlarmID = nil
-        if let ringingActivity {
-            nonisolated(unsafe) let activity = ringingActivity
-            await activity.end(nil, dismissalPolicy: .immediate)
-            DiagnosticsLog.shared.log("observer", "ended ringing Live Activity")
-        }
-        UserDefaults.standard.removeObject(forKey: "lockScreenAction")
 
         DiagnosticsLog.shared.log("observer", "handleFire done action=\(action)")
         lastHandleFireOutcome = FireOutcome(outcome: String(describing: action), date: Date())
@@ -750,40 +751,6 @@ final class AlarmKitScheduler {
 
         BackgroundKeepAlive.shared.start()
         NotificationCenter.default.post(name: .didCompleteMorningPlayback, object: nil)
-    }
-
-    // MARK: - Ringing Live Activity
-
-    private func startRingingActivity(alarmID: UUID, label: String) -> Activity<RingingAttributes>? {
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            DiagnosticsLog.shared.log("observer", "Live Activities disabled — skipping ringing activity")
-            return nil
-        }
-        let attributes = RingingAttributes(alarmID: alarmID, label: label)
-        let state = RingingAttributes.ContentState()
-        let content = ActivityContent(state: state, staleDate: nil)
-        do {
-            let activity = try Activity.request(attributes: attributes, content: content, pushType: nil)
-            DiagnosticsLog.shared.log("observer", "started ringing Live Activity \(activity.id)")
-            return activity
-        } catch {
-            DiagnosticsLog.shared.log("observer", "ringing Live Activity failed: \(error.localizedDescription)")
-            return nil
-        }
-    }
-
-    /// Polls UserDefaults for a lock screen Stop/Snooze action written by
-    /// the widget extension's `StopFromLockScreen` / `SnoozeFromLockScreen`
-    /// intents. Returns when an action is found or the task is cancelled.
-    private nonisolated static func pollLockScreenAction() async -> RingingAction {
-        while !Task.isCancelled {
-            if let action = UserDefaults.standard.string(forKey: "lockScreenAction") {
-                UserDefaults.standard.removeObject(forKey: "lockScreenAction")
-                return action == "snooze" ? .snooze : .stop
-            }
-            try? await Task.sleep(for: .milliseconds(250))
-        }
-        return .stop
     }
 
     // MARK: - Live render fallback
