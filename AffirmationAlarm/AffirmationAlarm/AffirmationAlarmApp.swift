@@ -206,11 +206,10 @@ struct RootView: View {
 
     private func reconcileAlarmsWithSystem() {
         let allAlarms = (try? modelContext.fetch(FetchDescriptor<Alarm>())) ?? []
+        let enabledCount = allAlarms.filter(\.isEnabled).count
+        DiagnosticsLog.shared.log("reconcile", "start: \(allAlarms.count) alarms (\(enabledCount) enabled)")
         AlarmKitScheduler.shared.reconcile(alarms: allAlarms)
 
-        // Start background keep-alive if any alarm is enabled — this keeps
-        // the app process alive so the alarmUpdates observer can detect
-        // .alerting state and auto-play affirmation audio.
         if allAlarms.contains(where: \.isEnabled) {
             BackgroundKeepAlive.shared.start()
         }

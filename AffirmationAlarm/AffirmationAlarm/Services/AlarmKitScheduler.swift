@@ -10,6 +10,7 @@ import AppIntents
 import AVFoundation
 import SwiftData
 import SwiftUI
+import UserNotifications
 
 // MARK: - Scheduler
 
@@ -325,10 +326,8 @@ final class AlarmKitScheduler {
             return
         }
 
-        // Guarantee keep-alive is active BEFORE handing the alarm to the
-        // system daemon. If the observer Task has no audio session when
-        // it starts awaiting `alarmUpdates`, iOS can suspend the process
-        // before the first `.alerting` event is delivered.
+        try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .criticalAlert])
+
         BackgroundKeepAlive.shared.start()
 
         do {
@@ -344,6 +343,30 @@ final class AlarmKitScheduler {
             DiagnosticsLog.shared.log("scheduler", "schedule failed: \(error.localizedDescription)")
             AlarmTelemetry.eventSync(.schedulingFailed, alarmID: alarm.id, extra: "err=\(error.localizedDescription)")
         }
+
+        scheduleBackupNotification(for: alarm)
+    }
+
+    /// Belt-and-suspenders: schedule a UNNotification at the same time as
+    /// the AlarmKit alarm. If AlarmKit fails for any reason, the user still
+    /// gets woken up by the notification. Cancelled in handleFire once the
+    /// AlarmKit alarm fires successfully.
+    private func scheduleBackupNotification(for alarm: Alarm) {
+        guard let fireDate = alarm.nextFireDate else { return }
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [alarm.id.uuidString])
+
+        let content = UNMutableNotificationContent()
+        content.title = alarm.label.isEmpty ? "Morning Affirmations" : alarm.label
+        content.body = "Your alarm is going off — tap to open."
+        content.sound = .defaultCritical
+        content.interruptionLevel = .timeSensitive
+
+        let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
+        let request = UNNotificationRequest(identifier: alarm.id.uuidString, content: content, trigger: trigger)
+        center.add(request)
+        DiagnosticsLog.shared.log("scheduler", "backup notification for \(alarm.id.uuidString.prefix(8)) at \(alarm.timeString)")
     }
 
     /// Cancel an alarm. Safe to call even if the alarm isn't currently
@@ -355,6 +378,7 @@ final class AlarmKitScheduler {
     /// unconditionally.
     func cancelAlarm(_ alarm: Alarm) {
         try? manager.cancel(id: alarm.id)
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [alarm.id.uuidString])
     }
 
     /// Cross-reference SwiftData rows with the live AlarmKit registry and
@@ -376,8 +400,15 @@ final class AlarmKitScheduler {
             if liveIDs.contains(alarm.id) { continue }
 
             if alarm.repeatDays.isEmpty {
-                alarm.isEnabled = false
+                if alarm.nextFireDate == nil {
+                    alarm.isEnabled = false
+                    DiagnosticsLog.shared.log("reconcile", "one-shot \(alarm.id.uuidString.prefix(8)) past due — disabled")
+                } else {
+                    DiagnosticsLog.shared.log("reconcile", "one-shot \(alarm.id.uuidString.prefix(8)) missing from AlarmKit — rescheduling")
+                    scheduleAlarm(alarm)
+                }
             } else {
+                DiagnosticsLog.shared.log("reconcile", "repeating \(alarm.id.uuidString.prefix(8)) missing from AlarmKit — rescheduling")
                 scheduleAlarm(alarm)
             }
         }
@@ -576,6 +607,8 @@ final class AlarmKitScheduler {
 
         DiagnosticsLog.shared.log("observer", "handleFire start \(alarmID.uuidString.prefix(8))")
         AlarmTelemetry.eventSync(.fire, alarmID: alarmID)
+
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [alarmID.uuidString])
 
         let soundsDir = MorningAudioRenderer.soundsDirectory()
         let morningURL = soundsDir.appendingPathComponent("morning-\(alarmID.uuidString).mp3")
