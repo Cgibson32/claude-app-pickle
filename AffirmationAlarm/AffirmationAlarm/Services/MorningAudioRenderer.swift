@@ -259,7 +259,8 @@ final class MorningAudioRenderer {
 
     private func renderMainMP3(to url: URL, script: String, voice: ElevenLabsTTSService.Voice) async -> Bool {
         do {
-            let data = try await tts.synthesize(text: script, voice: voice)
+            let ttsData = try await tts.synthesize(text: script, voice: voice)
+            let data = prependBirdsIntro(to: ttsData) ?? ttsData
             try data.write(to: url, options: .atomic)
             guard verifyPlayable(at: url, label: "main MP3") else { return false }
             DiagnosticsLog.shared.log("render", "main MP3 rendered \(url.lastPathComponent) size=\(data.count)")
@@ -268,6 +269,77 @@ final class MorningAudioRenderer {
             AppLogger.audio.error("main MP3 render failed: \(error.localizedDescription, privacy: .public)")
             DiagnosticsLog.shared.log("render", "main MP3 failed: \(error.localizedDescription)")
             return false
+        }
+    }
+
+    private static let birdsIntroDuration: Double = 3.0
+
+    private func prependBirdsIntro(to ttsData: Data) -> Data? {
+        guard let birdsURL = Bundle.main.url(forResource: "alarm_birds", withExtension: "caf") else {
+            DiagnosticsLog.shared.log("render", "alarm_birds.caf not found in bundle — skipping intro")
+            return nil
+        }
+
+        let tempTTS = Self.soundsDirectory().appendingPathComponent("tmp_tts.mp3")
+        let tempOut = Self.soundsDirectory().appendingPathComponent("tmp_combined.m4a")
+        defer {
+            try? FileManager.default.removeItem(at: tempTTS)
+            try? FileManager.default.removeItem(at: tempOut)
+        }
+
+        do {
+            try ttsData.write(to: tempTTS, options: .atomic)
+
+            let birdsAsset = AVAsset(url: birdsURL)
+            let ttsAsset = AVAsset(url: tempTTS)
+            let composition = AVMutableComposition()
+
+            guard let birdsTrack = composition.addMutableTrack(
+                withMediaType: .audio,
+                preferredTrackID: kCMPersistentTrackID_Invalid
+            ) else { return nil }
+
+            let birdsDuration = CMTime(seconds: Self.birdsIntroDuration, preferredTimescale: 44100)
+            if let srcTrack = birdsAsset.tracks(withMediaType: .audio).first {
+                let available = min(birdsDuration, srcTrack.timeRange.duration)
+                try birdsTrack.insertTimeRange(
+                    CMTimeRange(start: .zero, duration: available),
+                    of: srcTrack,
+                    at: .zero
+                )
+            }
+
+            guard let ttsTrackSlot = composition.addMutableTrack(
+                withMediaType: .audio,
+                preferredTrackID: kCMPersistentTrackID_Invalid
+            ) else { return nil }
+
+            if let srcTrack = ttsAsset.tracks(withMediaType: .audio).first {
+                try ttsTrackSlot.insertTimeRange(
+                    CMTimeRange(start: .zero, duration: srcTrack.timeRange.duration),
+                    of: srcTrack,
+                    at: birdsTrack.timeRange.duration
+                )
+            }
+
+            guard let exportSession = AVAssetExportSession(
+                asset: composition,
+                presetName: AVAssetExportPresetAppleM4A
+            ) else { return nil }
+
+            exportSession.outputURL = tempOut
+            exportSession.outputFileType = .m4a
+            await exportSession.export()
+
+            guard exportSession.status == .completed else {
+                DiagnosticsLog.shared.log("render", "birds intro export failed: \(exportSession.error?.localizedDescription ?? "unknown")")
+                return nil
+            }
+
+            return try Data(contentsOf: tempOut)
+        } catch {
+            DiagnosticsLog.shared.log("render", "birds intro prepend failed: \(error.localizedDescription)")
+            return nil
         }
     }
 
