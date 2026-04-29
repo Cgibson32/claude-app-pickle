@@ -973,7 +973,7 @@ final class AlarmKitScheduler {
     /// `alarmUpdates` observer and the Stop-slide intent, which play
     /// `morning-<id>.mp3` and `closing-<id>.mp3` via `AlarmAudioPlayer`
     /// after the system daemon has started the bundled alarm tone.
-    private func resolveSound(for alarm: Alarm) -> AlarmPresentation.AlertSound {
+    private func resolveSound(for alarm: Alarm) -> AlertConfiguration.AlertSound {
         let stem = alarm.soundName
         AppLogger.alarm.info("sound: .named(\(stem, privacy: .public)) [bundle] for \(alarm.id.uuidString.prefix(8), privacy: .public)")
         return .named(stem)
