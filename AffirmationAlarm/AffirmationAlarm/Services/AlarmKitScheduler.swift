@@ -957,26 +957,8 @@ final class AlarmKitScheduler {
             attributes: attributes,
             stopIntent: StopAndPlayClosingIntent(alarmID: alarm.id),
             secondaryIntent: SnoozeMorningIntent(alarmID: alarm.id),
-            sound: resolveSound(for: alarm)
+            sound: .named(alarm.soundName)
         )
-    }
-
-    /// Pick the AlarmKit sound for this alarm.
-    ///
-    /// We pass `.named(alarm.soundName)` pointing to a CAF in the **app
-    /// bundle** (e.g. `alarm_gentle.caf`, `alarm_sunrise.caf`). Research
-    /// (Apr 2026) confirms bundle-resident audio is the one `.named()`
-    /// location that reliably works under the open FB19779004 bug —
-    /// `Library/Sounds` silently falls back to `.default`.
-    ///
-    /// Per-user personalized affirmations are layered on top by the
-    /// `alarmUpdates` observer and the Stop-slide intent, which play
-    /// `morning-<id>.mp3` and `closing-<id>.mp3` via `AlarmAudioPlayer`
-    /// after the system daemon has started the bundled alarm tone.
-    private func resolveSound(for alarm: Alarm) -> AlertConfiguration.AlertSound {
-        let stem = alarm.soundName
-        AppLogger.alarm.info("sound: .named(\(stem, privacy: .public)) [bundle] for \(alarm.id.uuidString.prefix(8), privacy: .public)")
-        return .named(stem)
     }
 
     // MARK: - Weekday mapping
