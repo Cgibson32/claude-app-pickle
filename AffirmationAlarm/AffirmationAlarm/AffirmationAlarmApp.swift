@@ -173,15 +173,19 @@ struct RootView: View {
 
     /// Fallback playback path: if the Stop-slide intent set a pending
     /// playback flag and the app opened, play from the foreground.
-    /// Skipped when handleFire is already playing — the lock screen
-    /// intent's action is routed through the UserDefaults polling in
-    /// handleFire's task group instead.
+    /// Always clears the flag to prevent stale handoff keys from
+    /// triggering a second play after handleFire already finished.
     private func checkPendingMorningPlayback() {
-        guard !scheduler.isPlayingMorningAudio else { return }
         guard let idString = UserDefaults.standard.string(forKey: PendingPlayback.userDefaultsKey),
               let alarmID = UUID(uuidString: idString) else { return }
 
         UserDefaults.standard.removeObject(forKey: PendingPlayback.userDefaultsKey)
+
+        guard !scheduler.isPlayingMorningAudio else {
+            DiagnosticsLog.shared.log("intent", "foreground retry skipped — already playing \(alarmID.uuidString.prefix(8))")
+            return
+        }
+
         DiagnosticsLog.shared.log("intent", "foreground retry triggered for \(alarmID.uuidString.prefix(8))")
 
         Task {
