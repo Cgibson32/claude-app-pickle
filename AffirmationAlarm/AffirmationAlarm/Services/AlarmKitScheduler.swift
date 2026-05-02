@@ -610,16 +610,14 @@ final class AlarmKitScheduler {
         }
     }
 
-    /// Handle an alarm that just started alerting. The morning affirmation
-    /// sequence IS the alarm — a brief chime intro followed by the
-    /// personalized spoken affirmations. No separate alarm tone loop;
-    /// the user wakes up to their affirmations directly.
+    /// Handle an alarm that just started alerting. Cancels the system
+    /// alarm immediately (the bundled CAF acts as a brief wake chime),
+    /// then plays the personalized greeting + affirmations.
     ///
-    /// - **Foregrounded**: cancel system alert, show ringing overlay
-    ///   (Stop/Snooze), immediately begin affirmation playback. Stop
-    ///   silences mid-playback; Snooze silences and reschedules.
-    /// - **Backgrounded**: let the system alert handle it. The existing
-    ///   Stop intent fires when the user interacts from the lock screen.
+    /// The in-app ringing overlay (Stop/Snooze) is shown unconditionally.
+    /// Playback races against user action: pressing Stop silences
+    /// mid-sentence; Snooze silences and reschedules. If neither is
+    /// pressed, playback completes naturally and the overlay dismisses.
     private func handleFire(alarmID: UUID) async {
         defer { activeFireHandling.remove(alarmID) }
 
@@ -651,27 +649,13 @@ final class AlarmKitScheduler {
 
         let label = alarmLabels[alarmID] ?? "Alarm"
 
-        // Clear any stale lock screen action before starting playback.
+        // Cancel the system alarm immediately so its bundled CAF stops
+        // and we can take over the audio session for affirmation playback.
+        // The user hears the bundled tone for ~100-500ms (the AlarmKit
+        // daemon's processing lag) as a brief wake chime, then the
+        // personalized greeting begins.
         UserDefaults.standard.removeObject(forKey: "lockScreenAction")
-
-        // Let the AlarmKit system alert stay on screen for 3 seconds so the
-        // user sees Stop/Snooze on the lock screen. The system alert is
-        // guaranteed to render — unlike a manual Live Activity which iOS
-        // restricts from background contexts. If the user taps Stop/Snooze
-        // during this window, AlarmKit's built-in intents handle it and
-        // the alarm is already cancelled when we check below.
-        DiagnosticsLog.shared.log("observer", "system alert visible — waiting 3s for user interaction")
-        try? await Task.sleep(for: .seconds(3))
-
-        // Check if the user already acted via the system alert's
-        // Stop/Snooze during the 3-second window.
-        let alreadyHandled = UserDefaults.standard.string(forKey: "lockScreenAction") != nil
-            || UserDefaults.standard.string(forKey: PendingPlayback.userDefaultsKey) != nil
-        if alreadyHandled {
-            DiagnosticsLog.shared.log("observer", "user acted during system alert — skipping auto-play")
-            lastHandleFireOutcome = FireOutcome(outcome: "userActedDuringAlert", date: Date())
-            return
-        }
+        UserDefaults.standard.removeObject(forKey: PendingPlayback.userDefaultsKey)
 
         try? manager.cancel(id: alarmID)
         DiagnosticsLog.shared.log("observer", "cancelled system alarm; waiting for interruption end")
