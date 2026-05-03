@@ -174,12 +174,69 @@ actor AlarmAudioPlayer {
         if let morning { await playFile(at: morning) }
         guard !stopRequested else { return record(outcome: .played, alarmID: alarmID) }
         if let closing { await playFile(at: closing) }
+        guard !stopRequested else { return record(outcome: .played, alarmID: alarmID) }
+
+        // Wake-up song after closing — bright pop track to send the user
+        // into their day. Picked from `WakeUpSongLibrary` (auto-discovers
+        // bundled songs + avoids recent repeats). Skipped silently if the
+        // library is empty.
+        if let song = WakeUpSongLibrary.pickSong() {
+            await playSong(at: song)
+        }
 
         // Do NOT deactivate the session here. We're sharing keep-alive's
         // `.playback + .mixWithOthers` session; tearing it down would
         // kill keep-alive's silent loop and force `BackgroundKeepAlive`
         // to restart (which it does via `handleFire`, but that's a
         // window where iOS could suspend the process).
+        markCompleted(alarmID: alarmID)
+        return record(outcome: .played, alarmID: alarmID)
+    }
+
+    /// Snooze follow-up playback: short personalized greeting + a
+    /// random wake-up song. No affirmations, no closing — the user
+    /// already heard those 9 minutes ago in the original alarm.
+    ///
+    /// Same dedup/purgatory machinery as `playMorningAndClosing`, so
+    /// the same alarm ID can't be played twice concurrently.
+    func playSnoozeFollowUp(for alarmID: UUID) async -> PlaybackOutcome {
+        DiagnosticsLog.shared.log("player", "snooze start \(alarmID.uuidString.prefix(8))")
+
+        if playing.contains(alarmID) {
+            return record(outcome: .alreadyPlaying, alarmID: alarmID)
+        }
+        if recentlyCompleted.contains(alarmID) {
+            return record(outcome: .alreadyPlayed, alarmID: alarmID)
+        }
+
+        let dir = MorningAudioRenderer.soundsDirectory()
+        let greetingURL = dir.appendingPathComponent("morning-\(alarmID.uuidString).mp3")
+        let greetingExists = FileManager.default.fileExists(atPath: greetingURL.path)
+        let song = WakeUpSongLibrary.pickSong()
+
+        guard greetingExists || song != nil else {
+            return record(outcome: .noFiles, alarmID: alarmID)
+        }
+
+        playing.insert(alarmID)
+        stopRequested = false
+        defer { playing.remove(alarmID) }
+
+        await MainActor.run { VolumeBooster.boostToMax() }
+
+        guard await activateAudioSession() else {
+            return record(outcome: .audioSessionUnavailable, alarmID: alarmID)
+        }
+
+        if greetingExists {
+            await playFile(at: greetingURL)
+        }
+        guard !stopRequested else { return record(outcome: .played, alarmID: alarmID) }
+
+        if let song {
+            await playSong(at: song)
+        }
+
         markCompleted(alarmID: alarmID)
         return record(outcome: .played, alarmID: alarmID)
     }
@@ -484,6 +541,41 @@ actor AlarmAudioPlayer {
             "player",
             "fallback done \(url.lastPathComponent) played=\(String(format: "%.2f", played))s finished=\(finished)"
         )
+        withExtendedLifetime(player) {}
+    }
+
+    /// Play a bundled wake-up song at full volume. Songs are
+    /// already-mastered music files so we skip the AVAudioEngine +EQ
+    /// boost path and use a plain `AVAudioPlayer` — boosting a song
+    /// would clip the chorus.
+    ///
+    /// Stored in `activeFallbackPlayer` so `stopPlayback()` (called by
+    /// the in-app Stop button) silences the song mid-play.
+    private func playSong(at url: URL) async {
+        let player: AVAudioPlayer
+        do {
+            player = try AVAudioPlayer(contentsOf: url)
+        } catch {
+            AppLogger.alarm.error("AlarmAudioPlayer: song init failed for \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            DiagnosticsLog.shared.log("player", "song init failed \(url.lastPathComponent): \(error.localizedDescription)")
+            return
+        }
+
+        player.volume = 1.0
+        player.prepareToPlay()
+        activeFallbackPlayer = player
+
+        DiagnosticsLog.shared.log("player", "song playing \(url.lastPathComponent) duration=\(String(format: "%.2f", player.duration))s")
+
+        guard player.play() else {
+            DiagnosticsLog.shared.log("player", "song play() returned false for \(url.lastPathComponent)")
+            return
+        }
+
+        try? await Task.sleep(for: .seconds(player.duration + 0.3))
+        let finished = !player.isPlaying
+        activeFallbackPlayer = nil
+        DiagnosticsLog.shared.log("player", "song done \(url.lastPathComponent) finished=\(finished)")
         withExtendedLifetime(player) {}
     }
 

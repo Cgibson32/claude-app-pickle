@@ -119,11 +119,15 @@ final class MorningAudioRenderer {
         }
     }
 
-    /// Render morning + closing MP3s for a snooze follow-up UUID that has
-    /// no corresponding `Alarm` SwiftData object. Called from
-    /// `RootView.reconcileAlarmsWithSystem` which drains
-    /// `AlarmKitScheduler.pendingFollowUpRenders` during the 10-minute
-    /// snooze window.
+    /// Render the snooze follow-up greeting MP3. Snooze playback is
+    /// "greeting + wake-up song" (no affirmations, no closing) — the
+    /// song is a bundled asset chosen at playback time, so the only
+    /// thing we need to TTS-render here is the personalized greeting.
+    ///
+    /// Called from `RootView.reconcileAlarmsWithSystem` which drains
+    /// `AlarmKitScheduler.pendingFollowUpRenders` during the snooze
+    /// window. No Claude API call needed (no affirmations) — just one
+    /// short TTS round-trip, ~3-5s total.
     func renderForFollowUp(
         followUpID: UUID,
         profile: UserProfile,
@@ -133,38 +137,23 @@ final class MorningAudioRenderer {
 
         guard ensureSoundsDirectoryExists() else { return }
 
-        let cache = AffirmationCacheService()
         let voice = ElevenLabsTTSService.Voice(rawValue: profile.ttsVoice) ?? .rachel
-        let count = profile.affirmationCount
+        let composer = ScriptComposer(
+            name: profile.name,
+            affirmations: [],
+            affirmationCount: 0,
+            closingMessage: nil
+        )
+        let script = composer.snoozeGreeting(seed: followUpID)
 
-        do {
-            let (affirmations, closing) = try await cache.fetchOrGenerate(
-                for: profile,
-                modelContext: modelContext
-            )
-
-            let composer = ScriptComposer(
-                name: profile.name,
-                affirmations: affirmations,
-                affirmationCount: count,
-                closingMessage: closing?.message
-            )
-
-            guard await renderMainMP3(to: paths.morning, script: composer.main(), voice: voice) else {
-                return
-            }
-            await renderClosing(
-                to: paths.closing,
-                script: composer.closing(),
-                voice: voice,
-                alarmID: followUpID
-            )
-
-            DiagnosticsLog.shared.log("render", "follow-up \(followUpID.uuidString.prefix(8)) rendered")
-        } catch {
-            AppLogger.audio.error("follow-up render failed: \(error.localizedDescription, privacy: .public)")
-            DiagnosticsLog.shared.log("render", "follow-up render failed: \(error.localizedDescription)")
+        guard await renderMainMP3(to: paths.morning, script: script, voice: voice, prependIntro: false) else {
+            return
         }
+
+        DiagnosticsLog.shared.log(
+            "render",
+            "snooze greeting rendered for \(followUpID.uuidString.prefix(8)): \(script)"
+        )
     }
 
     /// Mark every rendered file as stale so the next `refresh()` call
@@ -257,10 +246,15 @@ final class MorningAudioRenderer {
 
     // MARK: - Rendering primitives
 
-    private func renderMainMP3(to url: URL, script: String, voice: ElevenLabsTTSService.Voice) async -> Bool {
+    private func renderMainMP3(
+        to url: URL,
+        script: String,
+        voice: ElevenLabsTTSService.Voice,
+        prependIntro: Bool = true
+    ) async -> Bool {
         do {
             let ttsData = try await tts.synthesize(text: script, voice: voice)
-            let data = await prependBirdsIntro(to: ttsData) ?? ttsData
+            let data = prependIntro ? (await prependBirdsIntro(to: ttsData) ?? ttsData) : ttsData
             try data.write(to: url, options: .atomic)
             guard verifyPlayable(at: url, label: "main MP3") else { return false }
             DiagnosticsLog.shared.log("render", "main MP3 rendered \(url.lastPathComponent) size=\(data.count)")
@@ -491,6 +485,27 @@ private struct ScriptComposer {
         }
         return "Now go — the day is lucky to have you in it."
     }
+
+    /// Snooze follow-up greeting: short, punchy, "you've snoozed once,
+    /// time to actually get up" energy. Pool of 5 variants — picked
+    /// deterministically from the follow-up's UUID so consecutive
+    /// snoozes give different greetings.
+    func snoozeGreeting(seed: UUID) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let nameClause = trimmed.isEmpty ? "" : ", \(trimmed)"
+        let index = abs(seed.hashValue) % Self.snoozeGreetingTemplates.count
+        return Self.snoozeGreetingTemplates[index]
+            .replacingOccurrences(of: "{name}", with: nameClause)
+    }
+
+    /// `{name}` is the optional name clause (`", Charlie"` or empty).
+    private static let snoozeGreetingTemplates: [String] = [
+        "Alright, time to get up{name}! Let's have a great day.",
+        "Rise and shine{name}. The day is calling.",
+        "Up and at 'em{name}. Let's make it count.",
+        "Time to start your day{name}. You've got this.",
+        "Wakey wakey{name}. The world's ready for you."
+    ]
 
     // MARK: - Primitives
 

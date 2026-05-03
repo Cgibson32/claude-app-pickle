@@ -94,6 +94,31 @@ final class AlarmKitScheduler {
     /// required for generation + TTS.
     private(set) var pendingFollowUpRenders: Set<UUID> = []
 
+    /// `UserDefaults` key for the persisted set of snooze follow-up
+    /// UUIDs. Persisted (not in-memory only) so that if the app process
+    /// dies during the 9-minute snooze window — which `BackgroundKeepAlive`
+    /// usually prevents but iOS can still force on memory pressure —
+    /// the next process can recognize the follow-up's fire event and
+    /// route to the snooze playback path.
+    private static let snoozeFollowUpIDsKey = "snoozeFollowUpIDs"
+
+    private func snoozeFollowUpIDs() -> Set<UUID> {
+        let strings = UserDefaults.standard.stringArray(forKey: Self.snoozeFollowUpIDsKey) ?? []
+        return Set(strings.compactMap(UUID.init))
+    }
+
+    private func markSnoozeFollowUp(_ id: UUID) {
+        var ids = snoozeFollowUpIDs()
+        ids.insert(id)
+        UserDefaults.standard.set(ids.map(\.uuidString), forKey: Self.snoozeFollowUpIDsKey)
+    }
+
+    private func clearSnoozeFollowUp(_ id: UUID) {
+        var ids = snoozeFollowUpIDs()
+        ids.remove(id)
+        UserDefaults.standard.set(ids.map(\.uuidString), forKey: Self.snoozeFollowUpIDsKey)
+    }
+
     // MARK: - Ringing state machine
 
     enum RingingAction: Sendable { case stop, snooze }
@@ -477,6 +502,7 @@ final class AlarmKitScheduler {
         alarmSoundNames[followUpID] = soundName
         alarmLabels[followUpID] = "Snooze follow-up"
         pendingFollowUpRenders.insert(followUpID)
+        markSnoozeFollowUp(followUpID)
 
         Task { [weak self] in
             guard let self else { return }
@@ -619,9 +645,13 @@ final class AlarmKitScheduler {
     /// mid-sentence; Snooze silences and reschedules. If neither is
     /// pressed, playback completes naturally and the overlay dismisses.
     private func handleFire(alarmID: UUID) async {
-        defer { activeFireHandling.remove(alarmID) }
+        let isSnoozeFollowUp = snoozeFollowUpIDs().contains(alarmID)
+        defer {
+            activeFireHandling.remove(alarmID)
+            clearSnoozeFollowUp(alarmID)
+        }
 
-        DiagnosticsLog.shared.log("observer", "handleFire start \(alarmID.uuidString.prefix(8))")
+        DiagnosticsLog.shared.log("observer", "handleFire start \(alarmID.uuidString.prefix(8))\(isSnoozeFollowUp ? " (snooze follow-up)" : "")")
         AlarmTelemetry.eventSync(.fire, alarmID: alarmID)
 
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [alarmID.uuidString])
@@ -678,10 +708,15 @@ final class AlarmKitScheduler {
         let (stream, continuation) = AsyncStream<RingingAction>.makeStream()
         ringingContinuation = continuation
 
-        // Play affirmations. If user presses Stop/Snooze during playback,
-        // stopPlayback() is called from the button handler to silence audio.
+        // Play affirmations (or the snooze greeting + song for follow-ups).
+        // If user presses Stop/Snooze during playback, stopPlayback() is
+        // called from the button handler to silence audio.
         let playbackTask = Task {
-            await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
+            if isSnoozeFollowUp {
+                await AlarmAudioPlayer.shared.playSnoozeFollowUp(for: alarmID)
+            } else {
+                await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
+            }
         }
 
         // Wait for either: user presses Stop/Snooze, OR playback finishes.
@@ -749,15 +784,29 @@ final class AlarmKitScheduler {
             let container = try ModelContainer(for: AffirmationAlarmApp.appSchema)
             let context = ModelContext(container)
 
-            let allAlarms = (try? context.fetch(FetchDescriptor<Alarm>())) ?? []
-            guard let alarm = allAlarms.first(where: { $0.id == alarmID }) else {
-                DiagnosticsLog.shared.log("observer", "live render: alarm not found")
-                return
-            }
-
             let profileDescriptor = FetchDescriptor<UserProfile>()
             guard let profile = (try? context.fetch(profileDescriptor))?.first else {
                 DiagnosticsLog.shared.log("observer", "live render: no profile")
+                return
+            }
+
+            // Snooze follow-ups have no SwiftData `Alarm` record — they're
+            // transient AlarmKit-only alarms. Render the snooze greeting
+            // path (greeting only, no Claude API call needed) instead of
+            // the regular morning path.
+            if snoozeFollowUpIDs().contains(alarmID) {
+                await MorningAudioRenderer.shared.renderForFollowUp(
+                    followUpID: alarmID,
+                    profile: profile,
+                    modelContext: context
+                )
+                DiagnosticsLog.shared.log("observer", "live render: snooze greeting for \(alarmID.uuidString.prefix(8))")
+                return
+            }
+
+            let allAlarms = (try? context.fetch(FetchDescriptor<Alarm>())) ?? []
+            guard let alarm = allAlarms.first(where: { $0.id == alarmID }) else {
+                DiagnosticsLog.shared.log("observer", "live render: alarm not found")
                 return
             }
 
