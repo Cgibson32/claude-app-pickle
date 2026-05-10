@@ -244,7 +244,9 @@ struct RootView: View {
                 AlarmKitScheduler.shared.clearPendingFollowUpRenders()
             }
 
-            AlarmKitScheduler.shared.scheduleIfMissing(alarms: allAlarms.filter(\.isEnabled))
+            let enabled = allAlarms.filter(\.isEnabled)
+            AlarmKitScheduler.shared.scheduleIfMissing(alarms: enabled)
+            AlarmKitScheduler.shared.refreshBackupNotifications(alarms: enabled)
         }
     }
 }

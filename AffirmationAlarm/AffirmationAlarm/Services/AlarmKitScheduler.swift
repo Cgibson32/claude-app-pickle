@@ -374,26 +374,58 @@ final class AlarmKitScheduler {
         scheduleBackupNotification(for: alarm)
     }
 
-    /// Belt-and-suspenders: schedule a UNNotification at the same time as
-    /// the AlarmKit alarm. If AlarmKit fails for any reason, the user still
-    /// gets woken up by the notification. Cancelled in handleFire once the
-    /// AlarmKit alarm fires successfully.
+    /// Schedule a notification whose SOUND is the pre-rendered morning
+    /// affirmation MP3. If handleFire runs (process alive), it cancels
+    /// this notification before it fires and plays affirmations itself.
+    /// If handleFire doesn't run (process dead), this notification fires
+    /// and the user hears up to 30 seconds of personalized affirmations
+    /// directly from the lock screen — no app launch needed.
+    ///
+    /// iOS caps notification sounds at 30 seconds. A typical morning
+    /// sequence (greeting + 3-5 affirmations) fits within that window.
+    /// If it's longer, iOS truncates — the user hears the greeting and
+    /// first few affirmations, then taps Stop to hear the rest in-app.
+    ///
+    /// Uses `.criticalSoundNamed` so it bypasses silent mode + DND —
+    /// the user registered for `.criticalAlert` during onboarding.
+    /// Falls back to `.defaultCritical` if the MP3 doesn't exist yet
+    /// (first launch before render completes).
     private func scheduleBackupNotification(for alarm: Alarm) {
         guard let fireDate = alarm.nextFireDate else { return }
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [alarm.id.uuidString])
 
         let content = UNMutableNotificationContent()
-        content.title = alarm.label.isEmpty ? "Morning Affirmations" : alarm.label
-        content.body = "Your alarm is going off — tap to open."
-        content.sound = .defaultCritical
-        content.interruptionLevel = .timeSensitive
+        content.title = alarm.label.isEmpty ? "Rise Alarm" : alarm.label
+        content.body = "Good morning — your affirmations are playing."
+        content.interruptionLevel = .critical
 
-        let comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
+        let morningFile = "morning-\(alarm.id.uuidString).mp3"
+        let soundsDir = MorningAudioRenderer.soundsDirectory()
+        let morningURL = soundsDir.appendingPathComponent(morningFile)
+
+        if FileManager.default.fileExists(atPath: morningURL.path) {
+            content.sound = UNNotificationSound.criticalSoundNamed(
+                UNNotificationSoundName(morningFile),
+                withAudioVolume: 1.0
+            )
+            DiagnosticsLog.shared.log("scheduler", "backup notification with affirmation audio: \(morningFile)")
+        } else {
+            content.sound = .defaultCritical
+            DiagnosticsLog.shared.log("scheduler", "backup notification with default sound (no render yet)")
+        }
+
+        // Fire 3 seconds after the alarm. Gives handleFire time to cancel
+        // this notification if the process is alive — avoids double audio.
+        let offsetDate = fireDate.addingTimeInterval(3)
+        let comps = Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second],
+            from: offsetDate
+        )
         let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
         let request = UNNotificationRequest(identifier: alarm.id.uuidString, content: content, trigger: trigger)
         center.add(request)
-        DiagnosticsLog.shared.log("scheduler", "backup notification for \(alarm.id.uuidString.prefix(8)) at \(alarm.timeString)")
+        DiagnosticsLog.shared.log("scheduler", "backup notification for \(alarm.id.uuidString.prefix(8)) at \(alarm.timeString)+3s")
     }
 
     /// Cancel an alarm. Safe to call even if the alarm isn't currently
@@ -446,6 +478,15 @@ final class AlarmKitScheduler {
     /// on every app resume because it never cancels a pending alarm —
     /// eliminating the race where a cancel+reschedule near fire time kills
     /// the alarm for today and pushes it to tomorrow.
+    /// Re-schedule backup notifications for all enabled alarms so they
+    /// pick up the freshly-rendered morning MP3 as their sound. Called
+    /// by `reconcileAlarmsWithSystem` after `refreshAll` completes.
+    func refreshBackupNotifications(alarms: [Alarm]) {
+        for alarm in alarms where alarm.isEnabled {
+            scheduleBackupNotification(for: alarm)
+        }
+    }
+
     func scheduleIfMissing(alarms: [Alarm]) {
         let live = (try? manager.alarms) ?? []
         let liveIDs = Set(live.map(\.id))

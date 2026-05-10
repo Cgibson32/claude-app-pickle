@@ -168,7 +168,10 @@ final class BackgroundKeepAlive {
     private func startSilentPlayback() throws {
         let p = try AVAudioPlayer(contentsOf: silenceURL)
         p.numberOfLoops = -1  // infinite
-        p.volume = 0.0
+        // 0.01 instead of 0.0: some iOS builds detect zero-volume as
+        // "not real audio" and suspend the process anyway. 0.01 is
+        // imperceptible through any speaker but keeps the DAC active.
+        p.volume = 0.01
         p.prepareToPlay()
         p.play()
         player = p
