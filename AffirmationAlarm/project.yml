@@ -26,6 +26,9 @@ targets:
           - Preview Content
           - "**/*.example"
           - Info.generated.plist
+          - Resources/Sounds/WakeUpSongs
+      - path: AffirmationAlarm/Resources/Sounds/WakeUpSongs
+        type: folder
     dependencies:
       - package: Sentry
         product: Sentry
@@ -39,11 +42,10 @@ targets:
         # Required for the AlarmLiveActivity widget extension to render
         # custom UI on the lock screen / Dynamic Island when alarms fire.
         NSSupportsLiveActivities: true
-        # Required for StopAndPlayClosingIntent to activate an
-        # AVAudioSession and play `closing-<alarmID>.wav` while the app
-        # is in the background after the user taps Stop on the alarm.
-        # Without this, AVAudioSession.setActive(true) fails and the
-        # closing statement is silently swallowed.
+        # Required for AlarmAudioPlayer to maintain an AVAudioSession
+        # in the background for affirmation playback + wake-up songs.
+        # Without this, AVAudioSession.setActive(true) fails when the
+        # app is backgrounded.
         UIBackgroundModes:
           - audio
         UISupportedInterfaceOrientations:

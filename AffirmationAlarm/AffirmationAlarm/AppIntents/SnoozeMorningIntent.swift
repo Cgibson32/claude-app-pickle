@@ -2,24 +2,21 @@ import AlarmKit
 import AppIntents
 import Foundation
 
-/// Handles the "Snooze" button on the AlarmKit ringing UI.
+/// Handles the "Snooze" button on the AlarmKit system alert.
 ///
-/// Exactly like snoozing a physical alarm clock: the current ring stops,
-/// the app doesn't open (`openAppWhenRun = false`), and a fresh follow-up
-/// alarm is scheduled 10 minutes from now with no further snooze option.
+/// Cancels the current alarm, then schedules a snooze follow-up via
+/// `AlarmKitScheduler.scheduleSnoozeFollowUp`. The follow-up fires
+/// 9 minutes later and plays a short personalized greeting ("Alright,
+/// time to get up, [name]!") followed by a random wake-up song from
+/// the bundled `WakeUpSongs/` library — no affirmations on snooze.
 ///
-/// The follow-up uses `.default` for its alarm sound because we haven't
-/// pre-rendered audio for the fresh follow-up UUID. When the user slides
-/// Stop on the follow-up, `StopAndPlayClosingIntent` runs,
-/// `AlarmAudioPlayer` finds no rendered files for that UUID and returns
-/// `.noFiles`, and the alarm dismisses silently. That's intentional —
-/// users don't want a full affirmation sequence from the snooze follow-up.
+/// Re-snooze is supported: the follow-up gets its own Snooze button.
 struct SnoozeMorningIntent: LiveActivityIntent {
 
     // MARK: - Intent metadata
 
     static let title: LocalizedStringResource = "Snooze"
-    static let description = IntentDescription("Snooze for 10 minutes.")
+    static let description = IntentDescription("Snooze for 9 minutes.")
     static let openAppWhenRun: Bool = false
 
     // MARK: - Parameters

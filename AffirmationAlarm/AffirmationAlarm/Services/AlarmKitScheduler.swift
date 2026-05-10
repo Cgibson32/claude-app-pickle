@@ -460,12 +460,12 @@ final class AlarmKitScheduler {
     // MARK: - Snooze follow-up
 
     /// Schedule a one-shot follow-up alarm using the original alarm's
-    /// sound and a fresh set of affirmations. Invoked by the in-app
-    /// ringing UI's Snooze button and by `SnoozeMorningIntent`.
+    /// sound. Invoked by the in-app ringing UI's Snooze button and by
+    /// `SnoozeMorningIntent`.
     ///
     /// The follow-up includes a Snooze button so the user can re-snooze
-    /// indefinitely. Audio for the follow-up UUID is rendered during the
-    /// 10-minute window via `pendingFollowUpRenders`, which `RootView`
+    /// indefinitely. The snooze greeting is TTS-rendered during the
+    /// 9-minute window via `pendingFollowUpRenders`, which `RootView`
     /// drains on the next reconcile pass.
     func scheduleSnoozeFollowUp(originalAlarmID: UUID) {
         let followUpID = UUID()

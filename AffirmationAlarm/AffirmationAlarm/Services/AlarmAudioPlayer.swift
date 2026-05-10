@@ -1,25 +1,20 @@
 import AVFoundation
 import Foundation
 
-/// Single source of truth for alarm audio playback across every entry
-/// point in the app:
+/// Single source of truth for alarm audio playback.
 ///
-/// 1. **`AlarmKitScheduler.handleFire`** — observer sees `.alerting`
-///    while app is foregrounded (Sleep Mode).
-/// 2. **`StopAndPlayClosingIntent.perform`** — user slides Stop on the
-///    AlarmKit alert.
-/// 3. **`AffirmationAlarmApp.checkPendingMorningPlayback`** — on iOS
-///    26.1+, sliding Stop reopens the app even with
-///    `openAppWhenRun = false`, so the foreground re-check is a third
-///    entry point when the intent's background audio session failed.
+/// Two entry points:
 ///
-/// All three call `playMorningAndClosing(for:)`. The actor's state
-/// machine guarantees that only one playback runs per alarm ID, and a
-/// just-completed playback is remembered for 60 seconds so a reopened
-/// app doesn't double-play.
+/// 1. **`AlarmKitScheduler.handleFire`** — observer sees `.alerting`,
+///    calls `playMorningAndClosing` (initial alarm) or
+///    `playSnoozeFollowUp` (snooze follow-up with greeting + song).
+/// 2. **`AffirmationAlarmApp.checkPendingMorningPlayback`** — foreground
+///    retry when the lock-screen Stop intent foregrounded the app.
+///    Calls `playMorningAndClosing`.
 ///
-/// The class is an `actor` so callers don't need explicit locks — every
-/// state mutation happens inside the actor's serial execution.
+/// The actor's state machine guarantees that only one playback runs
+/// per alarm ID, and a just-completed playback is remembered for 60
+/// seconds so a reopened app doesn't double-play.
 
 /// Tunable constants for the pre-affirmation bird-chirp intro. Kept in
 /// one place so swapping the file or retuning the duration/volume is a

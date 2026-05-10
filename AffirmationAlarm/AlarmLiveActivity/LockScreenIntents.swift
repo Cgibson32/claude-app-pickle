@@ -44,7 +44,7 @@ struct StopFromLockScreen: LiveActivityIntent {
 struct SnoozeFromLockScreen: LiveActivityIntent {
 
     static let title: LocalizedStringResource = "Snooze"
-    static let description = IntentDescription("Snooze for 10 minutes.")
+    static let description = IntentDescription("Snooze for 9 minutes.")
     static let openAppWhenRun: Bool = true
 
     @Parameter(title: "alarmID")
