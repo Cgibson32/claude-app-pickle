@@ -33,10 +33,13 @@ import UserNotifications
 /// CAF from `Library/Sounds` silently falls back to `.default`). Only
 /// bundle-resident CAFs work.
 ///
-/// Layer 1 — the alarm **sound** (briefly, from the system daemon):
-///   `.named(alarm.soundName)` points to a bundled CAF the user picked
-///   in the sound picker (`alarm_gentle`, `alarm_sunrise`, etc.). Plays
-///   for ~1 second until the observer cancels.
+/// Layer 1 — the alarm **sound** (from the system daemon):
+///   `.named(alarm.soundName)` points to a bundled CAF — default is
+///   `alarm_rise.caf`, a 30-sec musical wake-up track. Plays from the
+///   lock screen automatically (even if the app process is dead) and
+///   serves as the primary wake-up cue. If the observer catches the
+///   fire event, it cancels the system sound after ~100-500ms and
+///   takes over with the personalized affirmation sequence.
 ///
 /// Layer 2 — the personalized **sequence** (from the app's own
 /// AVAudioPlayer, via two entry points that share `AlarmAudioPlayer`):
@@ -471,7 +474,7 @@ final class AlarmKitScheduler {
         let followUpID = UUID()
         let snoozeSec = Double(AppConstants.snoozeDurationMinutes) * 60
         let fireDate = Date().addingTimeInterval(snoozeSec)
-        let soundName = alarmSoundNames[originalAlarmID] ?? "alarm_gentle"
+        let soundName = alarmSoundNames[originalAlarmID] ?? "alarm_rise"
 
         let snoozeButton = AlarmButton(
             text: "Snooze",
@@ -919,7 +922,7 @@ final class AlarmKitScheduler {
                 // us to Stop in the final MainActor hop, don't schedule a
                 // fallback alert they no longer need.
                 guard let self, self.ringingContinuation != nil else { return }
-                let sn = self.alarmSoundNames[alarmID] ?? "alarm_gentle"
+                let sn = self.alarmSoundNames[alarmID] ?? "alarm_rise"
                 self.scheduleFallbackAlert(alarmID: alarmID, soundName: sn)
                 AlarmTelemetry.eventSync(.ringingTimeout, alarmID: self.ringingAlarmID)
                 self.ringingContinuation?.yield(.stop)

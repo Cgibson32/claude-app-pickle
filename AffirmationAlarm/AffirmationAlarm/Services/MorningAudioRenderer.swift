@@ -21,9 +21,13 @@ import SwiftData
 /// the **app bundle** on iOS 26.3.1 — FB19779004 (unresolved as of Apr
 /// 2026) makes `Library/Sounds/` audio silently fall back to `.default`.
 /// The scheduler passes `.named(alarm.soundName)` pointing to a bundled
-/// CAF like `alarm_gentle.caf` (a brief tone, ~1s). The personalized
-/// Nova-voice audio is layered on top by `AlarmAudioPlayer` the moment
-/// the `alarmUpdates` observer catches the fire event.
+/// CAF — by default `alarm_rise.caf`, a 30-sec musical wake-up track
+/// trimmed from one of the Suno songs. This plays from AlarmKit's
+/// system daemon (so it works even if the app process is dead) and is
+/// what the user hears from the lock screen. The personalized
+/// affirmations are layered on top by `AlarmAudioPlayer` the moment
+/// the `alarmUpdates` observer catches the fire event (or by the
+/// foreground retry if the process was suspended).
 ///
 /// ## When rendering runs
 ///

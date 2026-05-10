@@ -7,7 +7,7 @@ final class Alarm {
     var hour: Int = 6
     var minute: Int = 30
     var isEnabled: Bool = true
-    var soundName: String = "alarm_gentle"
+    var soundName: String = "alarm_rise"
     var label: String = "Morning Affirmations"
     var repeatDaysData: String = "[]"
 
@@ -20,7 +20,7 @@ final class Alarm {
         }
     }
 
-    init(hour: Int = 6, minute: Int = 30, repeatDays: [Int] = [], isEnabled: Bool = true, soundName: String = "alarm_gentle", label: String = "Morning Affirmations") {
+    init(hour: Int = 6, minute: Int = 30, repeatDays: [Int] = [], isEnabled: Bool = true, soundName: String = "alarm_rise", label: String = "Morning Affirmations") {
         self.hour = hour
         self.minute = minute
         self.isEnabled = isEnabled
