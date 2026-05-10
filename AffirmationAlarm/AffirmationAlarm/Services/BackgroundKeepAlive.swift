@@ -102,6 +102,9 @@ final class BackgroundKeepAlive {
     private var mediaServicesResetObserver: NSObjectProtocol?
     private var routeChangeObserver: NSObjectProtocol?
 
+    private var recoveryTask: Task<Void, Never>?
+    private var healthCheckTask: Task<Void, Never>?
+
     private var lastInterruption: TimestampedNote?
     private var lastRouteChange: TimestampedNote?
 
@@ -127,6 +130,7 @@ final class BackgroundKeepAlive {
             try generateSilenceFileIfNeeded()
             try activateSession()
             try startSilentPlayback()
+            startHealthCheck()
             AppLogger.alarm.info("BackgroundKeepAlive: started")
             DiagnosticsLog.shared.log("keep-alive", "started")
         } catch {
@@ -141,6 +145,9 @@ final class BackgroundKeepAlive {
     func stop() {
         player?.stop()
         player = nil
+        recoveryTask?.cancel()
+        recoveryTask = nil
+        stopHealthCheck()
         removeSessionObservers()
         try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
         AppLogger.alarm.info("BackgroundKeepAlive: stopped")
@@ -224,14 +231,15 @@ final class BackgroundKeepAlive {
 
     // MARK: - Interruption handling
 
-    /// `.began` logs only — the system has already paused our audio and
-    /// we can't override it. `.ended` re-activates the session and
-    /// resumes the silent loop so the observer Task stays alive for
-    /// the next alarm fire.
+    /// On `.began`: immediately attempt to resume silent audio. The
+    /// alarm daemon's non-mixable session interrupted us, and if we
+    /// wait for `.ended` iOS may suspend our process first (the grace
+    /// period after audio stops is only ~3 seconds). By attempting
+    /// `resumeSilence()` right away — and retrying in a tight loop —
+    /// we keep the run-loop alive and re-grab the audio session the
+    /// moment the system releases it.
     ///
-    /// We resume regardless of `.shouldResume` because our audio is
-    /// silent at volume 0: there's no user-audible consequence to
-    /// resuming "too eagerly" and the keep-alive purpose requires it.
+    /// On `.ended`: standard resume, same as before.
     private func handleInterruption(rawType: UInt?, rawOptions: UInt?) {
         guard let rawType, let type = AVAudioSession.InterruptionType(rawValue: rawType) else {
             return
@@ -241,7 +249,9 @@ final class BackgroundKeepAlive {
         case .began:
             AppLogger.alarm.info("BackgroundKeepAlive: interruption began")
             lastInterruption = TimestampedNote(date: Date(), detail: "began")
-            DiagnosticsLog.shared.log("keep-alive", "interruption began")
+            DiagnosticsLog.shared.log("keep-alive", "interruption began — starting recovery loop")
+            resumeSilence()
+            startRecoveryLoop()
         case .ended:
             let rawOpts = rawOptions ?? 0
             let options = AVAudioSession.InterruptionOptions(rawValue: rawOpts)
@@ -300,6 +310,54 @@ final class BackgroundKeepAlive {
             AppLogger.alarm.error("BackgroundKeepAlive: resume failed: \(error.localizedDescription, privacy: .public)")
             DiagnosticsLog.shared.log("keep-alive", "resume failed: \(error.localizedDescription)")
         }
+    }
+
+    // MARK: - Recovery loop
+
+    /// Tight retry loop that fires every 500ms for up to 30 seconds
+    /// after an interruption begins. Each iteration tries to re-activate
+    /// the audio session and resume silence. The loop keeps the run-loop
+    /// alive (preventing suspension) and catches the moment the system
+    /// releases the audio session.
+    private func startRecoveryLoop() {
+        recoveryTask?.cancel()
+        recoveryTask = Task { @MainActor [weak self] in
+            for attempt in 1...60 {
+                guard !Task.isCancelled else { return }
+                try? await Task.sleep(for: .milliseconds(500))
+                guard let self else { return }
+                if self.player?.isPlaying == true {
+                    DiagnosticsLog.shared.log("keep-alive", "recovery succeeded on attempt \(attempt)")
+                    return
+                }
+                self.resumeSilence()
+            }
+            DiagnosticsLog.shared.log("keep-alive", "recovery loop exhausted after 30s")
+        }
+    }
+
+    // MARK: - Periodic health check
+
+    /// Runs every 30 seconds while keep-alive is active. If the silent
+    /// player has stopped (interrupted without notification, audio route
+    /// change, etc.) this restarts it before iOS notices and suspends.
+    func startHealthCheck() {
+        healthCheckTask?.cancel()
+        healthCheckTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(30))
+                guard let self, !Task.isCancelled else { return }
+                if self.player?.isPlaying != true {
+                    DiagnosticsLog.shared.log("keep-alive", "health check: player stopped — restarting")
+                    self.resumeSilence()
+                }
+            }
+        }
+    }
+
+    private func stopHealthCheck() {
+        healthCheckTask?.cancel()
+        healthCheckTask = nil
     }
 
     // MARK: - Silence generation
