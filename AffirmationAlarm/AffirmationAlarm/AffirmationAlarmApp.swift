@@ -173,8 +173,9 @@ struct RootView: View {
 
     /// Fallback playback path: if the Stop-slide intent set a pending
     /// playback flag and the app opened, play from the foreground.
-    /// Always clears the flag to prevent stale handoff keys from
-    /// triggering a second play after handleFire already finished.
+    /// Routes through the scheduler's `playFromForegroundRetry` so the
+    /// ringing overlay (Stop/Snooze) is shown — without this, the user
+    /// hears affirmations + song with no way to stop them.
     private func checkPendingMorningPlayback() {
         guard let idString = UserDefaults.standard.string(forKey: PendingPlayback.userDefaultsKey),
               let alarmID = UUID(uuidString: idString) else { return }
@@ -189,7 +190,7 @@ struct RootView: View {
         DiagnosticsLog.shared.log("intent", "foreground retry triggered for \(alarmID.uuidString.prefix(8))")
 
         Task {
-            _ = await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
+            await scheduler.playFromForegroundRetry(alarmID: alarmID)
         }
     }
 

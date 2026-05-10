@@ -695,54 +695,11 @@ final class AlarmKitScheduler {
 
         // Always show the ringing overlay so Stop/Snooze is available
         // whether the app is foregrounded or the user opens it mid-playback.
-        ringingAlarmID = alarmID
-        ringingAlarmLabel = label
-        isPlayingMorningAudio = true
-        VolumeBooster.startMonitoring()
-
         let playStart = Date()
         DiagnosticsLog.shared.log("observer", "playing affirmations for \(alarmID.uuidString.prefix(8))")
         AlarmTelemetry.eventSync(.playStart, alarmID: alarmID)
 
-        // Set up the action stream so Stop/Snooze buttons can interrupt.
-        let (stream, continuation) = AsyncStream<RingingAction>.makeStream()
-        ringingContinuation = continuation
-
-        // Play affirmations (or the snooze greeting + song for follow-ups).
-        // If user presses Stop/Snooze during playback, stopPlayback() is
-        // called from the button handler to silence audio.
-        let playbackTask = Task {
-            if isSnoozeFollowUp {
-                await AlarmAudioPlayer.shared.playSnoozeFollowUp(for: alarmID)
-            } else {
-                await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
-            }
-        }
-
-        // Wait for either: user presses Stop/Snooze, OR playback finishes.
-        let actionTask = Task { () -> RingingAction in
-            for await a in stream { return a }
-            return .stop
-        }
-
-        // Whichever completes first determines the action.
-        let result: RingingAction = await withTaskGroup(of: RingingAction.self) { group in
-            group.addTask { _ = await playbackTask.value; return .stop }
-            group.addTask { await actionTask.value }
-            let first = await group.next() ?? .stop
-            group.cancelAll()
-            return first
-        }
-        let action = result
-
-        // Clean up: stop any remaining audio, dismiss overlay.
-        playbackTask.cancel()
-        actionTask.cancel()
-        ringingContinuation = nil
-        await AlarmAudioPlayer.shared.stopPlayback()
-        VolumeBooster.stopMonitoring()
-        isPlayingMorningAudio = false
-        ringingAlarmID = nil
+        let action = await runPlaybackWithOverlay(alarmID: alarmID, label: label, isSnoozeFollowUp: isSnoozeFollowUp)
 
         DiagnosticsLog.shared.log("observer", "handleFire done action=\(action)")
         lastHandleFireOutcome = FireOutcome(outcome: String(describing: action), date: Date())
@@ -768,6 +725,91 @@ final class AlarmKitScheduler {
             DiagnosticsLog.shared.log("observer", "snoozed \(alarmID.uuidString.prefix(8))")
         }
 
+        BackgroundKeepAlive.shared.start()
+        NotificationCenter.default.post(name: .didCompleteMorningPlayback, object: nil)
+    }
+
+    // MARK: - Shared playback + overlay
+
+    /// Shows the ringing overlay (Stop/Snooze), plays affirmations (or
+    /// snooze greeting + song), and races playback against user action.
+    /// Returns the action that ended playback.
+    ///
+    /// Used by both `handleFire` (alarm observer path) and
+    /// `playFromForegroundRetry` (lock-screen Stop intent path) so both
+    /// get the same ringing UI with working Stop/Snooze buttons.
+    private func runPlaybackWithOverlay(
+        alarmID: UUID,
+        label: String,
+        isSnoozeFollowUp: Bool
+    ) async -> RingingAction {
+        ringingAlarmID = alarmID
+        ringingAlarmLabel = label
+        isPlayingMorningAudio = true
+        VolumeBooster.startMonitoring()
+
+        let (stream, continuation) = AsyncStream<RingingAction>.makeStream()
+        ringingContinuation = continuation
+
+        let playbackTask = Task {
+            if isSnoozeFollowUp {
+                await AlarmAudioPlayer.shared.playSnoozeFollowUp(for: alarmID)
+            } else {
+                await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
+            }
+        }
+
+        let actionTask = Task { () -> RingingAction in
+            for await a in stream { return a }
+            return .stop
+        }
+
+        let result: RingingAction = await withTaskGroup(of: RingingAction.self) { group in
+            group.addTask { _ = await playbackTask.value; return .stop }
+            group.addTask { await actionTask.value }
+            let first = await group.next() ?? .stop
+            group.cancelAll()
+            return first
+        }
+
+        playbackTask.cancel()
+        actionTask.cancel()
+        ringingContinuation = nil
+        await AlarmAudioPlayer.shared.stopPlayback()
+        VolumeBooster.stopMonitoring()
+        isPlayingMorningAudio = false
+        ringingAlarmID = nil
+
+        return result
+    }
+
+    /// Foreground retry path: called by `checkPendingMorningPlayback`
+    /// when the lock-screen Stop intent foregrounded the app. Shows the
+    /// same ringing overlay as `handleFire` so Stop/Snooze buttons work.
+    func playFromForegroundRetry(alarmID: UUID) async {
+        let label = alarmLabels[alarmID] ?? "Rise Alarm"
+        let isSnoozeFollowUp = snoozeFollowUpIDs().contains(alarmID)
+
+        DiagnosticsLog.shared.log("intent", "foreground retry with overlay for \(alarmID.uuidString.prefix(8))")
+
+        let action = await runPlaybackWithOverlay(alarmID: alarmID, label: label, isSnoozeFollowUp: isSnoozeFollowUp)
+
+        DiagnosticsLog.shared.log("intent", "foreground retry done action=\(action)")
+
+        switch action {
+        case .stop:
+            MorningAudioRenderer.shared.invalidateAll()
+            MissedAlarmDetector.recordSuccess(alarmID: alarmID)
+            StreakService.recordSuccess()
+
+        case .snooze:
+            MorningAudioRenderer.shared.invalidateAll()
+            scheduleSnoozeFollowUp(originalAlarmID: alarmID)
+            MissedAlarmDetector.recordSuccess(alarmID: alarmID)
+            StreakService.recordSuccess()
+        }
+
+        clearSnoozeFollowUp(alarmID)
         BackgroundKeepAlive.shared.start()
         NotificationCenter.default.post(name: .didCompleteMorningPlayback, object: nil)
     }
