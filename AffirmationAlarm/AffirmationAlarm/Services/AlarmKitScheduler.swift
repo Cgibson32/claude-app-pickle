@@ -703,12 +703,34 @@ final class AlarmKitScheduler {
         let soundsDir = MorningAudioRenderer.soundsDirectory()
         let morningURL = soundsDir.appendingPathComponent("morning-\(alarmID.uuidString).mp3")
 
-        // If pre-rendered audio is missing (invalidated after last fire,
-        // API timeout during refreshAll, first launch of a new build, etc.),
-        // attempt a live render before giving up. Adds ~10-15s while the
-        // system alarm rings, but the user hears affirmations instead of a
-        // generic tone.
-        if !FileManager.default.fileExists(atPath: morningURL.path) {
+        // ALWAYS generate fresh affirmations at fire time — the user
+        // wants new content with every alarm, not yesterday's pre-render.
+        // Delete any existing render to force a live generation. During
+        // the ~10-15s render window, the bundled Suno alarm song plays
+        // from the lock screen (pleasant, not a beep). If the live
+        // render fails (no network, API timeout), we fall back to
+        // whatever pre-render exists on disk from reconcileAlarmsWithSystem.
+        if !isSnoozeFollowUp {
+            let existingBackup = soundsDir.appendingPathComponent("morning-\(alarmID.uuidString)-fallback.mp3")
+            // Keep existing render as fallback (rename, don't delete)
+            if FileManager.default.fileExists(atPath: morningURL.path) {
+                try? FileManager.default.moveItem(at: morningURL, to: existingBackup)
+            }
+            DiagnosticsLog.shared.log("observer", "generating fresh affirmations for \(alarmID.uuidString.prefix(8))")
+            await attemptLiveRender(alarmID: alarmID)
+            // If live render failed, restore the fallback
+            if !FileManager.default.fileExists(atPath: morningURL.path),
+               FileManager.default.fileExists(atPath: existingBackup.path) {
+                try? FileManager.default.moveItem(at: existingBackup, to: morningURL)
+                DiagnosticsLog.shared.log("observer", "live render failed — using pre-rendered fallback")
+            }
+            // Clean up fallback file if live render succeeded
+            try? FileManager.default.removeItem(at: existingBackup)
+        } else if !FileManager.default.fileExists(atPath: morningURL.path) {
+            // Snooze follow-ups: only render if missing (greeting is short, doesn't need daily refresh)
+            DiagnosticsLog.shared.log("observer", "no pre-render for snooze — attempting live render")
+            await attemptLiveRender(alarmID: alarmID)
+        }
             DiagnosticsLog.shared.log("observer", "no pre-render — attempting live render for \(alarmID.uuidString.prefix(8))")
             await attemptLiveRender(alarmID: alarmID)
         }
