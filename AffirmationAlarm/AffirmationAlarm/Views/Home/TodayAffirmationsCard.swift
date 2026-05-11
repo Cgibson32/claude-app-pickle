@@ -12,16 +12,21 @@ import SwiftData
 /// change) the card shows a gentle placeholder instead of collapsing
 /// entirely, so the home-screen layout stays balanced.
 struct TodayAffirmationsCard: View {
-    @Query(sort: \Affirmation.generatedFor, order: .reverse) private var allAffirmations: [Affirmation]
+    @Query(
+        filter: #Predicate<Affirmation> { $0.isCustom == false },
+        sort: \Affirmation.generatedFor,
+        order: .reverse
+    ) private var allAffirmations: [Affirmation]
 
-    /// Affirmations from the most recent generation day. Using "most
-    /// recent day" instead of strictly "today" means a 1 AM alarm whose
-    /// affirmations carry `generatedFor = yesterday` still surfaces them
-    /// on the home screen until the next alarm generates fresh content.
+    /// Affirmations from the most recent generation, but only if
+    /// generated within the last 24 hours. Older rows are stale
+    /// leftovers and should show the empty/generating state instead.
     private var recentAffirmations: [Affirmation] {
-        guard let newest = allAffirmations.first?.generatedFor else { return [] }
+        guard let newest = allAffirmations.first else { return [] }
+        let cutoff = Date().addingTimeInterval(-24 * 60 * 60)
+        guard newest.generatedFor > cutoff else { return [] }
         return allAffirmations.filter {
-            Calendar.current.isDate($0.generatedFor, inSameDayAs: newest)
+            Calendar.current.isDate($0.generatedFor, inSameDayAs: newest.generatedFor)
         }
     }
 
