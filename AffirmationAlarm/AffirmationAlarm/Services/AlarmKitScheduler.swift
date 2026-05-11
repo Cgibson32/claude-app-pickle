@@ -731,9 +731,6 @@ final class AlarmKitScheduler {
             DiagnosticsLog.shared.log("observer", "no pre-render for snooze — attempting live render")
             await attemptLiveRender(alarmID: alarmID)
         }
-            DiagnosticsLog.shared.log("observer", "no pre-render — attempting live render for \(alarmID.uuidString.prefix(8))")
-            await attemptLiveRender(alarmID: alarmID)
-        }
 
         guard FileManager.default.fileExists(atPath: morningURL.path) else {
             AppLogger.alarm.info("observer: no morning render for \(alarmID.uuidString.prefix(8), privacy: .public); letting system sound continue")
@@ -743,7 +740,7 @@ final class AlarmKitScheduler {
             return
         }
 
-        let label = alarmLabels[alarmID] ?? "Alarm"
+        let label = alarmLabels[alarmID] ?? "Bloom"
 
         // Cancel the system alarm immediately so its bundled CAF stops
         // and we can take over the audio session for affirmation playback.
