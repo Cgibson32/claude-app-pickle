@@ -88,7 +88,8 @@ final class ElevenLabsTTSService {
             throw TTSError.noAPIKey
         }
 
-        let urlString = "https://api.elevenlabs.io/v1/text-to-speech/\(voice.rawValue)"
+        // output_format is a QUERY parameter, not a body field.
+        let urlString = "https://api.elevenlabs.io/v1/text-to-speech/\(voice.rawValue)?output_format=\(format)"
         guard let url = URL(string: urlString) else {
             throw TTSError.badURL
         }
@@ -96,7 +97,6 @@ final class ElevenLabsTTSService {
         let payload = SpeechRequest(
             text: text,
             modelId: "eleven_turbo_v2_5",
-            outputFormat: format,
             voiceSettings: VoiceSettings(stability: 0.6, similarityBoost: 0.75, style: 0.3)
         )
 
@@ -140,13 +140,11 @@ final class ElevenLabsTTSService {
     private struct SpeechRequest: Encodable {
         let text: String
         let modelId: String
-        let outputFormat: String
         let voiceSettings: VoiceSettings
 
         enum CodingKeys: String, CodingKey {
             case text
             case modelId = "model_id"
-            case outputFormat = "output_format"
             case voiceSettings = "voice_settings"
         }
     }

@@ -254,14 +254,19 @@ final class MorningAudioRenderer {
         to url: URL,
         script: String,
         voice: ElevenLabsTTSService.Voice,
-        prependIntro: Bool = true
+        prependIntro: Bool = false
     ) async -> Bool {
         do {
             let ttsData = try await tts.synthesize(text: script, voice: voice)
-            let data = prependIntro ? (await prependBirdsIntro(to: ttsData) ?? ttsData) : ttsData
-            try data.write(to: url, options: .atomic)
+            // Birds intro prepend is disabled — it converted MP3→M4A via
+            // AVAssetExportSession but saved as .mp3, causing
+            // AVAudioPlayer to fail with OSStatus 1685348671 on
+            // iOS 26.3.1. The playback path has its own intro chime
+            // (AlarmAudioPlayer.playIntro) so the birds prepend was
+            // redundant anyway.
+            try ttsData.write(to: url, options: .atomic)
             guard verifyPlayable(at: url, label: "main MP3") else { return false }
-            DiagnosticsLog.shared.log("render", "main MP3 rendered \(url.lastPathComponent) size=\(data.count)")
+            DiagnosticsLog.shared.log("render", "main MP3 rendered \(url.lastPathComponent) size=\(ttsData.count)")
             return true
         } catch {
             AppLogger.audio.error("main MP3 render failed: \(error.localizedDescription, privacy: .public)")
