@@ -44,11 +44,11 @@ final class AffirmationPool {
     // MARK: - Configuration
 
     /// Target pool size. Aim to keep this many fresh (unused) files.
-    static let targetSize = 20
+    static nonisolated let targetSize = 20
 
     /// When fresh count drops below this, regenerate to refill to target.
     /// 7 = roughly one week's worth of buffer.
-    static let refillThreshold = 7
+    static nonisolated let refillThreshold = 7
 
     /// Max age (days) before a used file gets cleaned up.
     private let usedFileMaxAgeDays = 30
