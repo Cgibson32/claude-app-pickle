@@ -396,7 +396,7 @@ final class AlarmKitScheduler {
         center.removePendingNotificationRequests(withIdentifiers: [alarm.id.uuidString])
 
         let content = UNMutableNotificationContent()
-        content.title = alarm.label.isEmpty ? "Rise Alarm" : alarm.label
+        content.title = alarm.label.isEmpty ? "Bloom" : alarm.label
         content.body = "Good morning — your affirmations are playing."
         content.interruptionLevel = .critical
 
@@ -853,7 +853,7 @@ final class AlarmKitScheduler {
     /// when the lock-screen Stop intent foregrounded the app. Shows the
     /// same ringing overlay as `handleFire` so Stop/Snooze buttons work.
     func playFromForegroundRetry(alarmID: UUID) async {
-        let label = alarmLabels[alarmID] ?? "Rise Alarm"
+        let label = alarmLabels[alarmID] ?? "Bloom"
         let isSnoozeFollowUp = snoozeFollowUpIDs().contains(alarmID)
 
         DiagnosticsLog.shared.log("intent", "foreground retry with overlay for \(alarmID.uuidString.prefix(8))")

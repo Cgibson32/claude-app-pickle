@@ -37,7 +37,7 @@ targets:
       path: AffirmationAlarm/Info.generated.plist
       properties:
         CFBundleIconName: AppIcon
-        CFBundleDisplayName: "Rise Alarm"
+        CFBundleDisplayName: "Bloom"
         ITSAppUsesNonExemptEncryption: false
         NSAlarmKitUsageDescription: "Affirmation Alarm uses the system alarm framework so your morning ritual rings reliably and wakes you on time, even in silent mode."
         # Required for the AlarmLiveActivity widget extension to render
