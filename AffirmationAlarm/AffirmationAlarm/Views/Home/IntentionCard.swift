@@ -152,17 +152,15 @@ struct IntentionSheet: View {
         try? modelContext.save()
         HapticService.success()
 
-        MorningAudioRenderer.shared.invalidateAll()
+        // New intention should influence the next morning's affirmations.
+        // The pool's first affirmation pulls from this; invalidate so it
+        // gets baked in on regen.
+        AffirmationPool.shared.invalidateAll()
 
         if let profile = profiles.first {
-            let alarms = (try? modelContext.fetch(FetchDescriptor<Alarm>())) ?? []
             let context = modelContext
             Task { @MainActor in
-                await MorningAudioRenderer.shared.refreshAll(
-                    alarms: alarms,
-                    profile: profile,
-                    modelContext: context
-                )
+                await AffirmationPool.shared.refresh(profile: profile, modelContext: context)
             }
         }
 

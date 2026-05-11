@@ -140,13 +140,11 @@ struct PersonalSettingsView: View {
     /// waiting for natural staleness. Used by the count picker.
     private func invalidateAndRerender() {
         guard let profile else { return }
-        MorningAudioRenderer.shared.invalidateAll()
-        Task { @MainActor [alarms, profile, modelContext] in
-            await MorningAudioRenderer.shared.refreshAll(
-                alarms: alarms,
-                profile: profile,
-                modelContext: modelContext
-            )
+        // Affirmation count change invalidates the pool — all pre-rendered
+        // files have the old count. Pool signature includes affirmationCount.
+        AffirmationPool.shared.invalidateAll()
+        Task { @MainActor [profile, modelContext] in
+            await AffirmationPool.shared.refresh(profile: profile, modelContext: modelContext)
         }
     }
 
@@ -169,13 +167,11 @@ struct PersonalSettingsView: View {
         // with the new goals — otherwise the user waits until tomorrow.
         if goalsChanged {
             purgeAllGeneratedAffirmations()
-            MorningAudioRenderer.shared.invalidateAll()
-            Task { @MainActor [alarms, profile, modelContext] in
-                await MorningAudioRenderer.shared.refreshAll(
-                    alarms: alarms,
-                    profile: profile,
-                    modelContext: modelContext
-                )
+            // Goals are baked into every pool file. Invalidate all and
+            // regenerate with the new goals.
+            AffirmationPool.shared.invalidateAll()
+            Task { @MainActor [profile, modelContext] in
+                await AffirmationPool.shared.refresh(profile: profile, modelContext: modelContext)
             }
         }
 

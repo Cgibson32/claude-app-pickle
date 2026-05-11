@@ -96,11 +96,10 @@ class OnboardingViewModel {
         Task { @MainActor in
             defer { UserDefaults.standard.set(false, forKey: "isPreparingFirstMorning") }
             _ = await AlarmKitScheduler.shared.requestPermission()
-            _ = await MorningAudioRenderer.shared.refresh(
-                for: alarm,
-                profile: profile,
-                modelContext: modelContext
-            )
+            // Generate the initial affirmation pool. This is the user's
+            // first run — we want a full 20-file pool ready before the
+            // first alarm fires.
+            await AffirmationPool.shared.refresh(profile: profile, modelContext: modelContext)
             AlarmKitScheduler.shared.scheduleAlarm(alarm)
 
             // Start background keep-alive so auto-play observer stays

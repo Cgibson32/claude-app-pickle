@@ -33,6 +33,7 @@ struct DiagnosticsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppTheme.spacingMd) {
                 configurationSection
+                poolSection
                 keepAliveSection
                 observerSection
                 missedAlarmSection
@@ -78,6 +79,16 @@ struct DiagnosticsView: View {
             kvRow("Alarms (enabled / total)", "\(alarms.filter(\.isEnabled).count) / \(alarms.count)")
             kvRow("UIBackgroundModes", backgroundModesString)
             kvRow("Sounds directory", MorningAudioRenderer.soundsDirectory().path)
+        }
+    }
+
+    private var poolSection: some View {
+        let status = AffirmationPool.shared.status()
+        return card(title: "Affirmation pool") {
+            kvRow("fresh / used / total", "\(status.freshCount) / \(status.usedCount) / \(status.totalCount)")
+            kvRow("target", "\(AffirmationPool.targetSize)")
+            kvRow("refill threshold", "\(AffirmationPool.refillThreshold)")
+            kvRow("needs refill", status.needsRefill ? "yes" : "no")
         }
     }
 

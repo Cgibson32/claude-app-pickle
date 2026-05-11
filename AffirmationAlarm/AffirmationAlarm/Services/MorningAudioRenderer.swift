@@ -123,6 +123,56 @@ final class MorningAudioRenderer {
         }
     }
 
+    /// Render one pool file: greeting + N affirmations + closing,
+    /// all baked into a single MP3 at the given URL. Used by
+    /// `AffirmationPool.refresh` to pre-render content well before
+    /// any alarm fires.
+    ///
+    /// Returns the affirmation texts on success (so the pool can use
+    /// them as the exclude list for subsequent generations within the
+    /// same refill batch), or nil on failure.
+    func renderForPool(
+        to url: URL,
+        profile: UserProfile,
+        modelContext: ModelContext,
+        exclude: [String]
+    ) async -> [String]? {
+        guard ensureSoundsDirectoryExists() else { return nil }
+
+        try? FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+
+        let cache = AffirmationCacheService()
+        let voice = ElevenLabsTTSService.Voice(rawValue: profile.ttsVoice) ?? .rachel
+        let count = profile.affirmationCount
+
+        do {
+            let (affirmations, closing) = try await cache.fetchOrGenerate(
+                for: profile,
+                modelContext: modelContext,
+                exclude: exclude
+            )
+
+            let composer = ScriptComposer(
+                name: profile.name,
+                affirmations: affirmations,
+                affirmationCount: count,
+                closingMessage: closing?.message
+            )
+
+            let mainScript = composer.main() + "\n\n" + composer.closing()
+            guard await renderMainMP3(to: url, script: mainScript, voice: voice, prependIntro: false) else {
+                return nil
+            }
+            return affirmations.map(\.text)
+        } catch {
+            DiagnosticsLog.shared.log("render", "pool render failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
     /// Render the snooze follow-up greeting MP3. Snooze playback is
     /// "greeting + wake-up song" (no affirmations, no closing) — the
     /// song is a bundled asset chosen at playback time, so the only

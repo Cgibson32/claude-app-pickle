@@ -126,16 +126,16 @@ struct SpeechSettingsView: View {
         profile.ttsVoice = voice.rawValue
         try? modelContext.save()
 
-        MorningAudioRenderer.shared.invalidateAll()
+        // Voice change invalidates the entire affirmation pool — all
+        // 20 pre-rendered files use the old voice. The pool's signature
+        // hash includes ttsVoice, so refresh() will detect the mismatch
+        // and rebuild from scratch.
+        AffirmationPool.shared.invalidateAll()
 
         let enabledAlarms = alarms.filter { $0.isEnabled }
         let context = modelContext
         Task { @MainActor in
-            await MorningAudioRenderer.shared.refreshAll(
-                alarms: enabledAlarms,
-                profile: profile,
-                modelContext: context
-            )
+            await AffirmationPool.shared.refresh(profile: profile, modelContext: context)
             for alarm in enabledAlarms {
                 AlarmKitScheduler.shared.scheduleAlarm(alarm)
             }

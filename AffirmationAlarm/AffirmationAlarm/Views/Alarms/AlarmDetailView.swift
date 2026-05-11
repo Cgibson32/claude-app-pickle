@@ -137,11 +137,9 @@ struct AlarmDetailView: View {
             if let profile = profiles.first {
                 let context = modelContext
                 Task { @MainActor in
-                    _ = await MorningAudioRenderer.shared.refresh(
-                        for: targetAlarm,
-                        profile: profile,
-                        modelContext: context
-                    )
+                    // Top up the pool if needed, then schedule the alarm
+                    // (which assigns a fresh pool file to it).
+                    await AffirmationPool.shared.refresh(profile: profile, modelContext: context)
                     AlarmKitScheduler.shared.scheduleAlarm(targetAlarm)
                 }
             } else {

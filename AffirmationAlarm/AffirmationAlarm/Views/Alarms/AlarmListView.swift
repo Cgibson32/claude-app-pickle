@@ -201,9 +201,7 @@ struct AlarmRow: View {
             if let profile = profiles.first {
                 let context = modelContext
                 Task { @MainActor in
-                    _ = await MorningAudioRenderer.shared.refresh(
-                        for: alarm, profile: profile, modelContext: context
-                    )
+                    await AffirmationPool.shared.refresh(profile: profile, modelContext: context)
                     AlarmKitScheduler.shared.scheduleAlarm(alarm)
                 }
             } else {

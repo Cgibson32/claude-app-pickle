@@ -226,12 +226,16 @@ struct RootView: View {
 
         let context = modelContext
         Task { @MainActor in
-            await MorningAudioRenderer.shared.refreshAll(
-                alarms: allAlarms,
-                profile: profile,
-                modelContext: context
-            )
+            // Refresh the affirmation pool first. This pre-renders up
+            // to 20 ready-to-play affirmation files so every alarm has
+            // guaranteed content — no TTS at fire time, no missing
+            // audio. Safe to call frequently; early-returns when pool
+            // is healthy.
+            await AffirmationPool.shared.refresh(profile: profile, modelContext: context)
 
+            // Snooze follow-ups still use the legacy per-alarm render
+            // (their content is generated at snooze-schedule time and
+            // is alarm-ID-specific, not pool-eligible).
             let pending = AlarmKitScheduler.shared.pendingFollowUpRenders
             if !pending.isEmpty {
                 for followUpID in pending {

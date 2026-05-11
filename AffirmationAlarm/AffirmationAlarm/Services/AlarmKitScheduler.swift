@@ -357,6 +357,15 @@ final class AlarmKitScheduler {
 
         BackgroundKeepAlive.shared.start()
 
+        // Assign a fresh pool file BEFORE scheduling so the notification
+        // sound (which references morning-<alarmID>.mp3) has a real
+        // audio file to play. The pool is pre-rendered well in advance
+        // so this is always instant — no TTS at schedule time.
+        let assigned = AffirmationPool.shared.assignToAlarm(alarmID: alarm.id)
+        if !assigned {
+            DiagnosticsLog.shared.log("scheduler", "pool empty when scheduling \(alarm.id.uuidString.prefix(8)) — notification may fall back")
+        }
+
         do {
             let configuration = makeConfiguration(for: alarm)
             _ = try await manager.schedule(id: alarm.id, configuration: configuration)
@@ -756,13 +765,18 @@ final class AlarmKitScheduler {
 
         switch action {
         case .stop:
-            MorningAudioRenderer.shared.invalidateAll()
+            // Re-assign a fresh pool file for the next fire of this
+            // recurring alarm. The just-consumed pool slot is already
+            // marked "used" in the manifest; this picks a new fresh slot.
+            AffirmationPool.shared.assignToAlarm(alarmID: alarmID)
             MissedAlarmDetector.recordSuccess(alarmID: alarmID)
             StreakService.recordSuccess()
             AlarmTelemetry.eventSync(.lastFireRecorded, alarmID: alarmID)
 
         case .snooze:
-            MorningAudioRenderer.shared.invalidateAll()
+            // No pool re-assign for the snooze case — the follow-up
+            // alarm has its own ID and gets its own (greeting-only)
+            // render via the snooze code path.
             scheduleSnoozeFollowUp(originalAlarmID: alarmID)
             MissedAlarmDetector.recordSuccess(alarmID: alarmID)
             StreakService.recordSuccess()
@@ -842,12 +856,11 @@ final class AlarmKitScheduler {
 
         switch action {
         case .stop:
-            MorningAudioRenderer.shared.invalidateAll()
+            AffirmationPool.shared.assignToAlarm(alarmID: alarmID)
             MissedAlarmDetector.recordSuccess(alarmID: alarmID)
             StreakService.recordSuccess()
 
         case .snooze:
-            MorningAudioRenderer.shared.invalidateAll()
             scheduleSnoozeFollowUp(originalAlarmID: alarmID)
             MissedAlarmDetector.recordSuccess(alarmID: alarmID)
             StreakService.recordSuccess()
@@ -890,18 +903,25 @@ final class AlarmKitScheduler {
                 return
             }
 
-            let allAlarms = (try? context.fetch(FetchDescriptor<Alarm>())) ?? []
-            guard let alarm = allAlarms.first(where: { $0.id == alarmID }) else {
-                DiagnosticsLog.shared.log("observer", "live render: alarm not found")
+            // Try the pool first — assign any available fresh slot to
+            // this alarm. The pool is the primary source of truth; live
+            // render is the last-resort fallback below.
+            if AffirmationPool.shared.assignToAlarm(alarmID: alarmID) {
+                DiagnosticsLog.shared.log("observer", "live render: assigned from pool")
                 return
             }
 
-            let (filename, _) = await MorningAudioRenderer.shared.refresh(
-                for: alarm,
-                profile: profile,
-                modelContext: context
-            )
-            DiagnosticsLog.shared.log("observer", "live render: \(filename != nil ? "success" : "failed")")
+            // Pool empty — try to refill on the fly. This is slow
+            // (~10-15s) but only happens when the pool ran out, which
+            // should be rare with the auto-refill threshold of 7.
+            DiagnosticsLog.shared.log("observer", "live render: pool empty, refilling")
+            await AffirmationPool.shared.refresh(profile: profile, modelContext: context)
+            if AffirmationPool.shared.assignToAlarm(alarmID: alarmID) {
+                DiagnosticsLog.shared.log("observer", "live render: assigned after refill")
+                return
+            }
+
+            DiagnosticsLog.shared.log("observer", "live render: pool refill failed too")
         } catch {
             DiagnosticsLog.shared.log("observer", "live render: container error \(error.localizedDescription)")
         }

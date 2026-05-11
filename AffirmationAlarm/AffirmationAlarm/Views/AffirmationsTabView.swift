@@ -100,15 +100,11 @@ private struct TodaySection: View {
         HapticService.light()
 
         guard let profile = profiles.first else { return }
-        MorningAudioRenderer.shared.invalidateAll()
+        // Manual "regenerate affirmations" — invalidate pool and refill.
+        AffirmationPool.shared.invalidateAll()
         let context = modelContext
-        let currentAlarms = alarms
         Task { @MainActor in
-            await MorningAudioRenderer.shared.refreshAll(
-                alarms: currentAlarms,
-                profile: profile,
-                modelContext: context
-            )
+            await AffirmationPool.shared.refresh(profile: profile, modelContext: context)
         }
     }
 }
