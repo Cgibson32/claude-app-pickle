@@ -17,6 +17,17 @@ import SwiftData
 class AffirmationCacheService {
     private let apiService = ClaudeAPIService()
 
+    /// How many recent generated affirmations to feed Claude as the
+    /// exclude list. Tuned so Claude has enough context to avoid recent
+    /// repeats but not so much that the prompt bloats.
+    private let historyExcludeCount = 60
+
+    /// How many generated affirmation rows to keep in SwiftData as
+    /// history. Old ones beyond this cap are pruned on every call.
+    /// 200 ≈ 30-40 days of typical usage — long enough to prevent
+    /// even monthly repeats.
+    private let historyKeepCount = 200
+
     func fetchOrGenerate(
         for profile: UserProfile,
         modelContext: ModelContext,
@@ -34,16 +45,28 @@ class AffirmationCacheService {
         // skip Claude generation entirely. Use a bundled closing to avoid
         // burning an API call purely for the 5–10 word tail.
         guard needed > 0 else {
-            purgeAllGenerated(modelContext: modelContext)
+            pruneClosingMessages(modelContext: modelContext)
             let closing = DailyClosingMessage(message: BundledAffirmationPool.closing())
             modelContext.insert(closing)
             return (selectedFavorites, closing)
         }
 
-        // Step 3: purge previous generated rows NOW — before the API
-        // call — so the home card shows its empty state instead of flashing
-        // stale affirmations from the previous generation while we wait.
-        purgeAllGenerated(modelContext: modelContext)
+        // Step 3: gather the exclude list — combine any caller-passed
+        // exclusions with our PERSISTED history. This is the key fix
+        // for repeat affirmations: previously, purgeAllGenerated deleted
+        // yesterday's set entirely, so Claude had no idea what it had
+        // already written. Now we keep history and tell Claude exactly
+        // which lines to avoid.
+        let recentHistory = fetchRecentGeneratedTexts(
+            limit: historyExcludeCount,
+            modelContext: modelContext
+        )
+        let fullExclude = Array(Set(exclude + recentHistory))
+
+        // Prune old generated rows (keep most recent N) before inserting
+        // the new batch. Closing messages always get fully purged.
+        pruneGeneratedHistory(modelContext: modelContext, keepRecent: historyKeepCount)
+        pruneClosingMessages(modelContext: modelContext)
 
         let recentReflections = fetchRecentReflections(modelContext: modelContext)
         let intention = fetchFreshIntention(modelContext: modelContext)
@@ -56,7 +79,7 @@ class AffirmationCacheService {
                 recentReflections: recentReflections,
                 eveningIntention: intention,
                 count: needed,
-                exclude: exclude,
+                exclude: fullExclude,
                 maxTokens: profile.budget.claudeMaxTokens
             )
         } catch {
@@ -148,26 +171,48 @@ class AffirmationCacheService {
         return trimmed
     }
 
-    // MARK: - Garbage collection
+    // MARK: - History + garbage collection
 
-    /// Delete ALL generated (non-favorite, non-custom) affirmation rows
-    /// and ALL closing messages. Called before inserting a fresh set so
-    /// only one batch exists at any time — no duplicate rows.
-    private func purgeAllGenerated(modelContext: ModelContext) {
-        let descriptor = FetchDescriptor<Affirmation>(
+    /// Fetch the texts of the most recent N generated affirmations,
+    /// newest first. Used as Claude's exclude list to prevent repeats.
+    private func fetchRecentGeneratedTexts(limit: Int, modelContext: ModelContext) -> [String] {
+        var descriptor = FetchDescriptor<Affirmation>(
             predicate: #Predicate {
                 $0.favoriteType == 0
                     && $0.isCustom == false
-            }
+            },
+            sortBy: [SortDescriptor(\.generatedFor, order: .reverse)]
         )
-        if let rows = try? modelContext.fetch(descriptor) {
-            for entry in rows {
-                modelContext.delete(entry)
-            }
-        }
+        descriptor.fetchLimit = limit
+        let rows = (try? modelContext.fetch(descriptor)) ?? []
+        return rows.map(\.text)
+    }
 
-        let closingDescriptor = FetchDescriptor<DailyClosingMessage>()
-        if let closings = try? modelContext.fetch(closingDescriptor) {
+    /// Keep the most recent `keepRecent` generated affirmations as
+    /// history, delete older ones. Replaces the old purgeAllGenerated
+    /// which wiped the entire history — that caused Claude to repeat
+    /// itself across days because it had no record of past output.
+    private func pruneGeneratedHistory(modelContext: ModelContext, keepRecent: Int) {
+        var descriptor = FetchDescriptor<Affirmation>(
+            predicate: #Predicate {
+                $0.favoriteType == 0
+                    && $0.isCustom == false
+            },
+            sortBy: [SortDescriptor(\.generatedFor, order: .reverse)]
+        )
+        let rows = (try? modelContext.fetch(descriptor)) ?? []
+        guard rows.count > keepRecent else { return }
+        for entry in rows.dropFirst(keepRecent) {
+            modelContext.delete(entry)
+        }
+    }
+
+    /// Delete all closing messages. Unlike affirmations, we don't keep
+    /// closing-message history because closings are short, less varied,
+    /// and the exclusion benefit isn't worth the prompt-bloat tradeoff.
+    private func pruneClosingMessages(modelContext: ModelContext) {
+        let descriptor = FetchDescriptor<DailyClosingMessage>()
+        if let closings = try? modelContext.fetch(descriptor) {
             for entry in closings {
                 modelContext.delete(entry)
             }

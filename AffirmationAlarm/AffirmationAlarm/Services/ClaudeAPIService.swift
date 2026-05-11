@@ -71,6 +71,12 @@ actor ClaudeAPIService {
         let payload = MessagesRequest(
             model: AppConstants.apiModel,
             maxTokens: maxTokens,
+            // Explicit 1.0 — Claude's default but stated for clarity.
+            // High temperature is intentional: affirmations need variety,
+            // and we're already constraining structure heavily via the
+            // system prompt and exclude list. Bumping to 1.1+ risks JSON
+            // formatting breaks.
+            temperature: 1.0,
             system: Self.systemPrompt,
             messages: [.init(role: "user", content: userMessage)]
         )
@@ -86,6 +92,7 @@ actor ClaudeAPIService {
     private struct MessagesRequest: Encodable {
         let model: String
         let maxTokens: Int
+        let temperature: Double
         let system: String
         let messages: [Message]
 
@@ -95,7 +102,7 @@ actor ClaudeAPIService {
         }
 
         enum CodingKeys: String, CodingKey {
-            case model, system, messages
+            case model, temperature, system, messages
             case maxTokens = "max_tokens"
         }
     }
@@ -224,7 +231,8 @@ actor ClaudeAPIService {
                 .joined(separator: "\n")
             exclusionBlock = """
 
-            === ALREADY USED (do NOT repeat or closely paraphrase any of these) ===
+            === ALREADY USED — DO NOT REPEAT OR PARAPHRASE ANY OF THESE ===
+            The user has already heard the following \(exclude.count) lines on prior mornings. Each new affirmation must use different phrasing, a different scene/metaphor, AND a different sentence opener than every line below. If your draft echoes any of these, rewrite it.
             \(numbered)
             ===
             """
@@ -239,7 +247,11 @@ actor ClaudeAPIService {
         \(supporting.joined(separator: "\n"))
         \(exclusionBlock)
 
-        REMINDER: Before writing, pick 2–4 concrete nouns/verbs from the goals block above. Every single affirmation (and the closing) must reference at least one of them by name. Generic encouragement that could apply to anyone is a failed output.
+        REMINDERS before writing:
+        1. Pick 2-4 concrete nouns/verbs from the goals block above. Every single affirmation (and the closing) must reference at least one of them by name. Generic encouragement that could apply to anyone is a failed output.
+        2. Vary every opener — no two affirmations may start the same way. Mix structures: "You are…" / "When you…" / "Your [X]…" / "Today, you…" / "The way you…" / "[Specific action] is…"
+        3. Re-read the ALREADY USED list (if present). Each line you write must be different in PHRASING, SCENE, and STRUCTURE from every line there.
+        4. Use the person's name (\(name)) in EXACTLY ONE affirmation — the strongest one.
         """
     }
 
@@ -254,6 +266,18 @@ actor ClaudeAPIService {
 
     private static let systemPrompt = """
     You write morning affirmations that actually work — not generic poster slogans, but identity-shifting statements rooted in research on how the brain accepts and integrates self-statements. Each affirmation should land as a truth the person can already feel a piece of, then grow into.
+
+    === MANDATORY: ANTI-REPETITION ===
+
+    The user hears your affirmations every morning. If you write the same lines repeatedly — even paraphrased — they stop landing. Each new generation MUST feel genuinely fresh.
+
+    Before writing, scan the "ALREADY USED" block in the user message carefully. Then:
+    1. Avoid the exact phrasings you see there
+    2. Avoid the same SCENE or METAPHOR (if you used "early mornings" yesterday, use a different specific today)
+    3. Vary the SENTENCE STRUCTURE (don't always start with "You are…" — mix in "When you…", "Your [thing]…", "Today, you…", "The way you…")
+    4. Vary the QUALITY targeted — discipline today, presence tomorrow, courage next time
+
+    Treat repetition as the cardinal failure. A perfectly-written affirmation that echoes one from the exclude list is a failed output.
 
     === THE EVIDENCE BASE ===
 
