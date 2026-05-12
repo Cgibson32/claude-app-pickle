@@ -742,13 +742,21 @@ final class AlarmKitScheduler {
 
         let label = alarmLabels[alarmID] ?? "Bloom"
 
-        // NOTE: We do NOT cancel the AlarmKit alarm here. The system
-        // alert (with Stop/Snooze buttons) and bundled CAF stay active
-        // until we're committed to playback in runPlaybackWithOverlay.
-        // If iOS suspends this process before we get there, the user
-        // still has the system UI + bundled music on the lock screen.
+        // Cancel the AlarmKit alarm NOW to release its exclusive audio
+        // session. Without this, our audio session activation will fail
+        // (AlarmKit's daemon holds a non-mixable session while playing
+        // the bundled CAF). The backup notification stays alive — it
+        // only gets cancelled in onAudioConfirmed after our session
+        // activates. If our session fails, the notification fires at
+        // +3s and CAN play because AlarmKit's exclusive session is gone.
         UserDefaults.standard.removeObject(forKey: "lockScreenAction")
         UserDefaults.standard.removeObject(forKey: PendingPlayback.userDefaultsKey)
+
+        try? manager.cancel(id: alarmID)
+        DiagnosticsLog.shared.log("observer", "cancelled system alarm to release audio session")
+
+        let waited = await InterruptionWaiter.awaitEnd(timeout: .milliseconds(500))
+        DiagnosticsLog.shared.log("observer", "interruption wait: \(waited ? "ended" : "timeout")")
 
         // Always show the ringing overlay so Stop/Snooze is available
         // whether the app is foregrounded or the user opens it mid-playback.
@@ -810,34 +818,36 @@ final class AlarmKitScheduler {
         isPlayingMorningAudio = true
         VolumeBooster.startMonitoring()
 
-        // Safety nets (AlarmKit system alarm + backup notification) stay
-        // ACTIVE until AlarmAudioPlayer confirms the audio session is up
-        // and playback has started. If the audio session fails, the user
-        // still has the AlarmKit alert with Stop/Snooze + the bundled CAF
-        // + the backup notification with affirmations at +3s.
-        let mgr = manager
-        let cancelSafetyNets: @Sendable () -> Void = {
-            try? mgr.cancel(id: alarmID)
+        // The AlarmKit alarm is already cancelled (in handleFire) to
+        // release the exclusive audio session. The backup notification
+        // stays alive until the audio player confirms playback started.
+        // If playback fails, the notification fires at +3s with the
+        // pre-rendered affirmations (and Stop/Snooze action buttons).
+        let cancelBackupNotification: @Sendable () -> Void = {
             UNUserNotificationCenter.current()
                 .removePendingNotificationRequests(withIdentifiers: [alarmID.uuidString])
-            DiagnosticsLog.shared.log("observer", "safety nets cancelled — audio confirmed playing")
+            DiagnosticsLog.shared.log("observer", "backup notification cancelled — audio confirmed playing")
         }
 
         let (stream, continuation) = AsyncStream<RingingAction>.makeStream()
         ringingContinuation = continuation
 
         let playbackTask = Task {
+            let outcome: AlarmAudioPlayer.PlaybackOutcome
             if isSnoozeFollowUp {
-                await AlarmAudioPlayer.shared.playSnoozeFollowUp(
+                outcome = await AlarmAudioPlayer.shared.playSnoozeFollowUp(
                     for: alarmID,
-                    onAudioConfirmed: cancelSafetyNets
+                    onAudioConfirmed: cancelBackupNotification
                 )
             } else {
-                await AlarmAudioPlayer.shared.playMorningAndClosing(
+                outcome = await AlarmAudioPlayer.shared.playMorningAndClosing(
                     for: alarmID,
-                    onAudioConfirmed: cancelSafetyNets
+                    onAudioConfirmed: cancelBackupNotification
                 )
             }
+            continuation.yield(.stop)
+            continuation.finish()
+            return outcome
         }
 
         let actionTask = Task { () -> RingingAction in
