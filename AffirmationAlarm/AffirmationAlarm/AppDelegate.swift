@@ -100,18 +100,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UIGestureRecognizerDelegate 
     /// AlarmKit via `AlarmKitScheduler` and the `StopAndPlayClosingIntent`
     /// / `SnoozeMorningIntent` pair.
     private func registerNotificationCategories() {
-        let reflectAction = UNNotificationAction(
-            identifier: "REFLECT_ACTION",
-            title: "Reflect",
-            options: .foreground
-        )
-        let eveningCategory = UNNotificationCategory(
-            identifier: "EVENING_REFLECTION_CATEGORY",
-            actions: [reflectAction],
-            intentIdentifiers: []
-        )
-
-        UNUserNotificationCenter.current().setNotificationCategories([eveningCategory])
+        NotificationDelegate.shared.registerCategories()
     }
 }
 

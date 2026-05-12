@@ -408,6 +408,8 @@ final class AlarmKitScheduler {
         content.title = alarm.label.isEmpty ? "Bloom" : alarm.label
         content.body = "Good morning — your affirmations are playing."
         content.interruptionLevel = .critical
+        content.categoryIdentifier = NotificationDelegate.alarmCategoryID
+        content.userInfo = ["alarmID": alarm.id.uuidString]
 
         let morningFile = "morning-\(alarm.id.uuidString).mp3"
         let soundsDir = MorningAudioRenderer.soundsDirectory()
@@ -808,34 +810,69 @@ final class AlarmKitScheduler {
         isPlayingMorningAudio = true
         VolumeBooster.startMonitoring()
 
-        // We're committed to playing now — cancel BOTH the AlarmKit
-        // system alarm (so its bundled CAF stops and we own the audio
-        // session) AND the backup notification (so it doesn't double up
-        // at the 3-second mark). If we crashed/got suspended before
-        // reaching this point, both are still active: the user has
-        // AlarmKit's Stop/Snooze UI + bundled music on the lock screen,
-        // AND the backup notification fires at +3s with affirmations.
-        try? manager.cancel(id: alarmID)
-        DiagnosticsLog.shared.log("observer", "cancelled system alarm; waiting for interruption end")
-        let waited = await InterruptionWaiter.awaitEnd(timeout: .milliseconds(500))
-        DiagnosticsLog.shared.log("observer", "interruption wait returned: \(waited ? "ended" : "timeout")")
-
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [alarmID.uuidString])
+        // Safety nets (AlarmKit system alarm + backup notification) stay
+        // ACTIVE until AlarmAudioPlayer confirms the audio session is up
+        // and playback has started. If the audio session fails, the user
+        // still has the AlarmKit alert with Stop/Snooze + the bundled CAF
+        // + the backup notification with affirmations at +3s.
+        let mgr = manager
+        let cancelSafetyNets: @Sendable () -> Void = {
+            try? mgr.cancel(id: alarmID)
+            UNUserNotificationCenter.current()
+                .removePendingNotificationRequests(withIdentifiers: [alarmID.uuidString])
+            DiagnosticsLog.shared.log("observer", "safety nets cancelled — audio confirmed playing")
+        }
 
         let (stream, continuation) = AsyncStream<RingingAction>.makeStream()
         ringingContinuation = continuation
 
         let playbackTask = Task {
             if isSnoozeFollowUp {
-                await AlarmAudioPlayer.shared.playSnoozeFollowUp(for: alarmID)
+                await AlarmAudioPlayer.shared.playSnoozeFollowUp(
+                    for: alarmID,
+                    onAudioConfirmed: cancelSafetyNets
+                )
             } else {
-                await AlarmAudioPlayer.shared.playMorningAndClosing(for: alarmID)
+                await AlarmAudioPlayer.shared.playMorningAndClosing(
+                    for: alarmID,
+                    onAudioConfirmed: cancelSafetyNets
+                )
             }
         }
 
         let actionTask = Task { () -> RingingAction in
             for await a in stream { return a }
             return .stop
+        }
+
+        let chimeTask = Task {
+            try? await Task.sleep(for: .seconds(30))
+            guard !Task.isCancelled else { return }
+            AlarmTelemetry.eventSync(.preSnoozeChime, alarmID: alarmID)
+            await AlarmAudioPlayer.shared.playChime()
+        }
+
+        let timeoutTask = Task { [weak self] in
+            for minute in 1...5 {
+                try? await Task.sleep(for: .seconds(60))
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    guard let self, self.ringingContinuation != nil else { return }
+                    VolumeBooster.boostToMax()
+                    AlarmTelemetry.eventSync(.escalation, alarmID: alarmID, extra: "minute=\(minute)")
+                    DiagnosticsLog.shared.log("observer", "volume escalation at minute \(minute)")
+                }
+            }
+            guard !Task.isCancelled else { return }
+            await MainActor.run { [weak self] in
+                guard let self, self.ringingContinuation != nil else { return }
+                let sn = self.alarmSoundNames[alarmID] ?? "alarm_rise"
+                self.scheduleFallbackAlert(alarmID: alarmID, soundName: sn)
+                AlarmTelemetry.eventSync(.ringingTimeout, alarmID: alarmID)
+                self.ringingContinuation?.yield(.stop)
+                self.ringingContinuation?.finish()
+                DiagnosticsLog.shared.log("observer", "5-minute timeout — auto-stop + fallback alert scheduled")
+            }
         }
 
         let result: RingingAction = await withTaskGroup(of: RingingAction.self) { group in
@@ -848,6 +885,8 @@ final class AlarmKitScheduler {
 
         playbackTask.cancel()
         actionTask.cancel()
+        chimeTask.cancel()
+        timeoutTask.cancel()
         ringingContinuation = nil
         await AlarmAudioPlayer.shared.stopPlayback()
         VolumeBooster.stopMonitoring()

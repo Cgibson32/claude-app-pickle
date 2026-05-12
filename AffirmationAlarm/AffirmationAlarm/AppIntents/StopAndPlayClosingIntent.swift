@@ -63,4 +63,8 @@ struct StopAndPlayClosingIntent: LiveActivityIntent {
 /// string into a single named constant prevents drift.
 enum PendingPlayback {
     static let userDefaultsKey = "pendingMorningPlayback"
+
+    static func write(alarmID: UUID) {
+        UserDefaults.standard.set(alarmID.uuidString, forKey: userDefaultsKey)
+    }
 }

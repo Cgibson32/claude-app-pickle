@@ -139,7 +139,10 @@ actor AlarmAudioPlayer {
     /// session intermittently fails on iOS 26.3.1, and when it does we
     /// want the foreground retry from `checkPendingMorningPlayback` to
     /// succeed rather than get short-circuited by purgatory.
-    func playMorningAndClosing(for alarmID: UUID) async -> PlaybackOutcome {
+    func playMorningAndClosing(
+        for alarmID: UUID,
+        onAudioConfirmed: (@Sendable () -> Void)? = nil
+    ) async -> PlaybackOutcome {
         DiagnosticsLog.shared.log("player", "start \(alarmID.uuidString.prefix(8))")
 
         if playing.contains(alarmID) {
@@ -163,6 +166,8 @@ actor AlarmAudioPlayer {
         guard await activateAudioSession() else {
             return record(outcome: .audioSessionUnavailable, alarmID: alarmID)
         }
+
+        onAudioConfirmed?()
 
         await playIntro()
         guard !stopRequested else { return record(outcome: .played, alarmID: alarmID) }
@@ -194,7 +199,10 @@ actor AlarmAudioPlayer {
     ///
     /// Same dedup/purgatory machinery as `playMorningAndClosing`, so
     /// the same alarm ID can't be played twice concurrently.
-    func playSnoozeFollowUp(for alarmID: UUID) async -> PlaybackOutcome {
+    func playSnoozeFollowUp(
+        for alarmID: UUID,
+        onAudioConfirmed: (@Sendable () -> Void)? = nil
+    ) async -> PlaybackOutcome {
         DiagnosticsLog.shared.log("player", "snooze start \(alarmID.uuidString.prefix(8))")
 
         if playing.contains(alarmID) {
@@ -222,6 +230,8 @@ actor AlarmAudioPlayer {
         guard await activateAudioSession() else {
             return record(outcome: .audioSessionUnavailable, alarmID: alarmID)
         }
+
+        onAudioConfirmed?()
 
         if greetingExists {
             await playFile(at: greetingURL)
