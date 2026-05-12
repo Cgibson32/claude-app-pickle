@@ -707,7 +707,15 @@ final class AlarmKitScheduler {
         DiagnosticsLog.shared.log("observer", "handleFire start \(alarmID.uuidString.prefix(8))\(isSnoozeFollowUp ? " (snooze follow-up)" : "")")
         AlarmTelemetry.eventSync(.fire, alarmID: alarmID)
 
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [alarmID.uuidString])
+        // NOTE: We do NOT cancel the backup notification here. If iOS
+        // suspends this process between now and the moment AVAudioPlayer
+        // starts (a real risk — see CLAUDE.md), cancelling here would
+        // leave the user with total silence: bundled CAF cancelled, our
+        // playback never starts, and notification cancelled. Instead we
+        // cancel the notification only once we're committed to playing
+        // (see runPlaybackWithOverlay). If handleFire dies before that,
+        // the notification fires at the 3-second mark and the user
+        // hears their affirmations from the lock screen.
 
         let soundsDir = MorningAudioRenderer.soundsDirectory()
         let morningURL = soundsDir.appendingPathComponent("morning-\(alarmID.uuidString).mp3")
@@ -805,6 +813,13 @@ final class AlarmKitScheduler {
         ringingAlarmLabel = label
         isPlayingMorningAudio = true
         VolumeBooster.startMonitoring()
+
+        // We're committed to playing now — cancel the backup notification
+        // so it doesn't double up with AVAudioPlayer when it would have
+        // fired at the 3-second mark. If we crashed/got suspended before
+        // reaching this point, the notification is still queued and the
+        // user hears their affirmations from the lock screen.
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [alarmID.uuidString])
 
         let (stream, continuation) = AsyncStream<RingingAction>.makeStream()
         ringingContinuation = continuation
