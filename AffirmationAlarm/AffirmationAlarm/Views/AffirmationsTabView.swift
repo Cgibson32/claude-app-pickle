@@ -42,7 +42,11 @@ struct AffirmationsTabView: View {
 // MARK: - Today
 
 private struct TodaySection: View {
-    @Query(sort: \Affirmation.generatedFor, order: .reverse) private var allAffirmations: [Affirmation]
+    @Query(
+        filter: #Predicate<Affirmation> { $0.isPoolGenerated == false },
+        sort: \Affirmation.generatedFor,
+        order: .reverse
+    ) private var allAffirmations: [Affirmation]
     @Query private var profiles: [UserProfile]
     @Query(sort: \Alarm.hour) private var alarms: [Alarm]
     @Environment(\.modelContext) private var modelContext

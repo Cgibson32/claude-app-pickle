@@ -10,6 +10,7 @@ final class Affirmation {
     var isFavorited: Bool = false
     var favoriteType: Int = 0
     var isCustom: Bool = false
+    var isPoolGenerated: Bool = false
 
     var isPriority: Bool { favoriteType == 1 }
     var isRotation: Bool { favoriteType == 2 }

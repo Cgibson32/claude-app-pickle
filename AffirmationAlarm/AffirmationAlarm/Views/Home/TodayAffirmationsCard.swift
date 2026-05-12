@@ -13,7 +13,7 @@ import SwiftData
 /// entirely, so the home-screen layout stays balanced.
 struct TodayAffirmationsCard: View {
     @Query(
-        filter: #Predicate<Affirmation> { $0.isCustom == false },
+        filter: #Predicate<Affirmation> { $0.isCustom == false && $0.isPoolGenerated == false },
         sort: \Affirmation.generatedFor,
         order: .reverse
     ) private var allAffirmations: [Affirmation]

@@ -155,6 +155,10 @@ final class MorningAudioRenderer {
                 exclude: exclude
             )
 
+            for a in affirmations where !a.isCustom && a.favoriteType == 0 {
+                a.isPoolGenerated = true
+            }
+
             let composer = ScriptComposer(
                 name: profile.name,
                 affirmations: affirmations,
