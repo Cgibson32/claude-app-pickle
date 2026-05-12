@@ -740,19 +740,13 @@ final class AlarmKitScheduler {
 
         let label = alarmLabels[alarmID] ?? "Bloom"
 
-        // Cancel the system alarm immediately so its bundled CAF stops
-        // and we can take over the audio session for affirmation playback.
-        // The user hears the bundled tone for ~100-500ms (the AlarmKit
-        // daemon's processing lag) as a brief wake chime, then the
-        // personalized greeting begins.
+        // NOTE: We do NOT cancel the AlarmKit alarm here. The system
+        // alert (with Stop/Snooze buttons) and bundled CAF stay active
+        // until we're committed to playback in runPlaybackWithOverlay.
+        // If iOS suspends this process before we get there, the user
+        // still has the system UI + bundled music on the lock screen.
         UserDefaults.standard.removeObject(forKey: "lockScreenAction")
         UserDefaults.standard.removeObject(forKey: PendingPlayback.userDefaultsKey)
-
-        try? manager.cancel(id: alarmID)
-        DiagnosticsLog.shared.log("observer", "cancelled system alarm; waiting for interruption end")
-
-        let waited = await InterruptionWaiter.awaitEnd(timeout: .milliseconds(500))
-        DiagnosticsLog.shared.log("observer", "interruption wait returned: \(waited ? "ended" : "timeout")")
 
         // Always show the ringing overlay so Stop/Snooze is available
         // whether the app is foregrounded or the user opens it mid-playback.
@@ -814,11 +808,18 @@ final class AlarmKitScheduler {
         isPlayingMorningAudio = true
         VolumeBooster.startMonitoring()
 
-        // We're committed to playing now — cancel the backup notification
-        // so it doesn't double up with AVAudioPlayer when it would have
-        // fired at the 3-second mark. If we crashed/got suspended before
-        // reaching this point, the notification is still queued and the
-        // user hears their affirmations from the lock screen.
+        // We're committed to playing now — cancel BOTH the AlarmKit
+        // system alarm (so its bundled CAF stops and we own the audio
+        // session) AND the backup notification (so it doesn't double up
+        // at the 3-second mark). If we crashed/got suspended before
+        // reaching this point, both are still active: the user has
+        // AlarmKit's Stop/Snooze UI + bundled music on the lock screen,
+        // AND the backup notification fires at +3s with affirmations.
+        try? manager.cancel(id: alarmID)
+        DiagnosticsLog.shared.log("observer", "cancelled system alarm; waiting for interruption end")
+        let waited = await InterruptionWaiter.awaitEnd(timeout: .milliseconds(500))
+        DiagnosticsLog.shared.log("observer", "interruption wait returned: \(waited ? "ended" : "timeout")")
+
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [alarmID.uuidString])
 
         let (stream, continuation) = AsyncStream<RingingAction>.makeStream()
