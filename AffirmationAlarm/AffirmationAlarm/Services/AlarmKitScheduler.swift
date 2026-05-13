@@ -4,6 +4,7 @@
 // a `(any LiveActivityIntent)?` existential — not yet `Sendable` in the
 // AlarmKit SDK. This `@preconcurrency` import is Apple's sanctioned
 // escape hatch until AlarmKit ships proper `sending` annotations.
+import ActivityKit
 @preconcurrency import AlarmKit
 import AppIntents
 import AVFoundation
@@ -819,10 +820,23 @@ final class AlarmKitScheduler {
         VolumeBooster.startMonitoring()
 
         // The AlarmKit alarm is already cancelled (in handleFire) to
-        // release the exclusive audio session. The backup notification
-        // stays alive until the audio player confirms playback started.
-        // If playback fails, the notification fires at +3s with the
-        // pre-rendered affirmations (and Stop/Snooze action buttons).
+        // release the exclusive audio session. Start our own Live Activity
+        // so Stop/Snooze buttons stay visible on the lock screen while
+        // affirmations play. AlarmKit's Live Activity dies when we cancel
+        // its alarm — this one persists until playback ends.
+        let ringingActivity = try? Activity<RingingAttributes>.request(
+            attributes: RingingAttributes(alarmID: alarmID, label: label),
+            content: ActivityContent(state: RingingAttributes.ContentState(), staleDate: nil),
+            pushType: nil
+        )
+        if ringingActivity != nil {
+            DiagnosticsLog.shared.log("observer", "ringing Live Activity started for \(alarmID.uuidString.prefix(8))")
+        }
+
+        // The backup notification stays alive until the audio player
+        // confirms playback started. If playback fails, the notification
+        // fires at +3s with the pre-rendered affirmations (and Stop/Snooze
+        // action buttons).
         let cancelBackupNotification: @Sendable () -> Void = {
             UNUserNotificationCenter.current()
                 .removePendingNotificationRequests(withIdentifiers: [alarmID.uuidString])
@@ -902,6 +916,11 @@ final class AlarmKitScheduler {
         VolumeBooster.stopMonitoring()
         isPlayingMorningAudio = false
         ringingAlarmID = nil
+
+        await ringingActivity?.end(
+            ActivityContent(state: RingingAttributes.ContentState(), staleDate: nil),
+            dismissalPolicy: .immediate
+        )
 
         return result
     }
