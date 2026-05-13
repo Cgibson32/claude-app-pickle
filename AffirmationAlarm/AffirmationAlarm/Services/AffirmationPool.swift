@@ -44,11 +44,10 @@ final class AffirmationPool {
     // MARK: - Configuration
 
     /// Target pool size. Aim to keep this many fresh (unused) files.
-    static nonisolated let targetSize = 20
+    static nonisolated let targetSize = 7
 
     /// When fresh count drops below this, regenerate to refill to target.
-    /// 7 = roughly one week's worth of buffer.
-    static nonisolated let refillThreshold = 7
+    static nonisolated let refillThreshold = 3
 
     /// Max age (days) before a used file gets cleaned up.
     private let usedFileMaxAgeDays = 30
@@ -198,6 +197,7 @@ final class AffirmationPool {
         var excludeList = collectFreshAffirmationTexts(manifest: manifest)
 
         var generated = 0
+        var consecutiveFailures = 0
         for slot in emptySlots.prefix(toGenerate) {
             let url = poolFileURL(slot: slot)
             try? FileManager.default.removeItem(at: url)
@@ -210,9 +210,15 @@ final class AffirmationPool {
             )
 
             guard let texts, FileManager.default.fileExists(atPath: url.path) else {
-                DiagnosticsLog.shared.log("pool", "slot \(slot) generation failed — skipping")
+                consecutiveFailures += 1
+                DiagnosticsLog.shared.log("pool", "slot \(slot) generation failed (\(consecutiveFailures) consecutive)")
+                if consecutiveFailures >= 2 {
+                    DiagnosticsLog.shared.log("pool", "stopping refill early — API likely down or quota exceeded")
+                    break
+                }
                 continue
             }
+            consecutiveFailures = 0
 
             manifest[slot] = ManifestEntry(
                 slot: slot,
