@@ -2,12 +2,7 @@ name: AffirmationAlarm
 options:
   bundleIdPrefix: com.cgibson
   deploymentTarget:
-    # iOS 26.1 is required — `AlarmPresentation.Alert.init(title:secondaryButton:secondaryButtonBehavior:)`
-    # was added in 26.1. iOS 26.0 only has the deprecated four-arg init
-    # `init(title:stopButton:secondaryButton:secondaryButtonBehavior:)`
-    # which we intentionally don't use. Dropping 26.0 is fine — adoption
-    # has moved to 26.1+ by April 2026 and the build fails on 26.0 anyway.
-    iOS: "26.1"
+    iOS: "26.5"
 settings:
   SWIFT_VERSION: "6.0"
 # Swift Package Manager dependencies resolved at build time by Xcode.
