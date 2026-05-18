@@ -59,11 +59,9 @@ The 7-day free trial is critical: the product's magic is experiential. A user wh
 
 ---
 
-## Financial Projections — Path to 20,000 Monthly Subscribers
+## Financial Projections — Three-Scenario Model
 
-**Target:** 20,000 paying monthly subscribers by end of fiscal year.
-
-### Revenue Model
+### Unit Economics (All Scenarios)
 
 | Metric | Value |
 |---|---|
@@ -74,35 +72,116 @@ The 7-day free trial is critical: the product's magic is experiential. A user wh
 | Marginal API cost per subscriber | ~$0.67/month |
 | **Gross margin per subscriber (Year 1)** | **$1.42 (~68%)** |
 
-### Growth Ramp (Monthly Paying Subscribers)
+---
 
-| Month | Subscribers | MRR (Net) | Cumulative API Cost |
-|---|---|---|---|
-| 1 | 200 | $418 | $134 |
-| 2 | 500 | $1,045 | $335 |
-| 3 | 1,200 | $2,508 | $804 |
-| 4 | 2,500 | $5,225 | $1,675 |
-| 5 | 4,000 | $8,360 | $2,680 |
-| 6 | 6,000 | $12,540 | $4,020 |
-| 7 | 8,500 | $17,765 | $5,695 |
-| 8 | 10,500 | $21,945 | $7,035 |
-| 9 | 13,000 | $27,170 | $8,710 |
-| 10 | 15,500 | $32,395 | $10,385 |
-| 11 | 18,000 | $37,620 | $12,060 |
-| 12 | **20,000** | **$41,800** | $13,400 |
+### Scenario A — Conservative (3,000 subscribers)
 
-### Annual Summary
+*Proves product-market fit. Organic growth only, no paid acquisition.*
+
+| Month | Subscribers | MRR (Net) |
+|---|---|---|
+| 1 | 50 | $105 |
+| 2 | 120 | $251 |
+| 3 | 250 | $523 |
+| 4 | 450 | $941 |
+| 5 | 700 | $1,463 |
+| 6 | 1,000 | $2,090 |
+| 7 | 1,300 | $2,717 |
+| 8 | 1,600 | $3,344 |
+| 9 | 2,000 | $4,180 |
+| 10 | 2,400 | $5,016 |
+| 11 | 2,700 | $5,643 |
+| 12 | **3,000** | **$6,270** |
+
+| | Year 1 |
+|---|---|
+| **Ending MRR** | $6,270 |
+| **ARR run-rate** | $75,240 |
+| **Total Year 1 revenue** | ~$32,500 |
+| **Total API costs** | ~$10,500 |
+| **Gross profit** | ~$22,000 |
+| **Paid acquisition spend** | $0 |
+
+**What drives this:** ASO, organic App Store discovery, word-of-mouth from the shareable affirmation cards, and TikTok content. No ad budget required. This is the "bootstrapper's path" — if 3,000 people are paying $2.99/month purely from organic, the product has real pull and it's time to pour fuel on it.
+
+---
+
+### Scenario B — Moderate (7,000 subscribers) ← BASE CASE
+
+*Strong indie app performance. Modest paid acquisition starting month 4.*
+
+| Month | Subscribers | MRR (Net) |
+|---|---|---|
+| 1 | 100 | $209 |
+| 2 | 300 | $627 |
+| 3 | 600 | $1,254 |
+| 4 | 1,200 | $2,508 |
+| 5 | 1,800 | $3,762 |
+| 6 | 2,500 | $5,225 |
+| 7 | 3,200 | $6,688 |
+| 8 | 4,000 | $8,360 |
+| 9 | 4,800 | $10,032 |
+| 10 | 5,500 | $11,495 |
+| 11 | 6,200 | $12,958 |
+| 12 | **7,000** | **$14,630** |
+
+| | Year 1 |
+|---|---|
+| **Ending MRR** | $14,630 |
+| **ARR run-rate** | $175,560 |
+| **Total Year 1 revenue** | ~$77,750 |
+| **Total API costs** | ~$25,000 |
+| **Paid acquisition spend** | ~$18,000 |
+| **Gross profit (after ads)** | ~$34,750 |
+
+**What drives this:** Organic foundation from months 1–3, then $2,000–$3,000/month in Apple Search Ads starting month 4, scaling to $3,000–$4,000/month by year-end. Target CPA: $3.00 or less. The viral sharing loop contributes ~15% of new downloads. This scenario proves the business model and justifies raising the ad budget for the aggressive push.
+
+---
+
+### Scenario C — Aggressive (20,000 subscribers)
+
+*Breakout growth. Requires significant paid acquisition and/or a viral moment.*
+
+| Month | Subscribers | MRR (Net) |
+|---|---|---|
+| 1 | 200 | $418 |
+| 2 | 500 | $1,045 |
+| 3 | 1,200 | $2,508 |
+| 4 | 2,500 | $5,225 |
+| 5 | 4,000 | $8,360 |
+| 6 | 6,000 | $12,540 |
+| 7 | 8,500 | $17,765 |
+| 8 | 10,500 | $21,945 |
+| 9 | 13,000 | $27,170 |
+| 10 | 15,500 | $32,395 |
+| 11 | 18,000 | $37,620 |
+| 12 | **20,000** | **$41,800** |
 
 | | Year 1 |
 |---|---|
 | **Ending MRR** | $41,800 |
-| **ARR run-rate at month 12** | $501,600 |
-| **Total revenue (sum of monthly MRR)** | ~$208,000 |
+| **ARR run-rate** | $501,600 |
+| **Total Year 1 revenue** | ~$208,000 |
 | **Total API costs** | ~$67,000 |
-| **Gross profit** | ~$141,000 |
-| **Gross margin** | ~68% |
+| **Paid acquisition spend** | ~$60,000–$80,000 |
+| **Gross profit (after ads)** | ~$61,000–$81,000 |
 
-### Key Assumptions
+**What drives this:** Aggressive Apple Search Ads ($8,000–$12,000/month in months 6–12), TikTok influencer partnerships, a viral organic moment (e.g. a creator's "morning routine" video featuring the app), and strong trial-to-paid conversion above 25%. This is the stretch goal — achievable if the product resonates and the acquisition channels perform. Requires approximately **32,000–35,000 monthly downloads** at steady state.
+
+---
+
+### Scenario Comparison
+
+| | Conservative | **Moderate (Base)** | Aggressive |
+|---|---|---|---|
+| **Month 12 subscribers** | 3,000 | **7,000** | 20,000 |
+| **Ending MRR** | $6,270 | **$14,630** | $41,800 |
+| **ARR run-rate** | $75,240 | **$175,560** | $501,600 |
+| **Year 1 gross profit** | $22,000 | **$34,750** | $61,000–$81,000 |
+| **Paid acquisition** | $0 | $18,000 | $60,000–$80,000 |
+| **Risk level** | Low | Moderate | High |
+
+### Key Assumptions (All Scenarios)
 
 - **Trial-to-paid conversion:** 25% [TBD: Corey to confirm after beta data]
 - **Monthly churn:** 8% [TBD: Corey to confirm] — alarm apps typically see lower churn than meditation apps because the habit is automatic
@@ -111,16 +190,13 @@ The 7-day free trial is critical: the product's magic is experiential. A user wh
 - **Apple fee:** 30% in Year 1; drops to 15% in Year 2 under the Small Business Program (qualifying at <$1M annual revenue)
 - **API cost at scale:** ElevenLabs and Anthropic volume tiers may reduce marginal cost by 20–30% above 10,000 subscribers; not modeled in the conservative case above
 
-### What It Takes
+### The Decision Framework
 
-To hit 20,000 paying subscribers by month 12 with 8% monthly churn, the app needs approximately **3,200–3,500 new paying conversions per month** by the second half of the year. At 25% trial-to-paid and 40% download-to-trial, that requires roughly **32,000–35,000 monthly downloads** at steady state. This is achievable via a combination of:
+The conservative scenario requires no capital — just time and content creation. If it hits, the product has organic pull and paid acquisition becomes pure upside.
 
-- App Store organic (ASO-optimized for "affirmation alarm," "morning motivation")
-- Viral sharing loop (affirmation cards on Instagram/TikTok)
-- Apple Search Ads (target CPA < $3.00)
-- Content marketing (TikTok wake-up videos, podcast appearances)
+The moderate scenario is the **planning case**. Budget ~$18K in Year 1 for ads, expect ~$175K ARR run-rate by month 12. This is where we staff up and invest in the Resonance + InnerEdge cross-sells.
 
-**Paid acquisition budget to sustain growth:** **[TBD: Corey to confirm]** — estimated $8,000–$12,000/month in months 6–12 at a $3.00 CPA target.
+The aggressive scenario is the **upside case**. It requires $60K–$80K in ad spend and strong execution on every front. The payoff is a half-million-dollar ARR run-rate entering Year 2 — at which point Apple's Small Business Program drops the commission to 15% and unit economics improve further.
 
 ---
 
