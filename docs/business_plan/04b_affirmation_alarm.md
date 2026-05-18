@@ -59,6 +59,71 @@ The 7-day free trial is critical: the product's magic is experiential. A user wh
 
 ---
 
+## Financial Projections — Path to 20,000 Monthly Subscribers
+
+**Target:** 20,000 paying monthly subscribers by end of fiscal year.
+
+### Revenue Model
+
+| Metric | Value |
+|---|---|
+| Monthly subscription | $2.99 |
+| Apple's cut (30% Year 1, 15% Year 2+) | $0.90 / $0.45 |
+| Net revenue per subscriber (Year 1) | **$2.09** |
+| Net revenue per subscriber (Year 2+) | **$2.54** |
+| Marginal API cost per subscriber | ~$0.67/month |
+| **Gross margin per subscriber (Year 1)** | **$1.42 (~68%)** |
+
+### Growth Ramp (Monthly Paying Subscribers)
+
+| Month | Subscribers | MRR (Net) | Cumulative API Cost |
+|---|---|---|---|
+| 1 | 200 | $418 | $134 |
+| 2 | 500 | $1,045 | $335 |
+| 3 | 1,200 | $2,508 | $804 |
+| 4 | 2,500 | $5,225 | $1,675 |
+| 5 | 4,000 | $8,360 | $2,680 |
+| 6 | 6,000 | $12,540 | $4,020 |
+| 7 | 8,500 | $17,765 | $5,695 |
+| 8 | 10,500 | $21,945 | $7,035 |
+| 9 | 13,000 | $27,170 | $8,710 |
+| 10 | 15,500 | $32,395 | $10,385 |
+| 11 | 18,000 | $37,620 | $12,060 |
+| 12 | **20,000** | **$41,800** | $13,400 |
+
+### Annual Summary
+
+| | Year 1 |
+|---|---|
+| **Ending MRR** | $41,800 |
+| **ARR run-rate at month 12** | $501,600 |
+| **Total revenue (sum of monthly MRR)** | ~$208,000 |
+| **Total API costs** | ~$67,000 |
+| **Gross profit** | ~$141,000 |
+| **Gross margin** | ~68% |
+
+### Key Assumptions
+
+- **Trial-to-paid conversion:** 25% [TBD: Corey to confirm after beta data]
+- **Monthly churn:** 8% [TBD: Corey to confirm] — alarm apps typically see lower churn than meditation apps because the habit is automatic
+- **Free-to-trial ratio:** ~40% of downloads start the 7-day trial
+- **Organic share rate:** 5% of active users share an affirmation card per week, driving ~15% of new downloads via word-of-mouth
+- **Apple fee:** 30% in Year 1; drops to 15% in Year 2 under the Small Business Program (qualifying at <$1M annual revenue)
+- **API cost at scale:** ElevenLabs and Anthropic volume tiers may reduce marginal cost by 20–30% above 10,000 subscribers; not modeled in the conservative case above
+
+### What It Takes
+
+To hit 20,000 paying subscribers by month 12 with 8% monthly churn, the app needs approximately **3,200–3,500 new paying conversions per month** by the second half of the year. At 25% trial-to-paid and 40% download-to-trial, that requires roughly **32,000–35,000 monthly downloads** at steady state. This is achievable via a combination of:
+
+- App Store organic (ASO-optimized for "affirmation alarm," "morning motivation")
+- Viral sharing loop (affirmation cards on Instagram/TikTok)
+- Apple Search Ads (target CPA < $3.00)
+- Content marketing (TikTok wake-up videos, podcast appearances)
+
+**Paid acquisition budget to sustain growth:** **[TBD: Corey to confirm]** — estimated $8,000–$12,000/month in months 6–12 at a $3.00 CPA target.
+
+---
+
 ## Target Customer Persona
 
 **Primary: The Goal-Driven Achiever.** Adults 22–45 who have a specific goal they're actively working toward — building a business, making a team, losing weight, becoming a better parent, leveling up in their career. They're already doing the work. Affirmation Alarm gives them a daily edge: the first words they hear every morning reinforce exactly who they're becoming and what they're chasing. These are people who read Atomic Habits, listen to Goggins, follow mindset coaches, and believe that how you start your morning determines how you show up.
