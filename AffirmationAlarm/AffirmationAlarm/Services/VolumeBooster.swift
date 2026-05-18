@@ -52,9 +52,11 @@ enum VolumeBooster {
 
     // MARK: - Boost
 
-    /// Set the system media volume to 1.0. Silently no-ops if we can't
-    /// find a window to attach the helper view to — better to fail
-    /// quietly than crash the alarm path over a UI edge case.
+    static let volumeKey = "alarmVolumeLevel"
+
+    /// Set the system media volume to the user's chosen alarm level.
+    /// Silently no-ops if we can't find a window to attach the helper
+    /// view to — better to fail quietly than crash the alarm path.
     static func boostToMax() {
         guard let window = firstAttachableWindow() else {
             DiagnosticsLog.shared.log("volume", "no window — skipping boost")
@@ -70,8 +72,10 @@ enum VolumeBooster {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             let slider = helper.subviews.compactMap { $0 as? UISlider }.first
-            slider?.value = 0.7
-            DiagnosticsLog.shared.log("volume", "boosted to 70% (slider=\(slider != nil))")
+            let level = UserDefaults.standard.float(forKey: VolumeBooster.volumeKey)
+            let target: Float = level > 0 ? level : 0.7
+            slider?.value = target
+            DiagnosticsLog.shared.log("volume", "boosted to \(Int(target * 100))% (slider=\(slider != nil))")
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 helper.removeFromSuperview()

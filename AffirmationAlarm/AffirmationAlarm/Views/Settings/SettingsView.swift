@@ -29,6 +29,10 @@ struct SettingsView: View {
                         } label: {
                             SettingsRow(icon: "speaker.wave.2.fill", title: "Voice", color: AppTheme.warmAmber)
                         }
+
+                        if let profile {
+                            AlarmVolumeRow(profile: profile)
+                        }
                     }
 
                     section("Debug") {
@@ -80,6 +84,48 @@ struct SettingsView: View {
             .padding(AppTheme.spacingLg)
             .background(AppTheme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
+        }
+    }
+}
+
+private struct AlarmVolumeRow: View {
+    @Bindable var profile: UserProfile
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
+            HStack {
+                Image(systemName: "alarm.waves.left.and.right")
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppTheme.warmAmber)
+                Text("Alarm Volume")
+                    .font(AppTheme.bodyFont)
+                    .foregroundStyle(AppTheme.textPrimary)
+                Spacer()
+                Text("\(Int(profile.alarmVolume * 100))%")
+                    .font(AppTheme.caption)
+                    .foregroundStyle(AppTheme.textTertiary)
+                    .monospacedDigit()
+            }
+
+            HStack(spacing: AppTheme.spacingSm) {
+                Image(systemName: "speaker.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(AppTheme.textTertiary)
+                Slider(value: $profile.alarmVolume, in: 0.3...1.0, step: 0.05)
+                    .tint(AppTheme.warmAmber)
+                    .onChange(of: profile.alarmVolume) { _, newValue in
+                        UserDefaults.standard.set(newValue, forKey: VolumeBooster.volumeKey)
+                    }
+                Image(systemName: "speaker.wave.3.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(AppTheme.textTertiary)
+            }
+        }
+        .padding(AppTheme.spacingLg)
+        .background(AppTheme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusMd))
+        .onAppear {
+            UserDefaults.standard.set(profile.alarmVolume, forKey: VolumeBooster.volumeKey)
         }
     }
 }

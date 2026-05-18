@@ -22,6 +22,7 @@ final class UserProfile {
     var eveningReflectionEnabled: Bool = false
     var eveningReflectionHour: Int = 20
     var eveningReflectionMinute: Int = 0
+    var alarmVolume: Float = 0.7
 
     var selectedCategories: [String] {
         get {
