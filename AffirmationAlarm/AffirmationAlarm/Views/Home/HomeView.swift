@@ -1,3 +1,4 @@
+import ActivityKit
 import SwiftUI
 import SwiftData
 
@@ -37,6 +38,10 @@ struct HomeView: View {
                 VStack(spacing: AppTheme.spacingXl) {
                     greetingSection
 
+                    if !ActivityAuthorizationInfo().areActivitiesEnabled {
+                        liveActivityWarning
+                    }
+
                     if !hasAPIKey {
                         apiKeyWarning
                     }
@@ -75,6 +80,39 @@ struct HomeView: View {
         .onReceive(NotificationCenter.default.publisher(for: .didCompleteMorningPlayback)) { _ in
             streakRefreshTrigger &+= 1
         }
+    }
+
+    private var liveActivityWarning: some View {
+        VStack(alignment: .leading, spacing: AppTheme.spacingSm) {
+            HStack(spacing: AppTheme.spacingSm) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(AppTheme.sunsetOrange)
+                Text("Stop & Snooze won't show")
+                    .font(AppTheme.headline)
+                    .foregroundStyle(AppTheme.textPrimary)
+            }
+            Text("Live Activities are turned off. Your alarm needs this to show Stop and Snooze buttons on the lock screen.")
+                .font(AppTheme.caption)
+                .foregroundStyle(AppTheme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                Text("Open Settings")
+                    .font(AppTheme.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.gold)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 12)
+                    .background(AppTheme.gold.opacity(0.15))
+                    .clipShape(Capsule())
+            }
+        }
+        .padding(AppTheme.spacingLg)
+        .background(AppTheme.sunsetOrange.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusLg))
     }
 
     private var apiKeyWarning: some View {
