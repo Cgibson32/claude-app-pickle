@@ -105,7 +105,26 @@ The 7-day free trial is critical: the product's magic is experiential. A user wh
 
 Months 1–3 are organic foundation: App Store Optimization, TikTok content (real morning wake-up videos), and the viral sharing loop from affirmation cards on Instagram and TikTok. Starting month 4, modest paid acquisition via Apple Search Ads ($2,000–$3,000/month), scaling to $3,000–$4,000/month by year-end. Target CPA: $3.00 or less. The viral sharing loop contributes approximately 15% of new downloads organically.
 
-At 7,000 paying subscribers, the business is generating meaningful recurring revenue ($175K ARR run-rate) with healthy margins and proven acquisition channels — the foundation for accelerated growth into Year 2, where Apple's Small Business Program drops the commission from 30% to 15% and unit economics improve further.
+At 7,000 paying subscribers, the business is generating meaningful recurring revenue ($175K ARR run-rate) with healthy margins and proven acquisition channels — the foundation for accelerated growth into Year 2.
+
+### Year 2–3 Trajectory
+
+| Milestone | Subscribers | MRR (Net) | ARR Run-Rate |
+|---|---|---|---|
+| **Month 12 (Year 1 end)** | 7,000 | $14,630 | $175,560 |
+| **Month 18** | 11,000 | $27,940 | $335,280 |
+| **Month 24 (Year 2 end)** | 15,000 | $38,100 | $457,200 |
+| **Month 36 (Year 3 end)** | 22,000 | $55,880 | $670,560 |
+
+*Year 2–3 MRR calculated at $2.54 net per subscriber (15% Apple commission under the Small Business Program).*
+
+Year 2 benefits from two structural tailwinds: (1) Apple's Small Business Program drops commission from 30% to 15%, adding ~$0.45 per subscriber per month to net revenue, and (2) API volume tiers at 10K+ subscribers reduce marginal cost by an estimated 20–30%. Together, these improve gross margin from ~68% to ~75%+ without any price increase.
+
+**Note:** These Year 2–3 figures are conservative extrapolations. The AA team should validate or supply alternatives once Year 1 beta data is available. [TBD: Corey to confirm Year 2–3 targets]
+
+### Apple Small Business Program Timing
+
+The projections model 30% commission in Year 1, dropping to 15% in Year 2 under Apple's Small Business Program (for developers earning under $1M/year in App Store proceeds). However, HSH may qualify for SBP from day one if total App Store revenue across all apps was under $1M in the prior calendar year. If SBP applies from launch, Year 1 net revenue per subscriber improves from $2.09 to $2.54, and Year 1 gross profit increases by approximately **$15,000** — from ~$34,750 to ~$49,750. [TBD: Corey to confirm SBP enrollment status]
 
 ### Key Assumptions
 
@@ -113,7 +132,7 @@ At 7,000 paying subscribers, the business is generating meaningful recurring rev
 - **Monthly churn:** 8% [TBD: Corey to confirm] — alarm apps typically see lower churn than meditation apps because the habit is automatic
 - **Free-to-trial ratio:** ~40% of downloads start the 7-day trial
 - **Organic share rate:** 5% of active users share an affirmation card per week, driving ~15% of new downloads via word-of-mouth
-- **Apple fee:** 30% in Year 1; drops to 15% in Year 2 under the Small Business Program (qualifying at <$1M annual revenue)
+- **Apple fee:** 30% in Year 1 (or 15% if SBP-qualified from day 1); drops to 15% in Year 2 under the Small Business Program
 - **API cost at scale:** ElevenLabs and Anthropic volume tiers may reduce marginal cost by 20–30% above 7,000 subscribers; not modeled in the conservative case above
 
 ---
