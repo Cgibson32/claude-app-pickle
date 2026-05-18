@@ -18,16 +18,20 @@ struct TodayAffirmationsCard: View {
         order: .reverse
     ) private var allAffirmations: [Affirmation]
 
-    /// Affirmations from the most recent generation, but only if
-    /// generated within the last 24 hours. Older rows are stale
-    /// leftovers and should show the empty/generating state instead.
+    /// Affirmations from the most recent alarm fire only. Filters out
+    /// pool-generated pre-renders and anything older than 12 hours.
     private var recentAffirmations: [Affirmation] {
         guard let newest = allAffirmations.first else { return [] }
-        let cutoff = Date().addingTimeInterval(-24 * 60 * 60)
+        let cutoff = Date().addingTimeInterval(-12 * 60 * 60)
         guard newest.generatedFor > cutoff else { return [] }
-        return allAffirmations.filter {
-            Calendar.current.isDate($0.generatedFor, inSameDayAs: newest.generatedFor)
+        let sameBatch = allAffirmations.filter {
+            abs($0.generatedFor.timeIntervalSince(newest.generatedFor)) < 60
         }
+        guard !sameBatch.isEmpty else { return [] }
+        if sameBatch.allSatisfy({ BundledAffirmationPool.affirmations.contains($0.text) }) {
+            return []
+        }
+        return sameBatch
     }
 
     var body: some View {

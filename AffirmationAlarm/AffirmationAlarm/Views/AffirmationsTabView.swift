@@ -52,10 +52,16 @@ private struct TodaySection: View {
     @Environment(\.modelContext) private var modelContext
 
     private var recentAffirmations: [Affirmation] {
-        guard let newest = allAffirmations.first?.generatedFor else { return [] }
-        return allAffirmations.filter {
-            Calendar.current.isDate($0.generatedFor, inSameDayAs: newest)
+        guard let newest = allAffirmations.first else { return [] }
+        let cutoff = Date().addingTimeInterval(-12 * 60 * 60)
+        guard newest.generatedFor > cutoff else { return [] }
+        let sameBatch = allAffirmations.filter {
+            abs($0.generatedFor.timeIntervalSince(newest.generatedFor)) < 60
         }
+        if sameBatch.allSatisfy({ BundledAffirmationPool.affirmations.contains($0.text) }) {
+            return []
+        }
+        return sameBatch
     }
 
     var body: some View {

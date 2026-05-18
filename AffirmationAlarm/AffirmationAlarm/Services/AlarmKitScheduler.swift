@@ -105,6 +105,24 @@ final class AlarmKitScheduler {
     /// the next process can recognize the follow-up's fire event and
     /// route to the snooze playback path.
     private static let snoozeFollowUpIDsKey = "snoozeFollowUpIDs"
+    private static let firedOneShotIDsKey = "firedOneShotIDs"
+
+    private func firedOneShotIDs() -> Set<UUID> {
+        let strings = UserDefaults.standard.stringArray(forKey: Self.firedOneShotIDsKey) ?? []
+        return Set(strings.compactMap(UUID.init))
+    }
+
+    func markOneShotFired(_ id: UUID) {
+        var ids = firedOneShotIDs()
+        ids.insert(id)
+        UserDefaults.standard.set(ids.map(\.uuidString), forKey: Self.firedOneShotIDsKey)
+    }
+
+    private func clearOneShotFired(_ id: UUID) {
+        var ids = firedOneShotIDs()
+        ids.remove(id)
+        UserDefaults.standard.set(ids.map(\.uuidString), forKey: Self.firedOneShotIDsKey)
+    }
 
     private func snoozeFollowUpIDs() -> Set<UUID> {
         let strings = UserDefaults.standard.stringArray(forKey: Self.snoozeFollowUpIDsKey) ?? []
@@ -467,13 +485,16 @@ final class AlarmKitScheduler {
         let live = (try? manager.alarms) ?? []
         let liveIDs = Set(live.map(\.id))
 
+        let firedOneShots = firedOneShotIDs()
+
         for alarm in enabled {
             if liveIDs.contains(alarm.id) { continue }
 
             if alarm.repeatDays.isEmpty {
-                if alarm.nextFireDate == nil {
+                if alarm.nextFireDate == nil || firedOneShots.contains(alarm.id) {
                     alarm.isEnabled = false
-                    DiagnosticsLog.shared.log("reconcile", "one-shot \(alarm.id.uuidString.prefix(8)) past due — disabled")
+                    clearOneShotFired(alarm.id)
+                    DiagnosticsLog.shared.log("reconcile", "one-shot \(alarm.id.uuidString.prefix(8)) fired — disabled")
                 } else {
                     DiagnosticsLog.shared.log("reconcile", "one-shot \(alarm.id.uuidString.prefix(8)) missing from AlarmKit — rescheduling")
                     scheduleAlarm(alarm)
@@ -778,12 +799,10 @@ final class AlarmKitScheduler {
 
         switch action {
         case .stop:
-            // Re-assign a fresh pool file for the next fire of this
-            // recurring alarm. The just-consumed pool slot is already
-            // marked "used" in the manifest; this picks a new fresh slot.
             AffirmationPool.shared.assignToAlarm(alarmID: alarmID)
             MissedAlarmDetector.recordSuccess(alarmID: alarmID)
             StreakService.recordSuccess()
+            markOneShotFired(alarmID)
             AlarmTelemetry.eventSync(.lastFireRecorded, alarmID: alarmID)
 
         case .snooze:
@@ -824,13 +843,17 @@ final class AlarmKitScheduler {
         // so Stop/Snooze buttons stay visible on the lock screen while
         // affirmations play. AlarmKit's Live Activity dies when we cancel
         // its alarm — this one persists until playback ends.
-        let ringingActivity = try? Activity<RingingAttributes>.request(
-            attributes: RingingAttributes(alarmID: alarmID, label: label),
-            content: ActivityContent(state: RingingAttributes.ContentState(), staleDate: nil),
-            pushType: nil
-        )
-        if ringingActivity != nil {
+        let ringingActivity: Activity<RingingAttributes>?
+        do {
+            ringingActivity = try Activity<RingingAttributes>.request(
+                attributes: RingingAttributes(alarmID: alarmID, label: label),
+                content: ActivityContent(state: RingingAttributes.ContentState(), staleDate: nil),
+                pushType: nil
+            )
             DiagnosticsLog.shared.log("observer", "ringing Live Activity started for \(alarmID.uuidString.prefix(8))")
+        } catch {
+            ringingActivity = nil
+            DiagnosticsLog.shared.log("observer", "ringing Live Activity FAILED: \(error.localizedDescription)")
         }
 
         // The backup notification stays alive until the audio player
