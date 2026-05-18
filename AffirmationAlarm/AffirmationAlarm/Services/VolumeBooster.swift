@@ -81,29 +81,12 @@ enum VolumeBooster {
 
     // MARK: - Monitoring
 
-    /// Begin KVO monitoring of `AVAudioSession.outputVolume`. If the
-    /// volume drops below 0.95 while monitoring is active (e.g. the
-    /// user pressed the hardware volume-down button during ringing),
-    /// automatically re-boost to max.
-    ///
-    /// Call `stopMonitoring()` when the alarm loop stops.
+    /// Begin observing volume — but only to log, NOT to re-boost.
+    /// The initial boost at alarm start is enough. If the user turns
+    /// volume down, they're awake and choosing to lower it — respect that.
     static func startMonitoring() {
         guard !isMonitoring else { return }
         isMonitoring = true
-
-        let session = AVAudioSession.sharedInstance()
-        volumeObservation = session.observe(\.outputVolume, options: [.new]) { _, change in
-            guard let newVolume = change.newValue else { return }
-            Task { @MainActor in
-                guard VolumeBooster.isMonitoring else { return }
-                guard Date().timeIntervalSince(VolumeBooster.lastBoostTime) > VolumeBooster.boostCooldown else { return }
-                if newVolume < 0.95 {
-                    DiagnosticsLog.shared.log("volume", "volume dropped to \(String(format: "%.2f", newVolume)) — re-boosting")
-                    AlarmTelemetry.eventSync(.volumeReboosted, extra: "from=\(String(format: "%.2f", newVolume))")
-                    VolumeBooster.boostToMax()
-                }
-            }
-        }
         DiagnosticsLog.shared.log("volume", "monitoring started")
     }
 
