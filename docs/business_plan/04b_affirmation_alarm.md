@@ -61,11 +61,13 @@ The 7-day free trial is critical: the product's magic is experiential. A user wh
 
 ## Target Customer Persona
 
-**Primary:** Adults 25–45 who have tried and abandoned meditation apps, journaling, or morning-routine protocols. They *want* to start their day intentionally but lack the discipline or time for a dedicated practice. They already use their phone as an alarm clock. They are willing to pay a small monthly fee for something that works without effort.
+**Primary: The Goal-Driven Achiever.** Adults 22–45 who have a specific goal they're actively working toward — building a business, making a team, losing weight, becoming a better parent, leveling up in their career. They're already doing the work. Bloom gives them a daily edge: the first words they hear every morning reinforce exactly who they're becoming and what they're chasing. These are people who read Atomic Habits, listen to Goggins, follow mindset coaches, and believe that how you start your morning determines how you show up.
 
-**Secondary:** Self-improvement enthusiasts (readers of Atomic Habits, listeners of Huberman Lab, followers of mindset coaches on Instagram/TikTok) who are drawn to the science of self-talk and identity-based habit formation. These users are vocal sharers — the affirmation card sharing feature is designed for this cohort.
+**Secondary: The Inspired Beginner.** Individuals at a turning point — starting a fitness journey, leaving a toxic relationship, beginning recovery, launching a side hustle. They've decided to change their life and they're looking for tools that meet them where they are. Bloom's goal-specific affirmations give them daily reinforcement that feels personal, not generic. The low-effort integration (just set an alarm) matters here — these users are building new habits and can't afford another app that requires discipline to use.
 
-**Tertiary:** Individuals going through life transitions (new job, recovery, fitness journey, new parent) who have a specific, emotionally charged goal and want daily reinforcement. The goal-specificity of Claude-generated affirmations — which reference the user's actual written goals, not generic platitudes — resonates strongly here.
+**Tertiary: The Daily Optimizer.** Self-improvement enthusiasts who stack habits, track metrics, and optimize their routines. They're drawn to the AI personalization, the non-repeating content, and the evening reflection → morning affirmation feedback loop. These users are vocal sharers — the affirmation card sharing feature is designed for this cohort to drive organic growth.
+
+**Common thread:** These are not passive consumers of wellness content. They are people in motion — working, building, grinding, healing. Bloom doesn't ask them to slow down and meditate. It rides alongside what they're already doing and amplifies it.
 
 ---
 
