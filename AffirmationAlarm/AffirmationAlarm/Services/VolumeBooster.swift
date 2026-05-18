@@ -70,8 +70,8 @@ enum VolumeBooster {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             let slider = helper.subviews.compactMap { $0 as? UISlider }.first
-            slider?.value = 1.0
-            DiagnosticsLog.shared.log("volume", "boosted to max (slider=\(slider != nil))")
+            slider?.value = 0.7
+            DiagnosticsLog.shared.log("volume", "boosted to 70% (slider=\(slider != nil))")
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 helper.removeFromSuperview()
