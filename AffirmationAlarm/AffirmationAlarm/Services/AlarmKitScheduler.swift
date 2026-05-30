@@ -88,6 +88,10 @@ final class AlarmKitScheduler {
     /// Label for the alarm currently ringing (shown in the ringing UI).
     var ringingAlarmLabel: String = ""
 
+    /// Tracks Live Activities started at schedule time (keyed by alarm ID).
+    /// Updated to isRinging=true at fire time, ended at stop/snooze.
+    private var scheduledActivities: [UUID: String] = [:]
+
     /// Legacy field kept for telemetry/diagnostics compatibility — always
     /// false since the bedtime mode UI was removed (the alarm fires
     /// reliably without any pre-bed user step).
@@ -400,6 +404,32 @@ final class AlarmKitScheduler {
         }
 
         scheduleBackupNotification(for: alarm)
+        startScheduledLiveActivity(for: alarm)
+    }
+
+    /// Start a Live Activity in "scheduled" state (isRinging=false) so
+    /// it's on the lock screen BEFORE the alarm fires. At fire time,
+    /// we update it to isRinging=true (which reveals Stop/Snooze).
+    /// Starting here guarantees foreground context — iOS rejects
+    /// Activity.request() from background, which is why the fire-time
+    /// start was silently failing.
+    private func startScheduledLiveActivity(for alarm: Alarm) {
+        for activity in Activity<RingingAttributes>.activities
+            where activity.attributes.alarmID == alarm.id {
+            Task { await activity.end(nil, dismissalPolicy: .immediate) }
+        }
+
+        do {
+            let activity = try Activity<RingingAttributes>.request(
+                attributes: RingingAttributes(alarmID: alarm.id, label: alarm.label.isEmpty ? "Affirmation Alarm" : alarm.label),
+                content: ActivityContent(state: RingingAttributes.ContentState(isRinging: false), staleDate: nil),
+                pushType: nil
+            )
+            scheduledActivities[alarm.id] = activity.id
+            DiagnosticsLog.shared.log("scheduler", "Live Activity started (scheduled) for \(alarm.id.uuidString.prefix(8))")
+        } catch {
+            DiagnosticsLog.shared.log("scheduler", "Live Activity start FAILED: \(error.localizedDescription)")
+        }
     }
 
     /// Schedule a notification whose SOUND is the pre-rendered morning
@@ -468,6 +498,17 @@ final class AlarmKitScheduler {
     func cancelAlarm(_ alarm: Alarm) {
         try? manager.cancel(id: alarm.id)
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [alarm.id.uuidString])
+        endLiveActivity(for: alarm.id)
+    }
+
+    private func endLiveActivity(for alarmID: UUID) {
+        for activity in Activity<RingingAttributes>.activities
+            where activity.attributes.alarmID == alarmID {
+            Task {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
+        }
+        scheduledActivities.removeValue(forKey: alarmID)
     }
 
     /// Cross-reference SwiftData rows with the live AlarmKit registry and
@@ -838,22 +879,21 @@ final class AlarmKitScheduler {
         isPlayingMorningAudio = true
         VolumeBooster.startMonitoring()
 
-        // The AlarmKit alarm is already cancelled (in handleFire) to
-        // release the exclusive audio session. Start our own Live Activity
-        // so Stop/Snooze buttons stay visible on the lock screen while
-        // affirmations play. AlarmKit's Live Activity dies when we cancel
-        // its alarm — this one persists until playback ends.
-        let ringingActivity: Activity<RingingAttributes>?
-        do {
-            ringingActivity = try Activity<RingingAttributes>.request(
-                attributes: RingingAttributes(alarmID: alarmID, label: label),
-                content: ActivityContent(state: RingingAttributes.ContentState(), staleDate: nil),
-                pushType: nil
-            )
-            DiagnosticsLog.shared.log("observer", "ringing Live Activity started for \(alarmID.uuidString.prefix(8))")
-        } catch {
-            ringingActivity = nil
-            DiagnosticsLog.shared.log("observer", "ringing Live Activity FAILED: \(error.localizedDescription)")
+        // Update the Live Activity (started at schedule time in foreground)
+        // to isRinging=true — this reveals Stop/Snooze on the lock screen.
+        // We update rather than start here because iOS rejects
+        // Activity.request() from background state.
+        let ringingActivity = Activity<RingingAttributes>.activities.first {
+            $0.attributes.alarmID == alarmID
+        }
+        if let ringingActivity {
+            let ringingState = RingingAttributes.ContentState(isRinging: true)
+            Task {
+                await ringingActivity.update(ActivityContent(state: ringingState, staleDate: nil))
+            }
+            DiagnosticsLog.shared.log("observer", "Live Activity updated to ringing for \(alarmID.uuidString.prefix(8))")
+        } else {
+            DiagnosticsLog.shared.log("observer", "no Live Activity found to update for \(alarmID.uuidString.prefix(8))")
         }
 
         // The backup notification stays alive until the audio player
@@ -940,10 +980,13 @@ final class AlarmKitScheduler {
         isPlayingMorningAudio = false
         ringingAlarmID = nil
 
-        await ringingActivity?.end(
-            ActivityContent(state: RingingAttributes.ContentState(), staleDate: nil),
-            dismissalPolicy: .immediate
-        )
+        if let ringingActivity {
+            await ringingActivity.end(
+                ActivityContent(state: RingingAttributes.ContentState(isRinging: false), staleDate: nil),
+                dismissalPolicy: .immediate
+            )
+            scheduledActivities.removeValue(forKey: alarmID)
+        }
 
         return result
     }

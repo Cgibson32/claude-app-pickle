@@ -13,7 +13,8 @@ struct RingingLiveActivityWidget: Widget {
         ActivityConfiguration(for: RingingAttributes.self) { context in
             RingingLockScreenView(
                 alarmID: context.attributes.alarmID,
-                label: context.attributes.label
+                label: context.attributes.label,
+                isRinging: context.state.isRinging
             )
         } dynamicIsland: { context in
             DynamicIsland {
@@ -89,6 +90,7 @@ struct RingingLiveActivityWidget: Widget {
 private struct RingingLockScreenView: View {
     let alarmID: UUID
     let label: String
+    let isRinging: Bool
 
     @State private var pulsing = false
 
@@ -125,29 +127,36 @@ private struct RingingLockScreenView: View {
                         .foregroundStyle(RingingLiveActivityWidget.cream.opacity(0.7))
                 }
 
-                Button(intent: StopFromLockScreen(alarmID: alarmID)) {
-                    Text("Stop")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(Color.black)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(RingingLiveActivityWidget.gold)
-                        .clipShape(Capsule())
-                        .shadow(color: RingingLiveActivityWidget.gold.opacity(0.4), radius: 12, y: 4)
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 8)
-
-                Button(intent: SnoozeFromLockScreen(alarmID: alarmID)) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "zzz")
-                        Text("Snooze · 9 min")
+                if isRinging {
+                    Button(intent: StopFromLockScreen(alarmID: alarmID)) {
+                        Text("Stop")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(Color.black)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(RingingLiveActivityWidget.gold)
+                            .clipShape(Capsule())
+                            .shadow(color: RingingLiveActivityWidget.gold.opacity(0.4), radius: 12, y: 4)
                     }
-                    .font(.subheadline)
-                    .foregroundStyle(RingingLiveActivityWidget.cream.opacity(0.7))
-                    .padding(.vertical, 4)
+                    .buttonStyle(.plain)
+                    .padding(.top, 8)
+
+                    Button(intent: SnoozeFromLockScreen(alarmID: alarmID)) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "zzz")
+                            Text("Snooze · 9 min")
+                        }
+                        .font(.subheadline)
+                        .foregroundStyle(RingingLiveActivityWidget.cream.opacity(0.7))
+                        .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Text("Alarm set")
+                        .font(.subheadline)
+                        .foregroundStyle(RingingLiveActivityWidget.cream.opacity(0.5))
+                        .padding(.top, 8)
                 }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 20)
