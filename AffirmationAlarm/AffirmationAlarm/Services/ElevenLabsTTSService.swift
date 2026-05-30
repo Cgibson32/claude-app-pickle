@@ -63,25 +63,58 @@ final class ElevenLabsTTSService {
             case .chris:  "Casual & friendly"
             }
         }
+
+        /// Default Eleven v3 audio tag that steers this voice's delivery
+        /// toward a warm, motivational morning tone. Prepended to the
+        /// script unless a per-call override is supplied. v3 tags are
+        /// voice/context dependent — these are conservative, widely
+        /// supported ones (warmly / calm / confident / gently /
+        /// cheerfully).
+        var defaultDeliveryTag: String {
+            switch self {
+            case .rachel: "confident"
+            case .drew:   "warmly"
+            case .sarah:  "gently"
+            case .matilda: "warmly"
+            case .brian:  "calm"
+            case .daniel: "confident"
+            case .lily:   "warmly"
+            case .chris:  "cheerfully"
+            }
+        }
     }
 
     // MARK: - State
 
+    /// Eleven v3 — the most expressive model and the only one that
+    /// honors inline audio tags ([warmly], [confident], …). The pool
+    /// pre-renders audio well ahead of fire time, so v3's higher latency
+    /// is a non-issue here. Single constant for easy revert if v3 access
+    /// or cost ever becomes a problem (fall back to "eleven_turbo_v2_5").
+    private static let modelID = "eleven_v3"
+
     private struct CacheKey: Hashable {
         let voice: Voice
         let text: String
+        let delivery: String
     }
 
     private var cache: [CacheKey: Data] = [:]
 
     // MARK: - Public API
 
+    /// Synthesize speech. `delivery` is an optional Eleven v3 audio tag
+    /// (without brackets, e.g. "warmly", "confident", "excited") that
+    /// steers tone. When nil, the voice's `defaultDeliveryTag` is used.
+    /// Pass an empty string to send no tag at all.
     func synthesize(
         text: String,
-        voice: Voice = .rachel,
+        voice: Voice = .drew,
+        delivery: String? = nil,
         format: String = "mp3_44100_128"
     ) async throws -> Data {
-        let key = CacheKey(voice: voice, text: text)
+        let tag = delivery ?? voice.defaultDeliveryTag
+        let key = CacheKey(voice: voice, text: text, delivery: tag)
         if let hit = cache[key] { return hit }
 
         guard let apiKey = APIKeyConfiguration.elevenLabsKey, !apiKey.isEmpty else {
@@ -94,10 +127,21 @@ final class ElevenLabsTTSService {
             throw TTSError.badURL
         }
 
+        // Prepend the audio tag so v3 opens in the intended tone and
+        // carries that emotional context through the script.
+        let taggedText = tag.isEmpty ? text : "[\(tag)] \(text)"
+
         let payload = SpeechRequest(
-            text: text,
-            modelId: "eleven_turbo_v2_5",
-            voiceSettings: VoiceSettings(stability: 0.6, similarityBoost: 0.75, style: 0.3)
+            text: taggedText,
+            modelId: Self.modelID,
+            // v3-appropriate: stability 0.5 ("Natural") is the balance
+            // point where audio tags still meaningfully steer delivery
+            // without the voice drifting. speaker boost on for presence.
+            voiceSettings: VoiceSettings(
+                stability: 0.5,
+                similarityBoost: 0.8,
+                useSpeakerBoost: true
+            )
         )
 
         var request = URLRequest(url: url)
@@ -152,12 +196,12 @@ final class ElevenLabsTTSService {
     private struct VoiceSettings: Encodable {
         let stability: Double
         let similarityBoost: Double
-        let style: Double
+        let useSpeakerBoost: Bool
 
         enum CodingKeys: String, CodingKey {
             case stability
             case similarityBoost = "similarity_boost"
-            case style
+            case useSpeakerBoost = "use_speaker_boost"
         }
     }
 }
