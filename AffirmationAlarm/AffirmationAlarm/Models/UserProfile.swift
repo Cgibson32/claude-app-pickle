@@ -8,10 +8,10 @@ final class UserProfile {
     var hasCompletedOnboarding: Bool = false
     var selectedCategoriesData: String = "[]"
     var ttsEnabled: Bool = true
-    /// OpenAI TTS voice name — raw value of `OpenAITTSService.Voice`. Default
-    /// `nova` is warm and conversational; users can preview + switch in
-    /// Voice Settings.
-    var ttsVoice: String = "21m00Tcm4TlvDq8ikWAM"
+    /// ElevenLabs voice ID — raw value of `ElevenLabsTTSService.Voice`.
+    /// Default is Charlotte (warm & grounded); users can preview + switch
+    /// in Voice Settings.
+    var ttsVoice: String = "XB0fDUnXU5powFXDhCwa"
     var affirmationCount: Int = 3
     /// Raw value of `AffirmationBudget`. Stored as `String` (rather than
     /// the enum itself) so an existing SwiftData store migrates without a

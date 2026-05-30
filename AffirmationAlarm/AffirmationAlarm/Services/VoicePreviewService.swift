@@ -7,7 +7,7 @@ final class VoicePreviewService: NSObject, AVAudioPlayerDelegate {
     private var playerContinuation: CheckedContinuation<Void, Never>?
     private var sessionConfigured = false
 
-    var voice: ElevenLabsTTSService.Voice = .rachel
+    var voice: ElevenLabsTTSService.Voice = .charlotte
     var lastError: String?
 
     func preview(text: String) async {

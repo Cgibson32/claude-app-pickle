@@ -145,7 +145,7 @@ final class MorningAudioRenderer {
         )
 
         let cache = AffirmationCacheService()
-        let voice = ElevenLabsTTSService.Voice(rawValue: profile.ttsVoice) ?? .rachel
+        let voice = ElevenLabsTTSService.Voice(rawValue: profile.ttsVoice) ?? .charlotte
         let count = profile.affirmationCount
 
         do {
@@ -195,7 +195,7 @@ final class MorningAudioRenderer {
 
         guard ensureSoundsDirectoryExists() else { return }
 
-        let voice = ElevenLabsTTSService.Voice(rawValue: profile.ttsVoice) ?? .rachel
+        let voice = ElevenLabsTTSService.Voice(rawValue: profile.ttsVoice) ?? .charlotte
         let composer = ScriptComposer(
             name: profile.name,
             affirmations: [],
@@ -284,7 +284,7 @@ final class MorningAudioRenderer {
             exclude: exclude
         )
 
-        let voice = ElevenLabsTTSService.Voice(rawValue: profile.ttsVoice) ?? .rachel
+        let voice = ElevenLabsTTSService.Voice(rawValue: profile.ttsVoice) ?? .charlotte
         let count = profile.affirmationCount
 
         let composer = ScriptComposer(

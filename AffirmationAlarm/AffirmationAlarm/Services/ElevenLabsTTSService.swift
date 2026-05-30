@@ -29,38 +29,26 @@ final class ElevenLabsTTSService {
     /// Curated voices that work well for morning affirmations —
     /// confident, warm, inspiring. Raw values are ElevenLabs voice IDs.
     enum Voice: String, CaseIterable, Sendable {
-        case rachel = "21m00Tcm4TlvDq8ikWAM"
-        case drew   = "29vD33N1CtxCmqQRPOHJ"
-        case sarah  = "EXAVITQu4vr4xnSDxMaL"
-        case matilda = "XrExE9yKIg1WjnnlVkGX"
-        case brian  = "nPczCjzI2devNBz1zQrb"
-        case daniel = "onwK4e9ZLuTAKqWW03F9"
-        case lily   = "pFZP5JQG7iQjIQuC4Bku"
-        case chris  = "iP95p4xoKVk53GoZ742B"
+        case charlotte = "XB0fDUnXU5powFXDhCwa"   // default
+        case om        = "ePiPWpzcHZrcqRzFrgQg"
+        case clara     = "Qggl4bOxRMiqOwhPtVWT"
+        case daniel    = "onwK4e9ZLuTAKqWW03F9"
 
         var displayName: String {
             switch self {
-            case .rachel: "Rachel"
-            case .drew:   "Drew"
-            case .sarah:  "Sarah"
-            case .matilda: "Matilda"
-            case .brian:  "Brian"
-            case .daniel: "Daniel"
-            case .lily:   "Lily"
-            case .chris:  "Chris"
+            case .charlotte: "Charlotte"
+            case .om:        "Om"
+            case .clara:     "Clara"
+            case .daniel:    "Daniel"
             }
         }
 
         var tagline: String {
             switch self {
-            case .rachel: "Calm & confident"
-            case .drew:   "Warm & assured"
-            case .sarah:  "Soft & encouraging"
-            case .matilda: "Warm & nurturing"
-            case .brian:  "Deep & grounded"
-            case .daniel: "Deep & authoritative"
-            case .lily:   "Warm & British"
-            case .chris:  "Casual & friendly"
+            case .charlotte: "Warm & grounded"
+            case .om:        "Calm & centered"
+            case .clara:     "Soft & encouraging"
+            case .daniel:    "Deep & authoritative"
             }
         }
 
@@ -68,18 +56,13 @@ final class ElevenLabsTTSService {
         /// toward a warm, motivational morning tone. Prepended to the
         /// script unless a per-call override is supplied. v3 tags are
         /// voice/context dependent — these are conservative, widely
-        /// supported ones (warmly / calm / confident / gently /
-        /// cheerfully).
+        /// supported ones (warmly / calm / confident / gently).
         var defaultDeliveryTag: String {
             switch self {
-            case .rachel: "confident"
-            case .drew:   "warmly"
-            case .sarah:  "gently"
-            case .matilda: "warmly"
-            case .brian:  "calm"
-            case .daniel: "confident"
-            case .lily:   "warmly"
-            case .chris:  "cheerfully"
+            case .charlotte: "warmly"
+            case .om:        "calm"
+            case .clara:     "gently"
+            case .daniel:    "confident"
             }
         }
     }
@@ -109,7 +92,7 @@ final class ElevenLabsTTSService {
     /// Pass an empty string to send no tag at all.
     func synthesize(
         text: String,
-        voice: Voice = .drew,
+        voice: Voice = .charlotte,
         delivery: String? = nil,
         format: String = "mp3_44100_128"
     ) async throws -> Data {
