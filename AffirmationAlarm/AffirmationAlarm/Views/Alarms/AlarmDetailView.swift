@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import ActivityKit
 
 struct AlarmDetailView: View {
     @Environment(\.modelContext) private var modelContext
@@ -14,6 +15,14 @@ struct AlarmDetailView: View {
     @State private var label: String
     @State private var isEnabled: Bool
     @State private var showDeleteConfirmation = false
+    @State private var showLiveActivityAlert = false
+
+    /// We only nudge the user about Live Activities ONCE — the first time
+    /// they save an alarm with Live Activities disabled. After that
+    /// (whether they enabled it or chose "Save Anyway") we don't pester
+    /// them on every alarm. The persistent home-screen banner still
+    /// reminds them if it's ever turned back off.
+    @AppStorage("hasPromptedLiveActivities") private var hasPromptedLiveActivities = false
 
     init(alarm: Alarm?) {
         self.alarm = alarm
@@ -100,11 +109,37 @@ struct AlarmDetailView: View {
                         .foregroundStyle(AppTheme.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Save") { save() }
+                    Button("Save") { attemptSave() }
                         .foregroundStyle(AppTheme.gold)
                         .fontWeight(.semibold)
                 }
             }
+            .alert("Turn On Live Activities", isPresented: $showLiveActivityAlert) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                    save()
+                }
+                Button("Save Anyway", role: .cancel) { save() }
+            } message: {
+                Text("Your alarm needs Live Activities to show Stop and Snooze buttons on the lock screen. Without it, you'll have to open the app to stop the alarm.\n\nEnable it under Settings → Affirmation Alarm → Live Activities.")
+            }
+        }
+    }
+
+    /// Gate the save behind a Live Activities check. If they're off and
+    /// the alarm will be enabled, prompt the user to turn them on first
+    /// (the lock-screen Stop/Snooze depends on them). They can still
+    /// save anyway.
+    private func attemptSave() {
+        if isEnabled,
+           !hasPromptedLiveActivities,
+           !ActivityAuthorizationInfo().areActivitiesEnabled {
+            hasPromptedLiveActivities = true
+            showLiveActivityAlert = true
+        } else {
+            save()
         }
     }
 
