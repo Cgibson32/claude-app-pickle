@@ -63,7 +63,9 @@ struct AffirmationAlarmApp: App {
 
         // Force the AlarmKitScheduler singleton to materialize at launch so
         // its alarmUpdates observer is running before the first alarm fires.
-        _ = AlarmKitScheduler.shared
+        // Share the app's ModelContainer so fire-time code doesn't create
+        // transient containers that contend on the same SQLite store.
+        AlarmKitScheduler.shared.appContainer = modelContainer
 
         // Start the keep-alive unconditionally at process launch. If no
         // alarms are enabled this is idempotent/harmless. If one IS

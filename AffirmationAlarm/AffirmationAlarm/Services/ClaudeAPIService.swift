@@ -173,6 +173,8 @@ actor ClaudeAPIService {
             let inner = text.data(using: .utf8),
             let payload = try? decoder.decode(AffirmationPayload.self, from: inner)
         else {
+            let preview = String(data: data.prefix(300), encoding: .utf8) ?? "(binary)"
+            DiagnosticsLog.shared.log("claude", "malformed response body: \(preview)")
             throw APIError.malformedResponse
         }
         return GeneratedContent(

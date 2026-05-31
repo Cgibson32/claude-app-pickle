@@ -69,6 +69,11 @@ final class AlarmKitScheduler {
 
     static let shared = AlarmKitScheduler()
 
+    /// Set once at launch from AffirmationAlarmApp.init so fire-time
+    /// code reuses the app's container instead of creating transient ones
+    /// (which can cause SQLite contention on the same store file).
+    var appContainer: ModelContainer?
+
     // MARK: - Observable state
 
     /// `true` when the user has explicitly denied AlarmKit authorization.
@@ -119,6 +124,7 @@ final class AlarmKitScheduler {
     func markOneShotFired(_ id: UUID) {
         var ids = firedOneShotIDs()
         ids.insert(id)
+        if ids.count > 20 { ids = Set(ids.suffix(20)) }
         UserDefaults.standard.set(ids.map(\.uuidString), forKey: Self.firedOneShotIDsKey)
     }
 
@@ -702,7 +708,10 @@ final class AlarmKitScheduler {
     private func attemptRender(followUpID: UUID, attempt: Int, timeout: Duration) async -> Bool {
         let renderTask = Task { @MainActor () -> Bool in
             do {
-                let container = try ModelContainer(for: AffirmationAlarmApp.appSchema)
+                guard let container = self.appContainer else {
+                    DiagnosticsLog.shared.log("scheduler", "snooze render: no app container")
+                    return false
+                }
                 let context = ModelContext(container)
                 guard let profile = try context.fetch(FetchDescriptor<UserProfile>()).first else {
                     DiagnosticsLog.shared.log("scheduler", "snooze render attempt \(attempt): no profile found")
@@ -1030,7 +1039,10 @@ final class AlarmKitScheduler {
     /// existing guard falls through to the system tone.
     private func attemptLiveRender(alarmID: UUID) async {
         do {
-            let container = try ModelContainer(for: AffirmationAlarmApp.appSchema)
+            guard let container = appContainer else {
+                DiagnosticsLog.shared.log("observer", "live render: no app container")
+                return
+            }
             let context = ModelContext(container)
 
             let profileDescriptor = FetchDescriptor<UserProfile>()

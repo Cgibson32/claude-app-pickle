@@ -53,7 +53,7 @@ final class MorningAudioRenderer {
     /// on the next refresh call. 6h means an evening render always
     /// refreshes by morning, and a just-fired alarm's reconcile pass
     /// always produces a fresh render for tomorrow.
-    private let staleAfter: TimeInterval = 300
+    private let staleAfter: TimeInterval = 6 * 60 * 60
 
     private let tts = ElevenLabsTTSService()
 
