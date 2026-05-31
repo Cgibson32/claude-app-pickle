@@ -551,6 +551,23 @@ final class AlarmKitScheduler {
                 scheduleAlarm(alarm)
             }
         }
+
+        refreshLiveActivities(alarms: enabled)
+    }
+
+    /// Ensure every enabled alarm with an upcoming fire has a Live Activity.
+    /// iOS auto-ends Live Activities after ~8 hours, so an alarm set at
+    /// 10 PM for 6 AM may have lost its activity by fire time. This runs
+    /// on every reconcile (app resume) to re-start any that expired.
+    private func refreshLiveActivities(alarms: [Alarm]) {
+        let activeAlarmIDs = Set(
+            Activity<RingingAttributes>.activities.map { $0.attributes.alarmID }
+        )
+
+        for alarm in alarms where alarm.isEnabled {
+            guard !activeAlarmIDs.contains(alarm.id) else { continue }
+            startScheduledLiveActivity(for: alarm)
+        }
     }
 
     /// Schedule only alarms that are NOT already live in AlarmKit.
@@ -902,7 +919,22 @@ final class AlarmKitScheduler {
             }
             DiagnosticsLog.shared.log("observer", "Live Activity updated to ringing for \(alarmID.uuidString.prefix(8))")
         } else {
-            DiagnosticsLog.shared.log("observer", "no Live Activity found to update for \(alarmID.uuidString.prefix(8))")
+            // No existing activity — it either expired (8h limit) or was
+            // never started. Try starting one now as a last resort. This
+            // works if the app is foregrounded or transitioning; fails
+            // silently from deep background (user still has the backup
+            // notification's Stop/Snooze actions via long-press).
+            do {
+                let fallback = try Activity<RingingAttributes>.request(
+                    attributes: RingingAttributes(alarmID: alarmID, label: label),
+                    content: ActivityContent(state: RingingAttributes.ContentState(isRinging: true), staleDate: nil),
+                    pushType: nil
+                )
+                scheduledActivities[alarmID] = fallback.id
+                DiagnosticsLog.shared.log("observer", "Live Activity started at fire time for \(alarmID.uuidString.prefix(8))")
+            } catch {
+                DiagnosticsLog.shared.log("observer", "Live Activity fire-time start failed: \(error.localizedDescription)")
+            }
         }
 
         // The backup notification stays alive until the audio player
