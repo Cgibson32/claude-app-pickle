@@ -48,15 +48,6 @@ struct AppTheme {
     static let quick = Animation.spring(response: 0.3, dampingFraction: 0.8)
 
     // MARK: - Fonts
-    static func soraFont(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        switch weight {
-        case .bold: return .custom("Sora-Bold", size: size)
-        case .semibold: return .custom("Sora-SemiBold", size: size)
-        case .medium: return .custom("Sora-Medium", size: size)
-        default: return .custom("Sora-Regular", size: size)
-        }
-    }
-
     static func dmSans(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         switch weight {
         case .bold: return .custom("DMSans-Bold", size: size)

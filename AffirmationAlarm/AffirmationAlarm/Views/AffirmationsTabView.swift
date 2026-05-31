@@ -228,7 +228,7 @@ private struct AffirmationRow: View {
                         .foregroundStyle(affirmation.isPriority ? AppTheme.gold : AppTheme.textTertiary)
                         .font(.system(size: 16))
                 }
-                .accessibilityLabel(affirmation.isPriority ? "Remove from favorites" : "Add to favorites")
+                .accessibilityLabel(affirmation.isPriority ? "Remove from Always Play" : "Add to Always Play")
 
                 Button {
                     HapticService.light()

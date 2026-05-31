@@ -89,7 +89,7 @@ class OnboardingViewModel {
         //
         // The render takes ~5-10 seconds (Claude + OpenAI TTS round-trips)
         // during which the user is already on HomeView with an empty
-        // `TodayAffirmationsCard`. We set an `isPreparingFirstMorning`
+        // the home screen. We set an `isPreparingFirstMorning`
         // flag in UserDefaults so HomeView can show a "Preparing your
         // first morning ritual..." banner until the render completes.
         UserDefaults.standard.set(true, forKey: "isPreparingFirstMorning")

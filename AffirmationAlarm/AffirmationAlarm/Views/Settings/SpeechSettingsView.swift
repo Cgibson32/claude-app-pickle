@@ -146,7 +146,7 @@ struct SpeechSettingsView: View {
     /// so they can hear what they'll wake up to. Clears any in-flight
     /// preview before starting a new one. First tap of any voice has a
     /// ~1s OpenAI round-trip; subsequent taps hit the in-memory cache in
-    /// `OpenAITTSService` and play instantly.
+    /// the TTS service and play instantly.
     private func preview(voice: ElevenLabsTTSService.Voice, profile: UserProfile) {
         previewSpeech.stop()
 

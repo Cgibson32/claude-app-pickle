@@ -1,8 +1,7 @@
 import Foundation
 
 /// Synthesizes spoken audio via ElevenLabs' text-to-speech API.
-/// Drop-in replacement for OpenAITTSService with higher quality,
-/// more natural-sounding voices.
+/// High quality, natural-sounding voices with v3 audio tag support.
 @MainActor
 final class ElevenLabsTTSService {
 

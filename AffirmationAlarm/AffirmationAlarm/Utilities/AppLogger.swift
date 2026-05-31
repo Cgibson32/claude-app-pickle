@@ -16,7 +16,7 @@ import os
 /// - `audio` — MorningAudioRenderer, AlarmAudioPlayer, AVAudioSession
 /// - `alarm` — AlarmKitScheduler, AlarmManager interactions
 /// - `intent` — StopAndPlayClosingIntent, SnoozeMorningIntent
-/// - `tts` — OpenAITTSService
+/// - `tts — ElevenLabsTTSService
 /// - `claude` — ClaudeAPIService, AffirmationCacheService
 enum AppLogger {
     private static let subsystem = "com.cgibson.affirmationalarm"

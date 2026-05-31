@@ -35,7 +35,7 @@ struct SettingsView: View {
                         }
                     }
 
-                    section("Debug") {
+                    section("Advanced") {
                         NavigationLink {
                             DiagnosticsView()
                         } label: {

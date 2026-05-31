@@ -52,10 +52,6 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         UIAppFonts:
-          - Fonts/Sora-Regular.ttf
-          - Fonts/Sora-Medium.ttf
-          - Fonts/Sora-SemiBold.ttf
-          - Fonts/Sora-Bold.ttf
           - Fonts/DMSans-Light.ttf
           - Fonts/DMSans-Regular.ttf
           - Fonts/DMSans-Medium.ttf

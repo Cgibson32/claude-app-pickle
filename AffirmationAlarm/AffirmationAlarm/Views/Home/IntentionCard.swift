@@ -133,6 +133,7 @@ struct IntentionSheet: View {
                     Button("Save") { save() }
                         .foregroundStyle(AppTheme.gold)
                         .fontWeight(.semibold)
+                        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
             .onAppear { focused = true }
