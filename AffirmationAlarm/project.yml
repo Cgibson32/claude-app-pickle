@@ -2,7 +2,10 @@ name: AffirmationAlarm
 options:
   bundleIdPrefix: com.cgibson
   deploymentTarget:
-    iOS: "26.5"
+    # 26.1 is the floor AlarmKit's secondaryButton API needs. Keep this
+    # at/below the build toolchain's SDK (Xcode 26.4 → max 26.4); 26.5
+    # is rejected by the archiver. 26.1 also maximizes device coverage.
+    iOS: "26.1"
 settings:
   SWIFT_VERSION: "6.0"
 # Swift Package Manager dependencies resolved at build time by Xcode.
