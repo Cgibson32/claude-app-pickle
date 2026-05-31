@@ -128,29 +128,34 @@ private struct RingingLockScreenView: View {
                 }
 
                 if isRinging {
-                    Button(intent: StopFromLockScreen(alarmID: alarmID)) {
-                        Text("Stop")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(Color.black)
+                    HStack(spacing: 12) {
+                        Button(intent: SnoozeFromLockScreen(alarmID: alarmID)) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "zzz")
+                                Text("Snooze")
+                            }
+                            .font(.headline)
+                            .foregroundStyle(RingingLiveActivityWidget.cream)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
-                            .background(RingingLiveActivityWidget.gold)
+                            .background(RingingLiveActivityWidget.cream.opacity(0.12))
                             .clipShape(Capsule())
-                            .shadow(color: RingingLiveActivityWidget.gold.opacity(0.4), radius: 12, y: 4)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 8)
-
-                    Button(intent: SnoozeFromLockScreen(alarmID: alarmID)) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "zzz")
-                            Text("Snooze · 9 min")
                         }
-                        .font(.subheadline)
-                        .foregroundStyle(RingingLiveActivityWidget.cream.opacity(0.7))
-                        .padding(.vertical, 4)
+                        .buttonStyle(.plain)
+
+                        Button(intent: StopFromLockScreen(alarmID: alarmID)) {
+                            Text("Stop")
+                                .font(.headline.weight(.semibold))
+                                .foregroundStyle(Color.black)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(RingingLiveActivityWidget.gold)
+                                .clipShape(Capsule())
+                                .shadow(color: RingingLiveActivityWidget.gold.opacity(0.4), radius: 12, y: 4)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                    .padding(.top, 8)
                 } else {
                     Text("Alarm set")
                         .font(.subheadline)

@@ -67,6 +67,11 @@ struct AffirmationAlarmApp: App {
         // transient containers that contend on the same SQLite store.
         AlarmKitScheduler.shared.appContainer = modelContainer
 
+        // Listen for cross-process Stop/Snooze signals from the Live
+        // Activity widget so a lock-screen tap halts audio immediately,
+        // without waiting for the app to foreground.
+        AlarmKitScheduler.shared.installLockScreenSignalObservers()
+
         // Start the keep-alive unconditionally at process launch. If no
         // alarms are enabled this is idempotent/harmless. If one IS
         // enabled, we close the race where the observer Task awaits

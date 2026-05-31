@@ -201,6 +201,46 @@ final class AlarmKitScheduler {
         Task { await AlarmAudioPlayer.shared.stopPlayback() }
     }
 
+    // MARK: - Cross-process Stop/Snooze (Darwin notifications)
+
+    /// Names for the Darwin notifications the Live Activity widget posts
+    /// when its Stop/Snooze buttons are tapped. Darwin notifications cross
+    /// process boundaries, so the widget extension can signal the running
+    /// main-app process to halt audio IMMEDIATELY — without waiting for
+    /// the app to foreground. This is what makes lock-screen Stop work
+    /// while affirmations are mid-playback.
+    static let stopDarwinName = "com.cgibson.affirmationalarm.lockscreen.stop"
+    static let snoozeDarwinName = "com.cgibson.affirmationalarm.lockscreen.snooze"
+
+    private var darwinObserversInstalled = false
+
+    /// Install the Darwin observers once, at launch. The C callback can't
+    /// capture context, so it routes back through the singleton.
+    func installLockScreenSignalObservers() {
+        guard !darwinObserversInstalled else { return }
+        darwinObserversInstalled = true
+
+        let center = CFNotificationCenterGetDarwinNotifyCenter()
+
+        CFNotificationCenterAddObserver(
+            center, nil,
+            { _, _, _, _, _ in
+                Task { @MainActor in AlarmKitScheduler.shared.userPressedStop() }
+            },
+            Self.stopDarwinName as CFString,
+            nil, .deliverImmediately
+        )
+        CFNotificationCenterAddObserver(
+            center, nil,
+            { _, _, _, _, _ in
+                Task { @MainActor in AlarmKitScheduler.shared.userPressedSnooze() }
+            },
+            Self.snoozeDarwinName as CFString,
+            nil, .deliverImmediately
+        )
+        DiagnosticsLog.shared.log("scheduler", "lock-screen Darwin observers installed")
+    }
+
     // MARK: - Private state
 
     private let manager = AlarmManager.shared

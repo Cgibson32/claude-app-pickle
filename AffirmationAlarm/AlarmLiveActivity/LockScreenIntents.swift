@@ -32,8 +32,23 @@ struct StopFromLockScreen: LiveActivityIntent {
         try? AlarmManager.shared.cancel(id: uuid)
         UserDefaults.standard.set("stop", forKey: "lockScreenAction")
         UserDefaults.standard.set(uuid.uuidString, forKey: "pendingMorningPlayback")
+        // Signal the running main-app process to halt audio immediately,
+        // even before the app foregrounds. Name must match
+        // AlarmKitScheduler.stopDarwinName.
+        postDarwin("com.cgibson.affirmationalarm.lockscreen.stop")
         return .result()
     }
+}
+
+/// Post a Darwin notification across process boundaries. The Live
+/// Activity widget runs in a separate process from the main app; this
+/// is how a lock-screen button tap reaches the running audio player.
+private func postDarwin(_ name: String) {
+    CFNotificationCenterPostNotification(
+        CFNotificationCenterGetDarwinNotifyCenter(),
+        CFNotificationName(name as CFString),
+        nil, nil, true
+    )
 }
 
 /// Snooze intent invoked when the user taps the Snooze label inside
@@ -63,6 +78,9 @@ struct SnoozeFromLockScreen: LiveActivityIntent {
         try? AlarmManager.shared.cancel(id: uuid)
         UserDefaults.standard.set("snooze", forKey: "lockScreenAction")
         UserDefaults.standard.set(uuid.uuidString, forKey: "pendingSnoozeRescheduleAlarmID")
+        // Signal the running main-app process to snooze immediately.
+        // Name must match AlarmKitScheduler.snoozeDarwinName.
+        postDarwin("com.cgibson.affirmationalarm.lockscreen.snooze")
         return .result()
     }
 }
