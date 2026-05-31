@@ -63,17 +63,21 @@ struct ShareableAffirmationCard: View {
     /// gold. Otherwise the whole line is upright cream.
     private var styledAffirmation: Text {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let commaIdx = trimmed.lastIndex(of: ","),
-           trimmed.distance(from: trimmed.startIndex, to: commaIdx) >= 8 {
-            let head = String(trimmed[..<commaIdx]) + ","
-            let tail = String(trimmed[trimmed.index(after: commaIdx)...])
-                .trimmingCharacters(in: .whitespaces)
-            return Text(head + " ")
-                .foregroundColor(cream)
-            + Text(tail)
-                .italic()
-                .foregroundColor(mutedGold)
+        guard let commaIdx = trimmed.lastIndex(of: ","),
+              trimmed.distance(from: trimmed.startIndex, to: commaIdx) >= 8 else {
+            return Text(trimmed).foregroundColor(cream)
         }
-        return Text(trimmed).foregroundColor(cream)
+
+        var head = AttributedString(String(trimmed[..<commaIdx]) + ", ")
+        head.foregroundColor = cream
+
+        var tail = AttributedString(
+            String(trimmed[trimmed.index(after: commaIdx)...])
+                .trimmingCharacters(in: .whitespaces)
+        )
+        tail.foregroundColor = mutedGold
+        tail.inlinePresentationIntent = .emphasized
+
+        return Text(head + tail)
     }
 }

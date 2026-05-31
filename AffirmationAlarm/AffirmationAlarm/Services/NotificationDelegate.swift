@@ -71,7 +71,7 @@ class NotificationDelegate: NSObject, @preconcurrency UNUserNotificationCenterDe
                     DiagnosticsLog.shared.log("notification", "Stop tapped on backup notification — pending playback for \(alarmIDString.prefix(8))")
                 }
             case Self.snoozeActionID:
-                if let alarmID {
+                if alarmID != nil {
                     UserDefaults.standard.set(alarmIDString, forKey: "pendingSnoozeRescheduleAlarmID")
                     DiagnosticsLog.shared.log("notification", "Snooze tapped on backup notification — pending snooze for \(alarmIDString.prefix(8))")
                 }
