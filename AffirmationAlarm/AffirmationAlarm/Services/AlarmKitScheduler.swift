@@ -589,10 +589,19 @@ final class AlarmKitScheduler {
     ///   that cleared state) get re-scheduled.
     /// - Rows still live in AlarmKit are left alone.
     func reconcile(alarms: [Alarm]) {
+        // Cancel any AlarmKit alarm that doesn't correspond to a known
+        // SwiftData row. Catches phantom alarms left over from testing,
+        // crashed scheduling, or stale snooze follow-ups.
+        let knownIDs = Set(alarms.map(\.id))
+        let live = (try? manager.alarms) ?? []
+        for liveAlarm in live where !knownIDs.contains(liveAlarm.id) {
+            try? manager.cancel(id: liveAlarm.id)
+            DiagnosticsLog.shared.log("reconcile", "cancelled stale AlarmKit alarm \(liveAlarm.id.uuidString.prefix(8)) — not in SwiftData")
+        }
+
         let enabled = alarms.filter(\.isEnabled)
         guard !enabled.isEmpty else { return }
 
-        let live = (try? manager.alarms) ?? []
         let liveIDs = Set(live.map(\.id))
 
         let firedOneShots = firedOneShotIDs()

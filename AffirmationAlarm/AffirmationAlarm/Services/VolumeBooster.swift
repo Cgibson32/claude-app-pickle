@@ -73,7 +73,7 @@ enum VolumeBooster {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             let slider = helper.subviews.compactMap { $0 as? UISlider }.first
             let level = UserDefaults.standard.float(forKey: VolumeBooster.volumeKey)
-            let target: Float = level > 0 ? level : 0.7
+            let target: Float = level > 0 ? level : 0.5
             slider?.value = target
             DiagnosticsLog.shared.log("volume", "boosted to \(Int(target * 100))% (slider=\(slider != nil))")
 

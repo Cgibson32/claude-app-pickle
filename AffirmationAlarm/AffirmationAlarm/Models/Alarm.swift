@@ -7,7 +7,7 @@ final class Alarm {
     var hour: Int = 6
     var minute: Int = 30
     var isEnabled: Bool = true
-    var soundName: String = "alarm_rise"
+    var soundName: String = "alarm_gentle"
     var label: String = "Morning Affirmations"
     var repeatDaysData: String = "[]"
 
